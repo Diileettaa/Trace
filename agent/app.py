@@ -588,3 +588,17 @@ async def docs_store(request: Request, rest: str = ""):
     status, headers, data = await run_in_threadpool(docs_api.handle, request.method, path, request.url.query,
                                                     dict(request.headers), body)
     return Response(content=data, status_code=status, headers=headers)
+
+
+@app.get("/catalog")
+def drawing_catalog(kind: str | None = None):
+    """Dataset drawings and models for the picker: featured demo files first, then by source.
+    kind=3d (IFC models) or kind=plan (PDF/PNG plans) filters the items."""
+    from . import catalog
+
+    out = catalog.catalog()
+    if kind:
+        out = {"featured": [p for p in out["featured"] if (p.endswith(".ifc")) == (kind == "3d")],
+               "sources": [{**s, "items": [i for i in s["items"] if i["kind"] == kind]} for s in out["sources"]]}
+        out["sources"] = [{**s, "count": len(s["items"])} for s in out["sources"] if s["items"]]
+    return out
