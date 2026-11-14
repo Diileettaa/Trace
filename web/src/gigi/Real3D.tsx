@@ -96,7 +96,7 @@ export const Real3D: React.FC<Props> = ({
           </div>
         )}
 
-        <div className="h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
+        <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
           {model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)} />
           ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (

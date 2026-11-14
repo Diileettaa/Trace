@@ -24,3 +24,10 @@
   .gigi-root img, .gigi-root svg, .gigi-root canvas { display: block; max-width: 100%; }
   .gigi-root label { display: block; font-size: inherit; color: inherit; }
 }
+
+/* Inside Gigi's 3D frame show only the model: our viewer's own bars and side panel stay on the Project page.
+   Unlayered on purpose so it beats the legacy layer. */
+.gigi-3d .viewer-bar, .gigi-3d .status, .gigi-3d .viewer-main-row > :first-child:not(.three):not(canvas) { display: none !important; }
+.gigi-3d .viewer-main-row { height: 100%; }
+.gigi-3d { height: 430px; } .gigi-3d > div { height: 100%; }
+.gigi-3d .three { min-height: 0; flex: 1; }
