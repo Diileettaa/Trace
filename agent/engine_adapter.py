@@ -57,6 +57,11 @@ def answer(path: str, question: str) -> dict:
             x0, y0, x1, y1 = box
             sources.append({"file": path, "page": 1, "bbox": [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)],
                             "label": label})
+    if ":prior" in str(r.get("method")):
+        # cubicasa without a vision result: the engine falls back to typical-plan statistics, not a detection
+        out_warn = "Engine has no detection for this raster plan (statistical prior only); use count_in_drawing"
+        return {"value": None, "unit": r.get("unit"), "items": [], "sources": [], "method": f"engine:{r.get('method')}",
+                "warnings": [out_warn], "engine_prior_value": r.get("value"), "engine_sources": r.get("sources") or []}
     model = next((s["file"] for s in r.get("sources") or [] if str(s.get("file", "")).endswith(".ifc")), None)
     out = {
         "value": r.get("value"),

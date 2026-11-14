@@ -167,3 +167,14 @@ def test_engine_present_hides_mock_tools():
 
     names = [d["name"] for d in tools.declarations()]
     assert names[0] == "answer_from_engine" and "count_elements" not in names
+
+
+def test_engine_prior_is_not_presented_as_answer(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter
+
+    monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 1, "unit": "count", "items": [], "sources": [],
+                                                    "method": "cubicasa:prior:toilet", "warnings": []})
+    r = engine_adapter.answer("data/cubicasa5k/x.png", "How many toilets?")
+    assert r["value"] is None and "count_in_drawing" in r["warnings"][0]

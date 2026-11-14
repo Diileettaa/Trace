@@ -6,3 +6,5 @@ openai>=1.40
 python-dotenv
 pytest
 httpx
+numpy
+opencv-python-headless  # engine: calibrates boxes on PNG drawings
