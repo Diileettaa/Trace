@@ -102,11 +102,17 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
 
     t_start = time.perf_counter()
     model_s: list[float] = []
+    usage = {"input": 0, "output": 0, "thinking": 0, "gemini_calls": 0}
     for attempt in range(2):  # second attempt only if the number check fails
         for _ in range(config.MAX_TOOL_STEPS):
             t0 = time.perf_counter()
             resp = client.models.generate_content(model=config.GEMINI_MODEL, contents=contents, config=gen_config)
             model_s.append(round(time.perf_counter() - t0, 2))
+            um = getattr(resp, "usage_metadata", None)
+            for k, attr in (("input", "prompt_token_count"), ("output", "candidates_token_count"),
+                            ("thinking", "thoughts_token_count")):
+                usage[k] += int(getattr(um, attr, 0) or 0) if um else 0
+            usage["gemini_calls"] += 1
             calls = resp.function_calls or []
             if not calls:
                 answer = resp.text or ""
@@ -137,7 +143,42 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
 
     timing = {"total_s": round(time.perf_counter() - t_start, 2), "gemini_calls_s": model_s,
               "tools_s": [e.get("elapsed_s") for e in evidence if "elapsed_s" in e]}
-    return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls, "timing": timing}
+    usage["vision_calls"] = sum(1 for e in evidence if e.get("tool") in ("count_in_drawing", "scan_drawing_inventory")
+                                and not e.get("cached"))
+    usage["nemotron_calls"] = sum(1 for e in evidence if (e.get("verified_by") or {}).get("nemotron_count") is not None)
+    return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls, "timing": timing,
+            "usage": usage, "trace": build_trace(question, tool_calls, evidence, answer)}
+
+
+def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], answer: str) -> list[dict]:
+    """Human-readable steps behind an answer, so a person can check where each number came from."""
+    steps = [{"kind": "question", "title": "Question received", "detail": question}]
+    calls = iter(tool_calls)
+    for e in evidence:
+        if e.get("tool") == "number_check":
+            steps.append({"kind": "check", "ok": False, "title": "Number check failed",
+                          "detail": "; ".join(e.get("warnings") or [])})
+            continue
+        call = next(calls, {"name": e.get("tool"), "args": {}})
+        args = {k: v for k, v in (call.get("args") or {}).items() if k != "path"}
+        unit = e.get("unit") or ""
+        steps.append({
+            "kind": "tool", "title": f"Gemini called {call.get('name')}", "args": args,
+            "detail": f"result: {e.get('value')} {unit}".strip(),
+            "method": e.get("method"), "boxes": len(e.get("sources") or []),
+            "items": len(e.get("items") or []), "elapsed_s": e.get("elapsed_s"), "cached": bool(e.get("cached")),
+            "warnings": e.get("warnings") or [],
+        })
+        v = e.get("verified_by")
+        if v and v.get("nemotron_count") is not None:
+            steps.append({"kind": "check", "ok": bool(v.get("agreement")),
+                          "title": "Independent second count (Nemotron 3.5 Super VL)",
+                          "detail": f"Nemotron counted {v['nemotron_count']}, first count {e.get('value')}"})
+    if not any(s["kind"] == "check" and s["title"].startswith("Number check") for s in steps):
+        steps.append({"kind": "check", "ok": True, "title": "Number check passed",
+                      "detail": "Every number in the answer appears in a tool result or in the question"})
+    steps.append({"kind": "answer", "title": "Answer written by Gemini from the tool results", "detail": answer})
+    return steps
 
 
 def list_models() -> None:

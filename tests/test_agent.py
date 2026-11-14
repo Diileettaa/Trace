@@ -108,3 +108,18 @@ def test_raw_file_endpoint():
     c = TestClient(app)
     assert c.get("/file", params={"path": "data/demo/plan.pdf"}).status_code == 200
     assert c.get("/file", params={"path": "../secret"}).status_code == 404
+
+
+def test_answer_has_trace_and_usage(monkeypatch):
+    from agent import agent, vision
+
+    monkeypatch.setattr(vision, "_gemini_detect", lambda png, t: [{"box_2d": [100, 100, 200, 200]}])
+    monkeypatch.setattr(vision, "_nemotron_count", lambda png, t: 1)
+    monkeypatch.setattr(vision.config, "NEMOTRON_MODEL", "nemo")
+    call = types.FunctionCall(name="count_in_drawing", args={"path": "data/demo/plan.png", "target": "toilets"})
+    out = agent.ask("How many toilets?", "data/demo/plan.png",
+                    client=FakeClient([_Resp(calls=[call]), _Resp(text="1 toilet.")]))
+    kinds = [s["kind"] for s in out["trace"]]
+    assert kinds[0] == "question" and kinds[-1] == "answer" and "tool" in kinds
+    assert any(s["kind"] == "check" and "Nemotron" in s["title"] and s["ok"] for s in out["trace"])
+    assert out["usage"]["gemini_calls"] == 2 and out["usage"]["nemotron_calls"] == 1
