@@ -13,11 +13,11 @@
 | T-07 | 数据源署名 + IFC 实测 | Claude / Diletta | [~] | `LicenseBadge.tsx` 只写来源名，许可证文字要按数据集 LICENSE 补；真实 IFC 加载需在本机测 |
 | T-08 | 后端 collab 接口 + 角色 | Claude | [?] | `agent/collab.py`，`/collab*`；角色加 plumber、owner |
 | T-09 | 前端总装 + Nemotron 徽章 | Claude | [?] | `App.tsx`、`DrawingViewer.tsx`、`VerifyBadge.tsx`；`npm run build` 通过 |
-| T-10 | 接 Xinran 的 engine | Claude | [~] | `engine/` 从 origin/main 拷入（Xinran 维护，只读）；`agent/engine_adapter.py` 转成统一格式；智能体优先调 `answer_from_engine`；单测过，待用真实数据抽测 |
+| T-10 | 接 Xinran 的 engine | Claude | [?] | `engine/` 从 origin/main 拷入（Xinran 维护，只读）；`agent/engine_adapter.py` 转成统一格式；智能体优先调 `answer_from_engine`；真实题库抽测：swiss 40/40 且全部带框；ifc_models 34/40（错的 4 题是 preview 里没有该 IFC 模型）；cubicasa 引擎只有统计先验 → 自动转 Gemini 视觉计数 |
 | T-11 | Verda 批处理 + Dockerfile + 部署 | Codex / Diletta | [?] | 预热脚本完成；pytest 23 passed，前端 build 通过；Verda 部署仍待确认 |
 | T-12 | README 各 Tech Challenge + verda-log | Codex | [?] | 文档完成；pytest 23 passed，前端 build 通过 |
 | T-13 | Codex 真实提交（Codex 挑战证据） | Codex | [ ] | 上面的 T-04 是 Claude 写的，Codex 挑战需要 Codex 自己做 T-11/T-12 |
 | T-14 | 界面全部改英文（评委看英文），中文只留在代码注释里 | Gemini (Antigravity) | [ ] | 只改 web/src/**；`npm run build` 通过 |
-| T-15 | 3D 联动：目录树/证据点击 → IfcViewer 按 guid 高亮并居中；拿数据集里最小的真实 .ifc 测，WASM 路径在 build+preview 下也能加载 | Gemini (Antigravity) | [ ] | 只改 web/src/**；IFC 加载失败时显示提示而不是白屏 |
+| T-15 | 3D 联动：后端证据里有 `model_file`（如 data/ifc_models/x.ifc）时，在答案区加 "Open in 3D" 按钮，用 IfcViewer 加载 model_file 并高亮 items 里的 guid；目录树/证据点击 → IfcViewer 按 guid 高亮并居中；拿数据集里最小的真实 .ifc 测，WASM 路径在 build+preview 下也能加载 | Gemini (Antigravity) | [ ] | 只改 web/src/**；IFC 加载失败时显示提示而不是白屏 |
 | T-16 | Demo 黄金路径：左上加 "Demo" 下拉，5 道固定演示题（PNG 计数、全构件识别、IFC 计数、IFC 面积、房间留言），一键填入路径和问题 | Gemini (Antigravity) | [ ] | 题目和路径写在 web/src/demo.ts，Diletta 醒后填真实路径 |
 | T-17 | 答案卡片打磨：加载动画、显示工具调用链（Gemini → 工具名）、cached 标记、错误提示友好 | Gemini (Antigravity) | [ ] | 只改 web/src/** |
