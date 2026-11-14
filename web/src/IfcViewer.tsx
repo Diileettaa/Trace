@@ -23,7 +23,6 @@ import {
 } from './viewer3d'
 import type { FragmentsModel } from '@thatopen/fragments'
 import type { CollabState, RoomStatus } from './types'
-import { RoomMetricsCard } from './viewer3d/RoomMetricsCard'
 
 interface Props {
   path: string
@@ -306,7 +305,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [allLocalIds, setAllLocalIds] = useState<number[]>([])
   const [explorerReady, setExplorerReady] = useState(false)
   const [exploded, setExploded] = useState(false)
-  const [exploding, setExploding] = useState(false)
   const [peelStep, setPeelStep] = useState(0)
   const [planView, setPlanView] = useState(false)
   const [roomPlanKey, setRoomPlanKey] = useState('')
@@ -370,7 +368,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     setAllLocalIds([])
     setExplorerReady(false)
     setExploded(false)
-    setExploding(false)
     setPeelStep(0)
     setShowcase(false)
     setTouring(false)
@@ -621,24 +618,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   }, [allLocalIds, selectedElement?.guid, selectedGuid])
 
   useEffect(() => { setShowcaseDegraded(allLocalIds.length > 18000) }, [allLocalIds.length])
-
-  function animateExplode(open: boolean) {
-    const model = modelRef.current
-    if (!model || !storeys.length || exploding) return
-    if (explodeAnimationRef.current) cancelAnimationFrame(explodeAnimationRef.current)
-    setExploding(true)
-    const started = performance.now()
-    const duration = 950
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - started) / duration)
-      const ease = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-      const progress = open ? ease : 1 - ease
-      void applyExplodedView(model, storeys, progress, 6, placementsRef.current)
-      if (t < 1) explodeAnimationRef.current = requestAnimationFrame(tick)
-      else { setExploded(open); setExploding(false); explodeAnimationRef.current = null }
-    }
-    explodeAnimationRef.current = requestAnimationFrame(tick)
-  }
 
   const tourCaptions = ['Whole building', 'Exploded construction', 'A floor at a glance', 'A room in context', 'Walk through', 'Back to the whole building']
 
@@ -1014,44 +993,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     setPopupPosition(popupAt || { x: Math.min((rect?.left || 16) + 16, window.innerWidth - 336), y: Math.min((rect?.top || 16) + 16, window.innerHeight - 300) })
     if (room.storeyId) setSelectedStoreyId(room.storeyId)
     setPlanView(true)
-  }
-
-  function startWalk() {
-    const e = engine.current
-    const room = rooms.find(candidate => candidate.key === selectedRoomKey)
-    if (!e || !room) return
-    const camera = e.world.camera.three
-    savedWalkCameraRef.current = { position: camera.position.clone(), target: e.world.camera.controls.getTarget(new THREE.Vector3()), up: camera.up.clone() }
-    const center = room.box.getCenter(new THREE.Vector3())
-    walkFloorZRef.current = room.box.min.y + 1.6
-    walkPositionRef.current.set(center.x, walkFloorZRef.current, center.z)
-    walkAvatarRef.current?.removeFromParent()
-    const avatar = new THREE.Group()
-    avatar.name = 'trace-walk-avatar'
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(.16, .19, .72, 14), new THREE.MeshStandardMaterial({ color: '#E9B949', roughness: .62 }))
-    body.position.y = .42
-    const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 14, 10), new THREE.MeshStandardMaterial({ color: '#f6d4b4', roughness: .8 }))
-    head.position.y = .92
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(.28, .025, 8, 24), new THREE.MeshBasicMaterial({ color: '#E9B949' }))
-    ring.rotation.x = Math.PI / 2
-    ring.position.y = .04
-    avatar.add(body, head, ring)
-    avatar.position.set(center.x, room.box.min.y + .02, center.z)
-    e.world.scene.three.add(avatar)
-    walkAvatarRef.current = avatar
-    walkYawRef.current = 0
-    walkPitchRef.current = 0
-    setWalkMap({ x: center.x, y: center.y, yaw: 0 })
-    if (room.storeyId) setSelectedStoreyId(room.storeyId)
-    setPlanView(false)
-    setInspectedRoomKey('')
-    if (e.world.camera.projection.current === 'Orthographic') void e.world.camera.projection.set('Perspective')
-    e.world.camera.controls.stop()
-    e.world.camera.controls.enabled = false
-    setWalkHelpVisible(true)
-    if (walkHelpTimerRef.current) window.clearTimeout(walkHelpTimerRef.current)
-    walkHelpTimerRef.current = window.setTimeout(() => setWalkHelpVisible(false), 5000)
-    setWalkMode(true)
   }
 
   function stopWalk() {
@@ -1470,7 +1411,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     explodeAnimationRef.current = null
     tourAnimationRef.current = null
     stopRecording()
-    setExploded(false); setExploding(false); setPeelStep(0); setShowcase(false)
+    setExploded(false); setPeelStep(0); setShowcase(false)
     setTouring(false); setTourStage(0); setPlanView(false); setSelectedStoreyId(null); setRoomPlanKey('')
     setTrades(createInitialTrades())
     const model = modelRef.current
@@ -1729,10 +1670,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
   const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
   const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
-  const measuredRoom = isolateSpaceGuid
-    ? rooms.find(room => room.guid === isolateSpaceGuid)
-    : rooms.find(room => room.key === roomPlanKey)
-
   return <div className={`viewer ${showcase ? 'showcase-mode' : ''} ${recording ? 'showcase-recording' : ''} ${toolsOpen ? 'tools-open' : ''}`}>
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
       ? 'This model contains only plumbing (pipes and fixtures).'
@@ -1779,14 +1716,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       onSelectRoom={focusRoom}
       trades={trades}
       onToggleTrade={toggleTrade}
-      exploded={exploded}
-      onExplodedChange={animateExplode}
       planView={planView}
       onPlanViewChange={setPlanView}
       disabled={!modelReady || !explorerReady || walkMode}
     />
     <div className="three" ref={box}>
-      {measuredRoom && (() => { const size = measuredRoom.box.getSize(new THREE.Vector3()); return <RoomMetricsCard room={{ name: englishRoomName(measuredRoom.name), number: measuredRoom.number, width: size.x, depth: size.z, height: size.y, area: measuredRoom.areaM2 }} fixtures={interiorElementTags.map(tag => ({ id: tag.guid, code: tag.code, category: tag.category, clearance: tag.guid === clearances?.guid ? clearances : undefined }))} /> })()}
       <div className="camera-nav" aria-label="Camera navigation">
         <button type="button" title="Zoom in 20%" onClick={() => { zoomCamera(.8); setZoomLevel(level => Math.min(100, level + 20)) }}>＋</button>
         <input aria-label="Zoom level" type="range" min="0" max="100" value={zoomLevel} onChange={event => { const next = Number(event.target.value); zoomCamera(next > zoomLevel ? .94 : 1.06); setZoomLevel(next) }} />
@@ -1842,7 +1776,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         </div>
       </>}
       {showFirstWalkHint && <div className="first-walk-hint">Pick a floor on the left, then click a room to fly in. Press Walk to look around inside.</div>}
-      <button className="walk-inside-button" type="button" disabled={!modelReady || (!walkMode && !selectedRoomKey)} onClick={walkMode ? stopWalk : startWalk}>{walkMode ? 'Exit Walk · Esc' : '🚶 Walk inside'}</button>
       <div className="viewer-help-control">
         <button type="button" aria-label="3D controls help" aria-expanded={helpOpen} onClick={() => { setHelpOpen(open => !open); if (walkMode) setWalkHelpVisible(true) }}>?</button>
         {helpOpen && <aside className="viewer-help-popover">

@@ -10,8 +10,6 @@ interface BuildingExplorerProps {
   selectedStoreyId: string | null
   onSelectStorey: (storeyId: string | null) => void
   roomCounts?: Record<string, number>
-  exploded: boolean
-  onExplodedChange: (value: boolean) => void
   planView: boolean
   onPlanViewChange: (value: boolean) => void
   rooms: { key: string; name: string; number?: string; areaM2?: number; storeyId?: string }[]
@@ -27,8 +25,6 @@ export function BuildingExplorer({
   selectedStoreyId,
   onSelectStorey,
   roomCounts,
-  exploded,
-  onExplodedChange,
   planView,
   onPlanViewChange,
   rooms,
@@ -79,7 +75,6 @@ export function BuildingExplorer({
         disabled={disabled}
       />
       <div className="explorer-actions">
-        <label><input type="checkbox" checked={exploded} onChange={event => onExplodedChange(event.target.checked)} disabled={disabled} /> Explode</label>
         <button type="button" className={planView ? 'active' : ''} onClick={() => onPlanViewChange(!planView)} disabled={disabled}>{planView ? '3D' : 'Plan'}</button>
       </div>
       <div className="explorer-hint">

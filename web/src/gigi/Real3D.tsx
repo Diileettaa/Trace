@@ -1,8 +1,7 @@
-// Gigi's Detailed3DViewer frame (dark toolbar, Whole Building | Interior, fixture strip, clearance cards)
+// Gigi's 3D frame around our real IFC or drawing-derived 2.5D scene.
 // around our real 3D: the IFC model (IfcViewer) or, for 2D vector plans, rooms extruded from /api/plan/rooms.
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Building2, Eye, Info, MessageSquare, Minus } from 'lucide-react';
-import { roomEnglish } from '../roomNames';
+import { ArrowLeft, Building2, Eye } from 'lucide-react';
 import IfcViewer from '../IfcViewer';
 import PlanRooms3D from '../components/PlanRooms3D';
 import type { FixtureVerification, QueryScenario } from './adapters';
@@ -25,26 +24,15 @@ interface Props {
 
 const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
 
-const ROWS: { key: string; label: string; accent?: boolean }[] = [
-  { key: 'leftWall', label: 'Left Clearance', accent: true },
-  { key: 'rightWall', label: 'Right Clearance' },
-  { key: 'frontClearance', label: 'Front / Door' },
-  { key: 'rearRoughIn', label: 'Rear Wall' },
-  { key: 'seatHeight', label: 'Elevation / Spec', accent: true },
-];
-
 export const Real3D: React.FC<Props> = ({
-  mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D, onAsk,
+  mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
   storeyId, onStoreys, visibleLayers,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
-  const [roomCardOpen, setRoomCardOpen] = useState(true);
   useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
   const guids = (scenario?.targetIds || []).filter(isGuid);
   const selectedGuid = mode === 'room' && fixture && isGuid(fixture.id) ? fixture.id : null;
   const roomLabel = scenario?.roomCode || 'Room';
-  const dims = fixture?.dimensions3D || {};
-  const rows = ROWS.filter((r) => dims[r.key]);
   // Gigi's strip shows the elements of one room: keep the selected element's room, at most 8 chips
   const strip = (() => {
     const same = fixture?.roomCode ? siblingFixtures.filter((f) => f.roomCode === fixture.roomCode) : [];
@@ -78,7 +66,7 @@ export const Real3D: React.FC<Props> = ({
           </div>
         </div>
         <span className="text-[11px] font-mono text-[#A9AFB0]">
-          {model ? 'Explode = spread floors apart · Peel = lift roof, facade, slabs step by step' : plan ? 'Rooms extruded from the vector plan (2.7 m)' : ''}
+          {model ? 'BIM geometry · choose a floor or room from the explorer' : plan ? '3D generated from the drawing · assumed wall height 2.7 m' : ''}
         </span>
       </div>
 
@@ -108,12 +96,11 @@ export const Real3D: React.FC<Props> = ({
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
           {model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
-              onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }}
+              onSelectRoom={setPickedRoom}
               isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}
               elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, category: f.category, verified: f.verified, issue: f.status === 'Issue Reported' }))}
-              clearances={mode === 'room' && fixture && isGuid(fixture.id) && fixture.clearanceMm ? { guid: fixture.id, ...fixture.clearanceMm } : undefined}
               roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
-              hideRoomLabels={mode === 'room'}
+              hideRoomLabels={false}
               storeyId={mode === 'building' ? storeyId ?? null : null} onStoreys={onStoreys} visibleLayers={visibleLayers} />
           ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (
             <PlanRooms3D path={plan} />
@@ -126,58 +113,7 @@ export const Real3D: React.FC<Props> = ({
               </span>
             </div>
           )}
-          {/* ours, in Gigi's style: the room the user clicked; collapses to a small chip in the corner */}
-          {model && pickedRoom && (roomCardOpen ? (
-            <div className="absolute top-3 left-3 z-10 w-64 rounded-xl bg-[#202427]/95 text-[#F7F6F2] border border-[#E9B949]/60 shadow-xl">
-              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-[10px] font-mono text-[#E9B949]">Room</div>
-                  <div className="text-sm font-semibold truncate">{roomEnglish(pickedRoom.name)}</div>
-                </div>
-                <button type="button" onClick={() => setRoomCardOpen(false)} aria-label="Minimise room card" title="Minimise"
-                  className="p-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] hover:bg-white/10 cursor-pointer"><Minus className="w-3.5 h-3.5" /></button>
-              </div>
-              <div className="px-3 py-2 space-y-1.5">
-                {onAsk && (
-                  <button type="button" onClick={() => onAsk(`What is in the ${roomEnglish(pickedRoom.name)}?`)}
-                    className="w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#E9B949] text-[#202427] text-[11px] font-semibold cursor-pointer">
-                    <MessageSquare className="w-3 h-3" /><span>What is in this room?</span>
-                  </button>
-                )}
-                <div className="text-[10px] text-[#A9AFB0] leading-snug">Click another room in the model to switch. Drag to orbit, scroll to zoom.</div>
-              </div>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setRoomCardOpen(true)} title={roomEnglish(pickedRoom.name)} aria-label="Open room card"
-              className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#202427]/90 border border-[#E9B949]/60 text-[#E9B949] text-[11px] font-semibold cursor-pointer">
-              <Info className="w-3.5 h-3.5" /><span className="max-w-[120px] truncate">{roomEnglish(pickedRoom.name)}</span>
-            </button>
-          ))}
         </div>
-
-        {/* Exact Distance Breakdown for Selected Fixture */}
-        {mode === 'room' && fixture && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-3 pt-3 border-t border-white/10">
-            {rows.length ? rows.slice(0, 4).map((r) => (
-              <div key={r.key} className="bg-[#171A1C] px-3 py-2 rounded-lg border border-white/10">
-                <div className="text-[10px] text-[#A9AFB0]">{r.label}</div>
-                <div className={`text-xs font-mono font-semibold mt-0.5 ${r.accent ? (fixture.status === 'Issue Reported' ? 'text-red-400' : 'text-[#E9B949]') : 'text-[#F7F6F2]'}`}>
-                  {dims[r.key]}
-                </div>
-              </div>
-            )) : (
-              <div className="col-span-2 sm:col-span-4 bg-[#171A1C] px-3 py-2 rounded-lg border border-white/10 text-xs text-[#A9AFB0]">
-                {dims.note || 'Measuring clearances…'}
-              </div>
-            )}
-            {rows.length > 0 && dims.note && (
-              <div className="col-span-2 sm:col-span-4 text-[10px] font-mono text-[#A9AFB0]">{dims.note}</div>
-            )}
-            <div className="col-span-2 sm:col-span-4 text-[11px] text-[#A9AFB0]">
-              <span className="font-mono text-[#F7F6F2]">{fixture.code}</span> · {fixture.label} · {fixture.manufacturer} · {fixture.modelSpec}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
