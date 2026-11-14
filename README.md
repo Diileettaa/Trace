@@ -21,24 +21,28 @@ Team **Montree** · Junction 2026 · Stoa challenge "Make Blueprints Talk"
 | Swiss DXF plans | exact geometry from DXF layers | 0 |
 | IFC models | exact geometry / quantity sets, GUID per element | 0 |
 | Raster plans: doors, windows, toilets, sinks, showers/tubs | YOLO11 detector trained on CubiCasa5k (Verda A100) | 0 |
-| Raster plans: kitchens | statistical prior (beats vision: 96% vs 93%) | 0 |
-| Raster plans: rooms (bedrooms, sauna, WC rooms, balconies, storeys) | Gemini vision, one cached call per plan | 1 call |
+| Raster plans: bedrooms (and, in zero-API mode, balconies, storeys, WC rooms, saunas) | YOLO11 room detector (Verda A100) | 0 |
+| Raster plans: kitchens (and bathrooms in zero-API mode) | statistical prior (beats vision: 96% vs 93%) | 0 |
+| Raster plans: balconies, storeys, WC rooms, saunas, bathrooms | Gemini vision, one cached call per plan | 1 call |
+| Area answers (swiss, IFC) | formula + per-room breakdown + excluded rooms with reason, drawn as polygons | 0 |
 
 Gemini (function calling) only routes the question and writes the sentence; it never produces a number itself.
 Nemotron 3.5 Super VL gives an independent second count on raster plans; it is shown as a badge
 (agree / disagree) and never replaces the engine value, because on disagreement the detector is right 3–8× more often.
 
-On the preview dataset **78% of all questions are answered with zero LLM tokens** (all swiss + IFC, and 60% of raster questions).
+Zero-API mode (`JUNCTION_NO_VLM=1`) answers **every** question with local models only: 79.9% on held-out raster plans
+vs 83.6% with Gemini, at zero LLM cost. On the preview set swiss, IFC and raster answers all ran at 0 tokens.
 
 ## Accuracy
 
-Full dataset, engine only (cubicasa on the 20% held-out split never used for training):
+Full dataset, engine only (cubicasa on the 20% held-out split never used for training; measurements within 2%):
 
-| Source | Questions | Accuracy |
-| --- | ---: | ---: |
-| swiss_dwellings | 37,584 | 98.6% |
-| ifc_models | 3,062 | 98.0% |
-| cubicasa5k (held-out) | 16,694 | 83.5% |
+| Source | Accuracy |
+| --- | ---: |
+| swiss_dwellings | 99.2% |
+| ifc_models | 99.1% |
+| cubicasa5k (held-out), with Gemini for 5 room types | 83.6% |
+| cubicasa5k (held-out), zero-API | 79.9% |
 
 Per-category numbers and a reproducible re-run on the preview set: [`docs/eval-results.md`](docs/eval-results.md).
 
