@@ -2,8 +2,6 @@ import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as OBC from '@thatopen/components'
 import * as THREE from 'three'
 import { RenderedFaces } from '@thatopen/fragments'
-import wasmUrl from 'web-ifc/web-ifc.wasm?url'
-import wasmMtUrl from 'web-ifc/web-ifc-mt.wasm?url'
 import { fileUrl } from './api'
 import catalogUrl from './catalog.json?url'
 
@@ -255,13 +253,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         const loader = components.get(OBC.IfcLoader)
         await loader.setup({
           autoSetWasm: false,
+          // web-ifc wasm files are served as static files from web/public/wasm/ (copied from node_modules/web-ifc)
           customLocateFileHandler: (url: string) => {
-            if (url.includes('web-ifc-mt.wasm')) return wasmMtUrl
-            if (url.includes('web-ifc.wasm')) return wasmUrl
+            if (url.includes('web-ifc-mt.wasm')) return '/wasm/web-ifc-mt.wasm'
+            if (url.includes('web-ifc.wasm')) return '/wasm/web-ifc.wasm'
             return url
           },
         })
-        loader.settings.wasm.path = wasmUrl
+        loader.settings.wasm.path = '/wasm/'
         loader.settings.wasm.absolute = true
         setStatus('Downloading model…')
         const res = await fetch(fileUrl(path))
