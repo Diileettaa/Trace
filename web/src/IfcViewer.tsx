@@ -549,7 +549,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         const initialCenter = modelBounds.getCenter(new THREE.Vector3())
         const initialDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 1)
         await world.camera.controls.setLookAt(
-          initialCenter.x + initialDiameter, initialCenter.y + initialDiameter * .8, initialCenter.z - initialDiameter,
+          initialCenter.x + initialDiameter * .65, initialCenter.y + initialDiameter * .52, initialCenter.z - initialDiameter * .65,
           initialCenter.x, initialCenter.y, initialCenter.z, false,
         )
         modelBoundsRef.current = modelBounds.clone()
@@ -1459,11 +1459,15 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
   function fitModel() {
     const e = engine.current
-    if (!e) return
-    const bounds = new THREE.Box3().setFromObject(e.world.scene.three)
+    const bounds = modelBoundsRef.current
+    if (!e || !bounds || bounds.isEmpty()) return
     const diameter = Math.max(bounds.getSize(new THREE.Vector3()).length(), 0.1)
     e.world.camera.controls.maxDistance = diameter * 3
-    void e.world.camera.fitToItems()
+    const center = bounds.getCenter(new THREE.Vector3())
+    void e.world.camera.controls.setLookAt(
+      center.x + diameter * .65, center.y + diameter * .52, center.z - diameter * .65,
+      center.x, center.y, center.z, true,
+    )
   }
 
   function zoomCamera(factor: number) {
