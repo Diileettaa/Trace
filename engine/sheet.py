@@ -351,6 +351,8 @@ def compute(f, r):
             bs = [f["door_leaves"][i]["box"] for i in s["leaves"]]
             items.append({"type": s["type"], "box": [min(b[0] for b in bs), min(b[1] for b in bs), max(b[2] for b in bs), max(b[3] for b in bs)]})
         warn.append("doors drawn without a swing arc (sliding, folding) are not counted")
+        f["_alternatives"] = [{"label": "door sets (a double door = 1)", "value": len(items)},
+                              {"label": "door leaves (a double door = 2)", "value": len(f["door_leaves"])}]
         return len(items), "count", items, warn
     if op == "count_windows":
         return len(f.get("windows", [])), "count", [{"box": w["box"], "width_m": w["width_m"]} for w in f.get("windows", [])], warn
@@ -403,6 +405,13 @@ def answer(pdf_path, question, call_model, page=None, vision=None):
         try: page = find_page(pdf_path, question)
         except ImportError: page = 0
     f = load(pdf_path, page)
+    if len(f["lines"]) < 8 and vision is not None:           # a scan saved as PDF: no text layer to work with
+        from . import scanqa, docqa
+        img = (open(f"{pdf_path}.p{page + 1}.jpg", "rb").read() if os.path.exists(f"{pdf_path}.p{page + 1}.jpg")
+               else docqa.render_page(pdf_path, page, max_side=7000))
+        if img is not None:
+            out = scanqa.answer(img, question, vision); out["method"] = "sheet:scanned+" + out["method"]
+            out["sources"] = [{"file": pdf_path, "page": page + 1}]; return out
     prompt = PROMPT.replace("{q}", question).replace("{facts}", summary(f))
     img = None
     if vision is not None:                    # the model also sees the drawing, so it can tell which dimension is where
@@ -420,7 +429,7 @@ def answer(pdf_path, question, call_model, page=None, vision=None):
             out = scanqa.answer(img, question, vision); out["method"] = "sheet:vision+" + out["method"]
             out["sources"] = [{"file": pdf_path, "page": page + 1}]; return out
     v, unit, items, warn = compute(f, r)
-    return {"value": v, "unit": unit, "items": items, "sources": [{"file": pdf_path, "page": page + 1}],
+    return {"value": v, "unit": unit, "items": items, "alternatives": f.pop("_alternatives", []), "sources": [{"file": pdf_path, "page": page + 1}],
             "method": f"sheet:{r.get('op')}", "warnings": warn,
             "evidence": {"rule": r.get("reason"), "cite": r.get("cite"), "model_answer": r.get("answer"),
                          "scale": f["scale"]["text"], "coords": "PDF points, origin top-left"}}

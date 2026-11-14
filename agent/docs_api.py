@@ -13,6 +13,11 @@ Routes (all JSON unless noted):
   GET  /docs/mailbox         poll the live mailbox now (needs DOCS_IMAP_* env), returns receipts
   POST /docs/tool            {"name":..., "args":{...}}  agent tool call (see docs_tools.TOOLS)
   GET  /docs/tools           the tool declarations
+  POST /ask                  {"id": N, "question": ".."} -> answer with answer_id, item ids (boxes), alternatives
+  GET  /answer?id=A          a stored answer (after reviews)
+  POST /review               {"answer_id": A, "remove": [item ids], "add": [[x0,y0,x1,y1], ...], "choose": k, "user": ".."}
+  POST /calibrate            {"id": N, "p1": [x,y], "p2": [x,y], "length_m": 5.5, "image_size": [w,h] (images), "page": 0}
+  POST /measure              {"id": N, "points": [[x,y], ...], "kind": "area"|"length", "page": 0}
 Auth: if DOCS_TOKEN is set, every request needs 'Authorization: Bearer <token>' or 'X-Docs-Token'.
 Standalone: python -m agent.docs_api --port 8765   FastAPI: app.mount via make_asgi() (no FastAPI needed)."""
 import os, json, hmac, email, mimetypes, urllib.parse
@@ -91,6 +96,22 @@ def handle(method, path, query, headers, body, S=None):
         if path == "/docs/mailbox" and method == "GET":
             try: return _j(200, {"receipts": mail_ingest.poll_imap(S)})
             except RuntimeError as e: return _j(503, {"error": str(e)})
+        if path in ("/ask", "/review", "/calibrate", "/measure", "/answer"):
+            from engine import review as R
+            a = json.loads(body or b"{}") if method == "POST" else {}
+            if path == "/answer": r = R.get(q.get("id", "")); return _j(200 if r else 404, r or {"error": "no such answer"})
+            if path == "/review":
+                return _j(200, R.review(a.get("answer_id", ""), a.get("remove") or [], a.get("add") or [], a.get("choose"), a.get("user", "web")))
+            d = S.get(int(a.get("id", 0)))
+            if not d: return _j(404, {"error": "no such document"})
+            if path == "/ask":
+                r = docs_tools.ask_drawing(d["id"], a.get("question", ""), S)
+                f = r.pop("file_for_review", None) or S.path(d["id"])
+                return _j(200, R.register(r, f, a.get("question", "")))
+            f = docs_tools.view_path(d, S)
+            if path == "/calibrate":
+                return _j(200, R.calibrate(f, a["p1"], a["p2"], float(a["length_m"]), int(a.get("page", 0)), a.get("image_size")))
+            return _j(200, R.measure(f, a.get("points") or [], a.get("kind", "area"), int(a.get("page", 0))))
         if path == "/docs/tools" and method == "GET":
             return _j(200, {"tools": docs_tools.TOOLS})
         if path == "/docs/tool" and method == "POST":

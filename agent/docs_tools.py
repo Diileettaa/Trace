@@ -51,6 +51,15 @@ def _dataset_path(filename):
         if os.path.exists(os.path.join(data, "data", src, filename)): return f"data/{src}/{filename}"
     return None
 
+def view_path(d, S):
+    """The stored file under its own extension (engines dispatch on it)."""
+    view = os.path.join(S.root, "views", f"{d['id']}{d['ext']}"); os.makedirs(os.path.dirname(view), exist_ok=True)
+    if not os.path.exists(view):
+        try: os.symlink(S.path(d["id"]), view)
+        except OSError:
+            import shutil; shutil.copy(S.path(d["id"]), view)
+    return view
+
 def ask_drawing(doc_id, question, S=None):
     S = S or store(); d = S.get(doc_id)
     if not d: return {"error": f"no document {doc_id}"}
@@ -64,10 +73,14 @@ def ask_drawing(doc_id, question, S=None):
         if not os.path.exists(view): os.symlink(S.path(doc_id), view)
         v, unit, items, method, warn = ifc_answer.answer(view, question, ifc.load(view))
         r = {"value": v, "unit": unit, "items": items, "method": method, "warnings": warn}
-    else:
-        return {"value": None, "method": "unsupported_drawing",
-                "warnings": ["this file type needs the vision path (upload flow T-28); engine answers only "
-                             "challenge drawings and IFC models directly"]}
+    else:                                          # any other upload (PDF sheet, scan, DXF): give it its own extension
+        view = os.path.join(S.root, "views", f"{d['id']}{d['ext']}"); os.makedirs(os.path.dirname(view), exist_ok=True)
+        if not os.path.exists(view):
+            try: os.symlink(S.path(doc_id), view)
+            except OSError:
+                import shutil; shutil.copy(S.path(doc_id), view)
+        r = A.answer(view, question) if d["ext"] == ".dxf" else A.answer_sheet(view, question)
+        r["file_for_review"] = view
     return {"document": _pub(d), **r}
 
 def run_tool(name, args, S=None):
