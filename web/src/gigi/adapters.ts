@@ -73,7 +73,8 @@ const CATEGORY_LAYER: Record<string, LayerId> = {
 export const layerOf = (category: string): LayerId =>
   CATEGORY_LAYER[(category || '').toLowerCase()] ?? 'architecture';
 
-const stripMd = (s: string) => (s || '').replace(/\*\*/g, '').replace(/\s+\n/g, '\n').trim();
+const stripMd = (s: string) => (s || '').replace(/\*\*/g, '').replace(/\s+\n/g, '\n').trim()
+  .replace(/^(?:Answer:\s*|答案：\s*)?[\d.,]+(?:\s*(?:m²|m2|m|count))?[.。]\s*/i, '');  // the big number is shown above
 
 function boxFrom(src: any, imgW: number, imgH: number): Box | null {
   if (!src) return null;
@@ -151,15 +152,19 @@ export function toScenario(
   });
 
   // room the answer is about
-  const roomKey = mostCommon(items.map((it) => it.space_id).filter(Boolean)) as string | null;
-  const room = plan?.rooms?.find((r) => r.space_id === roomKey || r.number === roomKey || r.name === roomKey)
-    || (ask?.summary?.room ? { ...ask.summary.room } : null);
+  // a room is "the" room only when most items sit in it; otherwise the answer is about the whole sheet
+  const spaceIds = items.map((it) => it.space_id).filter(Boolean);
+  const top = mostCommon(spaceIds) as string | null;
+  const topShare = top ? spaceIds.filter((x) => x === top).length / Math.max(items.length, 1) : 0;
+  const roomKey = top && topShare >= 0.6 ? top : null;
+  const room = !roomKey ? null : (plan?.rooms?.find((r) => r.space_id === roomKey || r.number === roomKey || r.name === roomKey)
+    || (ask?.summary?.room ? { ...ask.summary.room } : null));
   const roomName = room?.name || items.find((it) => it.space_id === roomKey)?.room_name || '';
-  const roomCode = room?.number || roomName || (path.split('/').pop() || '').replace(/\.[^.]+$/, '');
+  const roomCode = roomKey ? (room?.number || roomName || roomKey) : 'Whole sheet';
   const dims = room?.dims_m;
   const roomDimensions = dims
     ? `L ${dims.L.toFixed(2)}m × B ${dims.B.toFixed(2)}m${dims.H ? ` × H ${dims.H.toFixed(2)}m` : ''}`
-    : 'L × B × H not available';
+    : roomKey ? 'L × B × H not in this drawing' : `${items.length} elements across the sheet`;
   const bb = room?.bbox_px;
   const roomHighlight = bb && bb.length === 4 && bb[2] > bb[0] ? { x: bb[0], y: bb[1], w: bb[2] - bb[0], h: bb[3] - bb[1] } : null;
 

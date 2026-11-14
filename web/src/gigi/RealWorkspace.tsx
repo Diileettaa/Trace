@@ -108,7 +108,9 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   useEffect(() => {
     if (!askPath) return;
     fetch(`/api/questions?path=${encodeURIComponent(askPath)}&limit=40`).then((r) => r.json()).then((qs) => {
-      const en = (Array.isArray(qs) ? qs : []).map((q: { question: string }) => q.question).filter((q: string) => /^[\x20-\x7E]+$/.test(q));
+      const list = (Array.isArray(qs) ? qs : []) as { question: string; path?: string }[];
+      const same = list.filter((q) => !q.path || q.path === askPath || q.path.replace(/_plan-.*$/, '') === askPath.replace(/_plan-.*$/, ''));
+      const en = same.map((q) => q.question).filter((q) => /^[\x20-\x7E]+$/.test(q) && /^(how|what|which|where|is|are|does|do)\b/i.test(q));
       setQuickPrompts(en.length ? [...new Set(en)].slice(0, 3) as string[] : FALLBACK_PROMPTS);
     }).catch(() => setQuickPrompts(FALLBACK_PROMPTS));
   }, [askPath]);
