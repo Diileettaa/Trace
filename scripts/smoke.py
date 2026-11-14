@@ -41,7 +41,7 @@ def default_requester(
 
     req = urllib.request.Request(url, data=body, headers=hdrs, method=method.upper())
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             resp_headers = {k.lower(): v for k, v in resp.headers.items()}
             return resp.status, resp_headers, resp.read()
     except urllib.error.HTTPError as e:

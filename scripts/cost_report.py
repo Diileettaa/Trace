@@ -40,7 +40,7 @@ def default_requester(
 
     req = urllib.request.Request(url, data=body, headers=hdrs, method=method.upper())
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=20) as resp:
             resp_headers = {k.lower(): v for k, v in resp.headers.items()}
             return resp.status, resp_headers, resp.read()
     except urllib.error.HTTPError as e:
@@ -315,11 +315,29 @@ def run_cost_report(
         ask_url = f"{base}/ask?fresh=true"
 
         t0 = time.perf_counter()
-        st, _, resp_body = req("POST", ask_url, headers, body_bytes)
-        duration_ms = (time.perf_counter() - t0) * 1000.0
+        try:
+            st, _, resp_body = req("POST", ask_url, headers, body_bytes)
+            duration_ms = (time.perf_counter() - t0) * 1000.0
+        except Exception as e:
+            duration_ms = (time.perf_counter() - t0) * 1000.0
+            print(f"[{i:02d}/{len(sampled_questions):02d}] ✗ Error ({duration_ms:5.0f} ms): {e}", flush=True)
+            records.append({
+                "dataset_source": src,
+                "path": q.get("path", ""),
+                "question": q["question"],
+                "expected_answer": q.get("answer"),
+                "actual_value": None,
+                "correct": False,
+                "llm_used": False,
+                "tokens": 0,
+                "cost_usd": 0.0,
+                "duration_ms": duration_ms,
+                "summary_source": "error",
+            })
+            continue
 
         if st != 200:
-            print(f"[{i:02d}/{len(sampled_questions):02d}] ✗ HTTP {st} for: {q['question'][:50]}")
+            print(f"[{i:02d}/{len(sampled_questions):02d}] ✗ HTTP {st} for: {q['question'][:50]}", flush=True)
             continue
 
         try:
@@ -340,7 +358,8 @@ def run_cost_report(
         status_sym = "✓" if correct else "✗"
         print(
             f"[{i:02d}/{len(sampled_questions):02d}] {status_sym} [{src}] {duration_ms:5.0f} ms | "
-            f"exp={expected_val}, got={actual_val} | src={summary_source}, tok={llm_tokens}, cost=${cost_usd:.6f}"
+            f"exp={expected_val}, got={actual_val} | src={summary_source}, tok={llm_tokens}, cost=${cost_usd:.6f}",
+            flush=True,
         )
 
         records.append({
@@ -358,7 +377,7 @@ def run_cost_report(
         })
 
     total_wall_s = time.perf_counter() - t_start_all
-    print(f"\nExecution finished in {total_wall_s:.2f} s. Calculating metrics...\n")
+    print(f"\nExecution finished in {total_wall_s:.2f} s. Calculating metrics...\n", flush=True)
 
     # 4. Generate report
     timestamp_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -373,13 +392,19 @@ def run_cost_report(
     out_file = Path(output_path)
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(markdown_content, encoding="utf-8")
-    print(f"Report written to: {out_file.resolve()}")
+    print(f"Report written to: {out_file.resolve()}", flush=True)
 
     overall_metrics = compute_metrics(records)
     print(
         f"Summary: {overall_metrics['total']} questions | Accuracy: {overall_metrics['accuracy_pct']}% | "
-        f"Zero-LLM: {overall_metrics['zero_llm_pct']}% | Cost/1k: ${overall_metrics['cost_per_1k_usd']:.4f}"
+        f"Zero-LLM: {overall_metrics['zero_llm_pct']}% | Cost/1k: ${overall_metrics['cost_per_1k_usd']:.4f}",
+        flush=True,
     )
+
+    slow_queries = [r for r in records if r["duration_ms"] > 5000.0]
+    print(f"\n--- Questions taking > 5 s ({len(slow_queries)} total) ---", flush=True)
+    for sq in slow_queries:
+        print(f"  [{sq['duration_ms']/1000.0:.2f} s] [{sq['dataset_source']}] {sq['question']} (src={sq['summary_source']})", flush=True)
 
     return {
         "metrics": overall_metrics,
