@@ -29,3 +29,16 @@ Acceptance (I will check each):
 3. Whole building fills most of the frame on FZK, Duplex, Hitos, Clinic
 4. Walk: click the floor → avatar walks there, camera behind it, cannot leave the room
 Keep `window.__traceRooms` until I have checked, then remove it. Do not deploy.
+
+## ADD (23:52) — room view FLICKERS between two camera positions (Diletta's video, Duplex Bedroom 2)
+Cause: the `controls.addEventListener('update', …)` clamp (~L455) calls `controls.moveTo(...)` inside the update
+event → that fires update again → it fights the room fly-to / damping and the view jumps back and forth every frame.
+With the wrong axis the clamp box is also wrong, so it never settles.
+Fix: delete that listener. Use camera-controls' built-in boundary instead:
+```ts
+controls.setBoundary(roomBounds)          // Box3 in Y-up world coords, expanded 0.5 m
+controls.boundaryFriction = 0.2
+controls.boundaryEnclosesCamera = false   // target is limited, camera may stay outside the room (dollhouse view)
+// leaving room mode: controls.setBoundary(modelBoundsExpanded) or setBoundary() to clear
+```
+Acceptance: pick a room and leave the mouse still for 10 s → zero movement; drag/zoom → no jumps.
