@@ -262,6 +262,13 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const sceneVersionRef = useRef(0)
   const dragRef = useRef<{ id: string; plane: THREE.Plane } | null>(null)
   const draggedRef = useRef(false)
+  const walkPositionRef = useRef(new THREE.Vector3())
+  const walkYawRef = useRef(0)
+  const walkPitchRef = useRef(0)
+  const walkKeysRef = useRef(new Set<string>())
+  const walkMouseRef = useRef<{ x: number; y: number } | null>(null)
+  const walkFloorZRef = useRef(0)
+  const savedWalkCameraRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3; up: THREE.Vector3 } | null>(null)
   const [status, setStatus] = useState('')
   const [modelReady, setModelReady] = useState(false)
   const [catalog, setCatalog] = useState<CatalogProduct[]>([])
@@ -282,6 +289,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [planView, setPlanView] = useState(false)
   const [inspectedRoomKey, setInspectedRoomKey] = useState('')
   const [hoveredRoomKey, setHoveredRoomKey] = useState('')
+  const [walkMode, setWalkMode] = useState(false)
+  const [walkSpeed, setWalkSpeed] = useState(1.5)
+  const [walkMap, setWalkMap] = useState({ x: 0, y: 0, yaw: 0 })
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -302,6 +312,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     setRooms([])
     setInspectedRoomKey('')
     setHoveredRoomKey('')
+    setWalkMode(false)
     setSelectedRoomKey('')
     setSelectedElement(null)
     setPlaced([])
@@ -456,12 +467,26 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     const current = engine.current
     const model = modelRef.current
     if (!current || !model || !explorerReady) return
+    const selectedStorey = selectedStoreyId ? storeys.find(item => item.id === selectedStoreyId) ?? null : null
     applyStoreyCut(current.components, current.world, model, null)
+    if (walkMode && selectedStorey && current.world.renderer) {
+      const cutZ = Math.max(selectedStorey.elevation + 3.2, walkFloorZRef.current + 1.2)
+      model.useClippingPlanes([new THREE.Plane(new THREE.Vector3(0, 0, -1), cutZ)])
+      current.world.renderer.three.localClippingEnabled = true
+      current.world.renderer.needsUpdate = true
+    }
     void (async () => {
       await applyExplodedView(model, storeys, exploded, 6, placementsRef.current)
       await applyTradeColors(model, trades)
       let visibleIds = allLocalIds
-      if (previewRoomGuid) {
+      if (walkMode) {
+        const room = rooms.find(candidate => candidate.key === selectedRoomKey)
+        if (room) {
+          const bounds = room.box.clone().expandByVector(new THREE.Vector3(1.2, 1.2, 2.8))
+          const boxes = await model.getBoxes(allLocalIds)
+          visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(bounds))
+        }
+      } else if (previewRoomGuid) {
         const room = rooms.find(candidate => candidate.guid === previewRoomGuid)
         if (room) {
           const boxes = await model.getBoxes(allLocalIds)
@@ -475,9 +500,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           }
         }
       }
-      await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, visibleIds)
+      await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, visibleIds, walkMode)
     })()
-  }, [allLocalIds, explorerReady, exploded, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades])
+  }, [allLocalIds, explorerReady, exploded, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades, walkMode])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
@@ -487,6 +512,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     counts[floor.id] = rooms.filter(room => room.storeyId === floor.id).length
     return counts
   }, {})
+  const walkFloorRooms = rooms.filter(room => room.storeyId === selectedStoreyId)
+  const walkFloorBounds = new THREE.Box3()
+  for (const room of walkFloorRooms) walkFloorBounds.union(room.box)
+  if (walkFloorBounds.isEmpty() && selectedStoreyId) {
+    const floor = storeys.find(item => item.id === selectedStoreyId)
+    if (floor) walkFloorBounds.copy(floor.box)
+  }
+  const walkFloorSize = walkFloorBounds.getSize(new THREE.Vector3())
 
   function selectStorey(id: string | null) {
     setSelectedStoreyId(id)
@@ -542,6 +575,133 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     void controls.setLookAt(target.x + lateral, target.y - lateral, target.z,
       target.x, target.y, target.z, true).finally(() => { controls.smoothTime = oldSmoothTime })
   }
+
+  function startWalk() {
+    const e = engine.current
+    const room = rooms.find(candidate => candidate.key === selectedRoomKey)
+    if (!e || !room) return
+    const camera = e.world.camera.three
+    savedWalkCameraRef.current = { position: camera.position.clone(), target: e.world.camera.controls.getTarget(new THREE.Vector3()), up: camera.up.clone() }
+    const center = room.box.getCenter(new THREE.Vector3())
+    walkFloorZRef.current = room.box.min.z + 1.6
+    walkPositionRef.current.set(center.x, center.y, walkFloorZRef.current)
+    walkYawRef.current = 0
+    walkPitchRef.current = 0
+    walkKeysRef.current.clear()
+    setWalkMap({ x: center.x, y: center.y, yaw: 0 })
+    if (room.storeyId) setSelectedStoreyId(room.storeyId)
+    setPlanView(false)
+    setInspectedRoomKey('')
+    if (e.world.camera.projection.current === 'Orthographic') void e.world.camera.projection.set('Perspective')
+    e.world.camera.controls.stop()
+    e.world.camera.controls.enabled = false
+    setWalkSpeed(1.5)
+    setWalkMode(true)
+  }
+
+  function stopWalk() {
+    const e = engine.current
+    if (e) {
+      e.world.camera.controls.enabled = true
+      const saved = savedWalkCameraRef.current
+      if (saved) {
+        e.world.camera.three.up.copy(saved.up)
+        void e.world.camera.controls.setLookAt(saved.position.x, saved.position.y, saved.position.z,
+          saved.target.x, saved.target.y, saved.target.z, false)
+      }
+      e.world.camera.enabled = true
+    }
+    savedWalkCameraRef.current = null
+    walkKeysRef.current.clear()
+    walkMouseRef.current = null
+    setWalkMode(false)
+  }
+
+  useEffect(() => {
+    if (!walkMode) return
+    const e = engine.current
+    const renderer = e?.world.renderer
+    const canvas = renderer?.three.domElement
+    if (!e || !renderer || !canvas) return
+    let frame = 0
+    let previous = performance.now()
+    let mapTick = 0
+    const camera = e.world.camera.three
+    camera.up.set(0, 0, 1)
+    const updateCamera = () => {
+      const direction = new THREE.Vector3(
+        Math.sin(walkYawRef.current) * Math.cos(walkPitchRef.current),
+        Math.cos(walkYawRef.current) * Math.cos(walkPitchRef.current),
+        Math.sin(walkPitchRef.current),
+      )
+      camera.position.copy(walkPositionRef.current)
+      camera.lookAt(walkPositionRef.current.clone().add(direction))
+      camera.updateMatrixWorld()
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      walkMouseRef.current = { x: event.clientX, y: event.clientY }
+      canvas.setPointerCapture(event.pointerId)
+    }
+    const onPointerMove = (event: PointerEvent) => {
+      const previousPoint = walkMouseRef.current
+      if (!previousPoint) return
+      walkYawRef.current -= (event.clientX - previousPoint.x) * 0.004
+      walkPitchRef.current = THREE.MathUtils.clamp(walkPitchRef.current + (previousPoint.y - event.clientY) * 0.004, -1.25, 1.25)
+      walkMouseRef.current = { x: event.clientX, y: event.clientY }
+      updateCamera()
+    }
+    const onPointerUp = () => { walkMouseRef.current = null }
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      setWalkSpeed(speed => THREE.MathUtils.clamp(speed + (event.deltaY < 0 ? 0.5 : -0.5), 0.5, 6))
+    }
+    const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Escape') { stopWalk(); return }
+      if (movementKeys.has(event.code)) { event.preventDefault(); walkKeysRef.current.add(event.code) }
+    }
+    const onKeyUp = (event: KeyboardEvent) => { walkKeysRef.current.delete(event.code) }
+    const onBlur = () => walkKeysRef.current.clear()
+    const tick = (time: number) => {
+      const delta = Math.min((time - previous) / 1000, 0.05)
+      previous = time
+      const keys = walkKeysRef.current
+      const forward = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0)
+      const strafe = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)
+      if (forward || strafe) {
+        const magnitude = Math.hypot(forward, strafe) || 1
+        const speed = walkSpeed * delta / magnitude
+        walkPositionRef.current.x += (Math.sin(walkYawRef.current) * forward + Math.cos(walkYawRef.current) * strafe) * speed
+        walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * speed
+      }
+      walkPositionRef.current.z = walkFloorZRef.current
+      updateCamera()
+      if (++mapTick % 6 === 0) setWalkMap({ x: walkPositionRef.current.x, y: walkPositionRef.current.y, yaw: walkYawRef.current })
+      frame = requestAnimationFrame(tick)
+    }
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointercancel', onPointerUp)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    frame = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(frame)
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointercancel', onPointerUp)
+      canvas.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [walkMode, walkSpeed])
 
   useEffect(() => {
     const e = engine.current
@@ -883,6 +1043,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       } catch (error) { console.warn('Could not inspect IFC element:', error) }
     }
     const onPointerDown = (event: PointerEvent) => {
+      if (walkMode) return
       const rect = canvas.getBoundingClientRect()
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(point, e.world.camera.three)
@@ -899,6 +1060,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       canvas.setPointerCapture(event.pointerId)
     }
     const onPointerMove = (event: PointerEvent) => {
+      if (walkMode) return
       const drag = dragRef.current
       if (!drag) {
         const now = performance.now()
@@ -954,6 +1116,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       setTimeout(() => { draggedRef.current = false }, 0)
     }
     const onClick = async (event: MouseEvent) => {
+      if (walkMode) return
       if (draggedRef.current) return
       const rect = canvas.getBoundingClientRect()
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
@@ -972,6 +1135,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       }
     }
     const onDoubleClick = async (event: MouseEvent) => {
+      if (walkMode) return
       const rect = canvas.getBoundingClientRect()
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(point, e.world.camera.three)
@@ -999,7 +1163,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       canvas.removeEventListener('click', onClick)
       canvas.removeEventListener('dblclick', onDoubleClick)
     }
-  }, [modelReady, onSelectRoom, rooms])
+  }, [modelReady, onSelectRoom, rooms, walkMode])
 
   return <div className="viewer">
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
@@ -1011,6 +1175,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
       <button title="Fit the whole model in view" disabled={!modelReady} onClick={fitModel}>Fit</button>
+      {walkMode
+        ? <button className="walk-active" onClick={stopWalk}>Exit Walk · Esc</button>
+        : <button title="Enter first-person room view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
       <button title="Center the camera on the selected element or room" disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
       <label className="furniture-room-select">Room
         <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
@@ -1045,17 +1212,39 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       onExplodedChange={setExploded}
       planView={planView}
       onPlanViewChange={setPlanView}
-      disabled={!modelReady || !explorerReady}
+      disabled={!modelReady || !explorerReady || walkMode}
     />
     <div className="three" ref={box}>
       <div className="room-label-layer" aria-label="Room labels">
-        {rooms.map(room => <button key={room.key} type="button" data-room-label={room.key}
+        {!walkMode && rooms.map(room => <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
           onClick={() => focusRoom(room.key)} title="Fly into this room">
           {room.name}{room.number ? ` · ${room.number}` : ''}{room.areaM2 !== undefined ? ` · ${room.areaM2.toFixed(1)} m²` : ''}
         </button>)}
       </div>
+      {walkMode && <>
+        <div className="walk-hud"><strong>Walk mode</strong><span>WASD / arrows · drag to look · wheel speed {walkSpeed.toFixed(1)} m/s · Esc exit</span></div>
+        <div className="walk-minimap" aria-label="Current floor minimap">
+          <strong>{storeys.find(floor => floor.id === selectedStoreyId)?.name || 'Floor map'}</strong>
+          <svg viewBox="0 0 180 130" role="img" aria-label="Floor outline and viewer position">
+            <rect x="1" y="1" width="178" height="128" rx="5" fill="#F7F6F2" stroke="#A9AFB0" />
+            {walkFloorRooms.map(room => {
+              const xSize = Math.max(walkFloorSize.x, 0.01); const ySize = Math.max(walkFloorSize.y, 0.01)
+              const x = 10 + (room.box.min.x - walkFloorBounds.min.x) / xSize * 160
+              const y = 10 + (walkFloorBounds.max.y - room.box.max.y) / ySize * 110
+              const width = Math.max((room.box.max.x - room.box.min.x) / xSize * 160, 1)
+              const height = Math.max((room.box.max.y - room.box.min.y) / ySize * 110, 1)
+              return <rect key={room.key} x={x} y={y} width={width} height={height} fill="rgba(233,185,73,.12)" stroke="#A9AFB0" strokeWidth=".7" />
+            })}
+            {(() => {
+              const x = 10 + (walkMap.x - walkFloorBounds.min.x) / Math.max(walkFloorSize.x, .01) * 160
+              const y = 10 + (walkFloorBounds.max.y - walkMap.y) / Math.max(walkFloorSize.y, .01) * 110
+              return <g transform={`translate(${x} ${y}) rotate(${walkMap.yaw * 180 / Math.PI})`}><path d="M0 -9 L6 7 L0 4 L-6 7 Z" fill="#1F6FEB" stroke="#202427" strokeWidth="1" /></g>
+            })()}
+          </svg>
+        </div>
+      </>}
       {rooms.find(room => room.key === inspectedRoomKey) && (() => {
         const room = rooms.find(candidate => candidate.key === inspectedRoomKey)!
         const spaceId = room.guid || room.key

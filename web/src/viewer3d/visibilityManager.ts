@@ -9,13 +9,14 @@ export async function applyBuildingVisibility(
   selectedStoreyId: string | null,
   trades: TradesState,
   allLocalIds: number[],
+  walkMode = false,
 ) {
   try {
     const activeStorey = selectedStoreyId ? storeys.find((storey) => storey.id === selectedStoreyId) ?? null : null
     const selectedIndex = activeStorey ? storeys.indexOf(activeStorey) : -1
-    const storeyIds = activeStorey ? new Set(activeStorey.itemIds) : null
+    const storeyIds = activeStorey && !walkMode ? new Set(activeStorey.itemIds) : null
     const lowerIds = new Set<number>()
-    if (activeStorey) {
+    if (activeStorey && !walkMode) {
       const activeSet = new Set(activeStorey.itemIds)
       for (const floor of storeys.slice(0, selectedIndex)) {
         for (const id of floor.itemIds) if (!activeSet.has(id)) lowerIds.add(id)
