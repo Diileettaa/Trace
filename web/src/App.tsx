@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ask, getCollab, inventory, sampleQuestions } from './api'
+import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer from './IfcViewer'
 import RoomCollabPanel from './components/RoomCollabPanel'
@@ -129,6 +130,19 @@ export default function App() {
     setViewMode(q.path.toLowerCase().endsWith('.ifc') ? '3d' : '2d')
   }
 
+  function applyDemo(item: DemoItem) {
+    setPath(item.path)
+    setQuestion(item.question)
+    setRole(item.role ?? '')
+    setSpace(item.space ?? null)
+    setExpected(null)
+    setRes(null)
+    setInv(null)
+    setSelected(null)
+    setSelectedGuid(null)
+    setViewMode(item.path.toLowerCase().endsWith('.ifc') ? '3d' : '2d')
+  }
+
   async function run<T>(f: () => Promise<T>, set: (v: T) => void) {
     setBusy(true)
     setErr('')
@@ -154,8 +168,27 @@ export default function App() {
   return (
     <div className="app">
       <aside className="panel">
-        <h1>Trace</h1>
-        <p className="sub">Ask a drawing anything. Every answer shows where it came from.</p>
+        <header className="header">
+          <div className="title-row">
+            <h1>Trace</h1>
+            <select
+              className="demo-select"
+              value=""
+              onChange={(e) => {
+                const item = DEMO_ITEMS.find((d) => d.id === e.target.value)
+                if (item) applyDemo(item)
+              }}
+            >
+              <option value="">Demo Scenarios…</option>
+              {DEMO_ITEMS.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="sub">Ask a drawing anything. Every answer shows where it came from.</p>
+        </header>
 
         <label>
           Dataset samples

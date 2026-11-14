@@ -10,8 +10,12 @@ body { margin: 0; }
 .app { display: grid; grid-template-columns: 380px 1fr; height: 100vh; }
 
 .panel { padding: 20px; overflow-y: auto; border-right: 1px solid var(--line); background: #fff; display: flex; flex-direction: column; gap: 14px; }
-.panel h1 { margin: 0; font-size: 22px; }
-.sub { margin: -8px 0 0; color: #6b6b6b; font-size: 13px; }
+.header { display: flex; flex-direction: column; gap: 8px; }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.title-row h1 { margin: 0; font-size: 22px; }
+.demo-select { font-size: 12px; font-weight: 600; padding: 4px 8px; border: 1.5px solid var(--accent); border-radius: 6px; background: #fffaf8; color: var(--accent); cursor: pointer; max-width: 200px; }
+.demo-select:hover { background: #fdeee9; }
+.sub { margin: 0; color: #6b6b6b; font-size: 13px; }
 label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #555; }
 input, textarea, select { font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; min-width: 0; }
 .row { display: flex; gap: 8px; }
