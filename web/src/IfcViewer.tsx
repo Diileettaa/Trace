@@ -451,10 +451,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         fragments.init(await OBC.FragmentsManager.getWorker())
         world.camera.controls.addEventListener('rest', () => fragments.core.update(true))
         world.camera.controls.addEventListener('update', () => {
-          const roomBounds = roomSectionBoundsRef.current
-          if (!roomBounds || clampingTargetRef.current) return
+          const targetBounds = roomSectionBoundsRef.current ?? modelBoundsRef.current
+          if (!targetBounds || clampingTargetRef.current) return
           const target = world.camera.controls.getTarget(new THREE.Vector3())
-          const clamped = target.clone().clamp(roomBounds.min, roomBounds.max)
+          const clamped = target.clone().clamp(targetBounds.min, targetBounds.max)
           if (target.distanceToSquared(clamped) < 1e-8) return
           clampingTargetRef.current = true
           void world.camera.controls.moveTo(clamped.x, clamped.y, clamped.z, false).finally(() => {
