@@ -67,3 +67,8 @@ Keep datasets out of git. `DATA_DIR` points to the unzipped dataset directory. P
 ## Built with OpenAI Codex
 
 - `feat(codex): add Verda warmup and document Trace challenges` — this change.
+- `feat(codex): add offline engine evaluation` — T-18 sample results and evaluator.
+
+## Engine evaluation
+
+Run `python scripts/eval_engine.py` to sample up to 50 questions from each of `swiss_dwellings`, `ifc_models`, and `cubicasa5k` and write `docs/eval-results.md`. Use `--n N` to change the per-source sample size and `--seed N` to make sampling repeatable. The evaluator calls the local `agent.engine_adapter.answer(path, question)` only and makes no online API calls. Counts are correct only when they match exactly; area, length, and volume answers pass when their relative error is at most 2%. The report also shows the share of results with at least one four-coordinate evidence bounding box and up to five failed examples per source.

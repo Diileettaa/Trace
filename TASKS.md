@@ -21,7 +21,8 @@
 | T-15 | 3D 联动：后端证据里有 `model_file`（如 data/ifc_models/x.ifc）时，在答案区加 "Open in 3D" 按钮，用 IfcViewer 加载 model_file 并高亮 items 里的 guid；目录树/证据点击 → IfcViewer 按 guid 高亮并居中；拿数据集里最小的真实 .ifc 测，WASM 路径在 build+preview 下也能加载 | Gemini (Antigravity) | [?] | Added 3D linkage with Open in 3D button, GUID highlighting and camera centering on tree/evidence clicks, bundled WASM in build+preview with ErrorBoundary, build passed. |
 | T-16 | Demo 黄金路径：左上加 "Demo" 下拉，5 道固定演示题（PNG 计数、全构件识别、IFC 计数、IFC 面积、房间留言），一键填入路径和问题 | Gemini (Antigravity) | [?] | Demo dropdown with 5 golden path scenarios in web/src/demo.ts, one-click fill of path+question+role, npm run build passed. |
 | T-17 | 答案卡片打磨：加载动画、显示工具调用链（Gemini → 工具名）、cached 标记、错误提示友好 | Gemini (Antigravity) | [?] | Added loading spinner, styled tool call chain (Gemini → tool badges), cached result badge, friendly error banner, npm run build passed. |
-| T-18 | 数据引擎离线抽样评测 | Codex | [~] | scripts/eval_engine.py、docs/eval-results.md | pytest 通过；每个来源默认 50 题，统计正确率、带框率与失败样例 |
 | T-19 | 3D 摆放（建筑师模块 7/8）：在 IfcViewer 里选一个房间，从小型产品目录（web/src/catalog.json：桌子、灯、马桶等，带真实尺寸 mm、价格、材质、颜色）里选一件，按真实尺寸放进 3D 场景该房间地面中心，可拖动/旋转；"Screenshot" 按钮导出当前 3D 视图 PNG | Gemini (Antigravity) | [ ] | 只改 web/src/**；目录数据是演示用，界面标 "Demo catalog"；必须等 T-16、T-17 完成后再做 |
 | T-20 | 后端 /render：输入 3D 截图 + 产品描述 + 风格，调用 Gemini 图像生成出氛围效果图并缓存；返回 PNG | Claude | [ ] | agent/**；一张图一次调用，缓存防刷 |
 | T-21 | 前端效果图面板：T-19 截图后点 "Render mood image"，调用 /render 显示结果，可下载 | Gemini (Antigravity) | [ ] | 依赖 T-19、T-20 |
+
+| T-18 | 数据引擎离线抽样评测 | Codex | [?] | scripts/eval_engine.py、docs/eval-results.md | pytest 31 passed；web build 通过；每来源 50 题离线抽样已记录 |
