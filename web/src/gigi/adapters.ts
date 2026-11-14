@@ -233,7 +233,7 @@ export function withElementInfo(f: FixtureVerification, info: any): FixtureVerif
     return { ...f, manufacturer: why, modelSpec: why };
   }
   const c = info.clearances || {};
-  const mm = (v: any) => (v == null ? null : `${Math.round(Number(v))} mm`);
+  const mm = (v: any) => (v == null ? null : `≈${Math.round(Number(v))} mm`);  // bounding-box estimate
   const rows: Record<string, string> = {};
   if (c.left_wall != null) rows.leftWall = `${mm(c.left_wall)} to left wall`;
   if (c.right_wall != null) rows.rightWall = `${mm(c.right_wall)} to right wall`;
@@ -246,7 +246,7 @@ export function withElementInfo(f: FixtureVerification, info: any): FixtureVerif
       || (isIfc ? 'Not recorded in the IFC model (no Pset_ManufacturerTypeInformation)' : 'Not in this drawing (2D plans carry no product data)'),
     modelSpec: info.model || info.type
       || (isIfc ? 'No model/type name in the IFC model' : 'Not in this drawing'),
-    dimensions3D: Object.keys(rows).length ? rows
+    dimensions3D: Object.keys(rows).length ? { ...rows, note: 'approx. — from bounding boxes of the element and its room' }
       : { note: isIfc ? 'Clearances need the room (IfcSpace) around this element; none found in the model'
                       : 'Clearances need wall geometry; this drawing has none we can measure' },
   };
