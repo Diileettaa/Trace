@@ -539,9 +539,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
               if (!roomBox || roomBox.isEmpty()) return []
               const areaValue = Number(read('NetFloorArea') || read('GrossFloorArea') || read('Area'))
                 || findIfcMeasure(attributes, ['NetFloorArea', 'GrossFloorArea'])
-              const centerZ = roomBox.getCenter(new THREE.Vector3()).z
+              const centerY = roomBox.getCenter(new THREE.Vector3()).y
               const roomStorey = nextStoreys.find(floor => floor.itemIds.includes(localId))
-                ?? [...nextStoreys].sort((a, b) => Math.abs(a.elevation - centerZ) - Math.abs(b.elevation - centerZ))[0]
+                ?? [...nextStoreys].sort((a, b) => Math.abs(a.elevation - centerY) - Math.abs(b.elevation - centerY))[0]
               return [{ key: `${loadedModel.modelId}:${localId}`, modelId: loadedModel.modelId, localId, name,
                 guid: guidsById[index] ?? '', box: roomBox, number: read('Tag') || read('Reference'),
                 areaM2: typeof areaValue === 'number' && Number.isFinite(areaValue) && areaValue > 0 ? areaValue : undefined, storeyId: roomStorey?.id }]
@@ -561,7 +561,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         const initialCenter = modelBounds.getCenter(new THREE.Vector3())
         const initialDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 1)
         await world.camera.controls.setLookAt(
-          initialCenter.x + initialDiameter, initialCenter.y - initialDiameter, initialCenter.z + initialDiameter * .8,
+          initialCenter.x + initialDiameter, initialCenter.y + initialDiameter * .8, initialCenter.z - initialDiameter,
           initialCenter.x, initialCenter.y, initialCenter.z, false,
         )
         modelBoundsRef.current = modelBounds.clone()
@@ -892,8 +892,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     roomSectionBoundsRef.current = bounds
     const center = bounds.getCenter(new THREE.Vector3())
     const size = bounds.getSize(new THREE.Vector3())
-    const diagonal = Math.max(Math.hypot(size.x, size.y), 1)
-    const target = new THREE.Vector3(center.x, center.y, bounds.min.z + .8)
+    const diagonal = Math.max(Math.hypot(size.x, size.z), 1)
+    const target = new THREE.Vector3(center.x, bounds.min.y + .8, center.z)
     const distance = diagonal * 1.6
     const horizontal = distance * Math.cos(Math.PI / 4)
     const elevation = distance * Math.sin(Math.PI / 4)
@@ -907,8 +907,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     camera.controls.smoothTime = .6
     void camera.controls.setLookAt(
       target.x + Math.cos(azimuth) * horizontal,
-      target.y - Math.sin(azimuth) * horizontal,
-      target.z + elevation,
+      target.y + elevation,
+      target.z - Math.sin(azimuth) * horizontal,
       target.x, target.y, target.z, true,
     ).finally(() => { camera.controls.smoothTime = previousSmoothTime })
   }, [isolateSpaceGuid, roomDims, rooms])
@@ -1022,8 +1022,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     if (!e) return
     const center = floor.box.getCenter(new THREE.Vector3())
     const size = floor.box.getSize(new THREE.Vector3())
-    const distance = Math.max(size.x, size.y, 3) * 1.35
-    void e.world.camera.controls.setLookAt(center.x + distance, center.y - distance, center.z + distance * 0.75,
+    const distance = Math.max(size.x, size.z, 3) * 1.35
+    void e.world.camera.controls.setLookAt(center.x + distance, center.y + distance * .75, center.z - distance,
       center.x, center.y, center.z, true)
   }
 
@@ -1036,8 +1036,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         camera.set('Plan')
         const center = selected.box.getCenter(new THREE.Vector3())
         const size = selected.box.getSize(new THREE.Vector3())
-        const distance = Math.max(size.x, size.y, 5) * 1.4
-        void camera.controls.setLookAt(center.x, center.y, center.z + distance, center.x, center.y, center.z, true)
+        const distance = Math.max(size.x, size.z, 5) * 1.4
+        void camera.controls.setLookAt(center.x, center.y + distance, center.z, center.x, center.y, center.z, true)
       })
     } else if (!planView && camera.projection.current === 'Orthographic') {
       camera.set('Orbit')

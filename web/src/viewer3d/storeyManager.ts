@@ -93,7 +93,7 @@ export async function loadStoreys(model: FragmentsModel, byClass?: IfcClassItems
     // a reliable floor height when the property is present.
     let elevation = 0
     if (elevationVal !== undefined && Number.isFinite(elevationVal)) elevation = elevationVal
-    else if (!storeyBox.isEmpty()) elevation = storeyBox.min.z
+    else if (!storeyBox.isEmpty()) elevation = storeyBox.min.y
 
     storeys.push({
       id: `${model.modelId}:${storeyId}`,
@@ -135,12 +135,12 @@ export function applyStoreyCut(
     const cutZ = storey.elevation + 1.2
 
     // Three.js Plane clipping: normal (0, 0, -1) keeps points where z <= cutZ
-    const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), cutZ)
+    const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), cutZ)
 
     clipper.enabled = true
     clipper.visible = false
     clipper.deleteAll()
-    clipper.createFromNormalAndCoplanarPoint(world, new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, cutZ))
+    clipper.createFromNormalAndCoplanarPoint(world, new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, cutZ, 0))
 
     model.useClippingPlanes([cutPlane])
     renderer.three.localClippingEnabled = true
