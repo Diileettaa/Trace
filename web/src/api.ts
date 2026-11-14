@@ -425,6 +425,29 @@ export async function getBudget(): Promise<BudgetSummary> {
   return r.json()
 }
 
+export interface ProjectSettings {
+  building_type: 'historic' | 'new' | 'renovation'
+  owner_view: 'everything' | 'final_and_questions'
+  updated_at?: number
+}
+
+export async function getProjectSettings(): Promise<ProjectSettings> {
+  const r = await fetch(`${BASE}/project/settings`)
+  if (!r.ok) return { building_type: 'historic', owner_view: 'everything' }
+  return r.json()
+}
+
+export async function updateProjectSettings(settings: Partial<ProjectSettings>): Promise<ProjectSettings> {
+  const r = await fetch(`${BASE}/project/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
+  return r.json()
+}
+
+
 
 
 
