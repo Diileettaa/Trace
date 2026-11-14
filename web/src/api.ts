@@ -359,5 +359,72 @@ export async function markNotificationRead(id: string): Promise<{ ok: boolean; i
   return r.json()
 }
 
+export interface ChangeOrder {
+  id: string
+  space_id: string
+  trade: string
+  author: string
+  description: string
+  amount_eur: number
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: number
+  decided_by?: string
+  decided_at?: number
+}
+
+export interface BudgetSummary {
+  furniture_total: number
+  approved_change_orders: number
+  pending_change_orders: number
+  total: number
+}
+
+export async function getChangeOrders(spaceId = '', status = ''): Promise<{ change_orders: ChangeOrder[] }> {
+  const params = new URLSearchParams()
+  if (spaceId) params.set('space_id', spaceId)
+  if (status) params.set('status', status)
+  const r = await fetch(`${BASE}/change-orders${params.size ? `?${params}` : ''}`)
+  if (!r.ok) return { change_orders: [] }
+  return r.json()
+}
+
+export async function createChangeOrder(data: {
+  space_id: string
+  trade: string
+  author: string
+  description: string
+  amount_eur: number
+}): Promise<ChangeOrder> {
+  const r = await fetch(`${BASE}/change-orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
+  return r.json()
+}
+
+export async function decideChangeOrder(data: {
+  id: string
+  decision: 'approve' | 'reject'
+  by: string
+  role: string
+}): Promise<ChangeOrder> {
+  const r = await fetch(`${BASE}/change-orders/decide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
+  return r.json()
+}
+
+export async function getBudget(): Promise<BudgetSummary> {
+  const r = await fetch(`${BASE}/budget`)
+  if (!r.ok) return { furniture_total: 0, approved_change_orders: 0, pending_change_orders: 0, total: 0 }
+  return r.json()
+}
+
+
 
 
