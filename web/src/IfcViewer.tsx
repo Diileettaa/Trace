@@ -502,6 +502,13 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         await applyTradeColors(loadedModel, nextTrades)
         const ids = new Set(allModelLocalIds(allByClass))
         for (const id of await loadedModel.getLocalIds()) ids.add(id)
+        // Survey terrain and georeferencing meshes make several public IFCs
+        // (notably FZK) appear as a tiny building on a giant brown slab.
+        const siteClutterIds = Object.entries(allByClass)
+          .filter(([ifcClass]) => /IFCSITE|IFCGEOGRAPHICELEMENT/i.test(ifcClass))
+          .flatMap(([, localIds]) => localIds)
+        siteClutterIds.forEach((id) => ids.delete(id))
+        if (siteClutterIds.length) await loadedModel.setVisible(siteClutterIds, false)
         for (const storey of nextStoreys) {
           ids.add(storey.localId)
           for (const id of storey.itemIds) ids.add(id)
@@ -546,8 +553,16 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
           }
         } catch (error) { console.warn('Could not list IFC spaces:', error) }
 
-        await world.camera.fitToItems()
-        const modelBounds = new THREE.Box3().setFromObject(loadedModel.object)
+        const modelBoxes = await loadedModel.getBoxes([...ids])
+        const modelBounds = new THREE.Box3()
+        for (const itemBox of modelBoxes) if (itemBox && !itemBox.isEmpty()) modelBounds.union(itemBox)
+        if (modelBounds.isEmpty()) modelBounds.setFromObject(loadedModel.object)
+        const initialCenter = modelBounds.getCenter(new THREE.Vector3())
+        const initialDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 1)
+        await world.camera.controls.setLookAt(
+          initialCenter.x + initialDiameter, initialCenter.y - initialDiameter, initialCenter.z + initialDiameter * .8,
+          initialCenter.x, initialCenter.y, initialCenter.z, false,
+        )
         modelBoundsRef.current = modelBounds.clone()
         const modelDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 0.1)
         world.camera.three.near = .08
