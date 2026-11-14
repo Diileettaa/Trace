@@ -5,6 +5,7 @@ POST /upload   ?filename=x.pdf, raw file bytes as body -> {path, kind, pages}
 GET  /drawing  ?path=...&page=1         -> PNG of that drawing page (bbox pixel space)
 GET  /questions?source=...&limit=...    -> sample questions from questions.jsonl, for the demo picker
 GET  /inventory?path=...&page=1         -> every element on a drawing, numbered per category (module 1)
+GET  /plan/rooms?path=...&page=1        -> room outlines with bbox, polygon, status and media count
 GET  /collab?space_id=...               -> room status + message board (modules 3 & 4)
 POST /collab/status  {space_id, status, author?}
 POST /collab/message {space_id, text, author?, role?, notify?}
@@ -29,7 +30,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import agent, collab, config, drawings, files, media, render as render_service, scene, uploads, vision
+from . import (
+    agent,
+    collab,
+    config,
+    drawings,
+    files,
+    media,
+    plan_rooms,
+    render as render_service,
+    scene,
+    uploads,
+    vision,
+)
 
 app = FastAPI(title="Trace API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -177,6 +190,14 @@ def models():
 def inventory(path: str, page: int = 1):
     try:
         return vision.scan_drawing_inventory(path, page)
+    except drawings.DrawingError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/plan/rooms")
+def plan_rooms_route(path: str, page: int = 1):
+    try:
+        return plan_rooms.get_plan_rooms(path, page=page)
     except drawings.DrawingError as e:
         raise HTTPException(404, str(e))
 
