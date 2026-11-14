@@ -258,7 +258,53 @@ def _get_swiss_room_contents(dxf_path: Path, room_query: str) -> dict[str, Any]:
 # 2. IFC model room contents
 # =====================================================================
 
+_PROC_POOL = None
+
+
+def _ifc_index_cache_file(ifc_path: Path) -> Path:
+    cache_dir = config.CACHE_DIR / "ifc_rooms"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    st = ifc_path.stat()
+    return cache_dir / (hashlib.md5(f"{ifc_path}|{st.st_size}|{st.st_mtime}".encode()).hexdigest() + ".json")
+
+
 def _build_ifc_spatial_index(ifc_path: Path) -> dict[str, Any]:
+    """Cached spatial index. A cache miss is built in a separate process: ifcopenshell geometry holds the GIL for
+    minutes on big models and froze every other request (even /health) on the 2-CPU Cloud Run instance."""
+    global _PROC_POOL
+    cf = _ifc_index_cache_file(ifc_path)
+    if cf.is_file():
+        try:
+            return json.loads(cf.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    try:
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor
+        if _PROC_POOL is None:
+            _PROC_POOL = ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn"))
+        return _PROC_POOL.submit(_build_ifc_spatial_index_local, ifc_path).result(timeout=600)
+    except Exception as e:
+        logger.warning("subprocess IFC index failed for %s (%s), building in-process", ifc_path, e)
+        return _build_ifc_spatial_index_local(ifc_path)
+
+
+def prewarm_ifc_indexes(max_mb: int = 120) -> None:
+    """Build every IFC index once after startup (in the worker process) so demo questions hit the cache."""
+    for sub in ("data/ifc_models", "data/ifc_bench"):
+        d = config.DATA_DIR / sub
+        if not d.is_dir():
+            continue
+        for f in sorted(d.glob("*.ifc"), key=lambda x: x.stat().st_size):
+            if f.stat().st_size > max_mb * 1_000_000:
+                continue
+            try:
+                _build_ifc_spatial_index(f)
+            except Exception as e:
+                logger.warning("prewarm %s failed: %s", f.name, e)
+
+
+def _build_ifc_spatial_index_local(ifc_path: Path) -> dict[str, Any]:
     """Parse IFC building spaces and spatial containment, cached to CACHE_DIR."""
     cache_dir = config.CACHE_DIR / "ifc_rooms"
     cache_dir.mkdir(parents=True, exist_ok=True)

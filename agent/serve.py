@@ -27,6 +27,16 @@ app.mount("/api", api)
 
 
 @app.on_event("startup")
+def _prewarm_ifc():
+    if os.environ.get("PREWARM_IFC", "1") == "1":
+        import threading
+
+        from .room_contents import prewarm_ifc_indexes
+
+        threading.Thread(target=prewarm_ifc_indexes, daemon=True).start()
+
+
+@app.on_event("startup")
 def _seed_on_startup():
     if os.environ.get("SEED_DEMO") == "1":
         try:
