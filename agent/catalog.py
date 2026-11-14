@@ -205,6 +205,11 @@ def _auto_generate_projects(paths: set[str], data_root: Path) -> list[dict[str, 
         if p.lower().endswith(".ifc") and not p.startswith("uploads/") and not p.startswith("upload/")
     ]
     for ifc_p in sorted(ifc_paths):
+        # Exclude empty autopsy / test fragment models in opening_design
+        if "opening_design" in ifc_p.lower():
+            if any(bad in ifc_p.lower() for bad in ("stairs.blend", "colored_shapes", "detail_yorik", "bad ifc", "autopsy")):
+                continue
+
         model_name = Path(ifc_p).stem
 
         # Try to pair with a matching 2D floor plan PDF

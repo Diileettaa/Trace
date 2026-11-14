@@ -278,6 +278,9 @@ def _build_ifc_spatial_index(ifc_path: Path) -> dict[str, Any]:
             return json.loads(cf.read_text(encoding="utf-8"))
         except Exception:
             pass
+
+    if os.name == "nt":
+        return _build_ifc_spatial_index_local(ifc_path)
     try:
         import multiprocessing as mp
         from concurrent.futures import ProcessPoolExecutor
@@ -372,7 +375,7 @@ def _build_ifc_spatial_index_local(ifc_path: Path) -> dict[str, Any]:
                 })
 
     # Geometric fallback if no explicit space containment
-    if not has_rel_space:
+    if not has_rel_space and space_boxes:
         candidate_elements = []
         for el in f.by_type("IfcElement"):
             if el.is_a("IfcWall") or el.is_a("IfcWallStandardCase") or el.is_a("IfcSlab") or el.is_a("IfcOpeningElement"):

@@ -113,6 +113,10 @@ its commits are prefixed `feat(codex):`.
 | `GET /questions?source=` | dataset sample questions |
 | `POST /upload` | your own drawing (PDF, PNG, JPG, DXF, IFC) |
 | `GET/POST /collab/...` | Room Board, messages, people, bookings, room media |
+| `GET /verify/status?path=&ids=` | on-site verification status, photo counts, and latest photo for elements |
+| `GET /plan/rooms?path=` | room outlines, dimensions (dims_m: L, B, H), area, and status |
+| `GET /room/contents?path=&room=` | list fixtures, doors, windows, and equipment inside one room |
+| `GET /catalog/projects?q=` | search and paginate all featured, auto, and uploaded projects |
 | `GET/POST /files` | project file area |
 | `GET /scene?model=&since_version=`, `POST /scene/placement` | shared 3D furniture, polled every 3 s |
 

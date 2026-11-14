@@ -38,6 +38,8 @@ def check_file(path: Path, rel_str: str) -> dict[str, Any]:
         "rooms_count": 0,
         "plan_rooms_ok": False,
         "qa_ok": False,
+        "no_crash": False,
+        "has_answer": False,
         "qa_answer": None,
         "error": None,
         "duration_ms": 0,
@@ -66,7 +68,9 @@ def check_file(path: Path, rel_str: str) -> dict[str, Any]:
             # Basic Q&A: doors
             try:
                 v, unit, items, method, warn = ifc_answer.answer(str(path), "How many doors in the model?", M)
+                res["no_crash"] = True
                 res["qa_ok"] = v is not None
+                res["has_answer"] = (v is not None and v > 0)
                 res["qa_answer"] = f"{v} {unit}"
             except Exception as qe:
                 res["error"] = f"Q&A error: {qe}"
@@ -80,7 +84,9 @@ def check_file(path: Path, rel_str: str) -> dict[str, Any]:
             res["rooms_count"] = len(rooms)
             res["plan_rooms_ok"] = len(rooms) > 0
             doors = f.get("doors", [])
+            res["no_crash"] = True
             res["qa_ok"] = True
+            res["has_answer"] = len(doors) > 0 or len(rooms) > 0
             res["qa_answer"] = f"{len(doors)} count"
 
         elif ext == ".pdf":
@@ -100,7 +106,9 @@ def check_file(path: Path, rel_str: str) -> dict[str, Any]:
             except Exception:
                 res["plan_rooms_ok"] = False
 
+            res["no_crash"] = res["parse_ok"]
             res["qa_ok"] = res["parse_ok"]
+            res["has_answer"] = res["parse_ok"]
             res["qa_answer"] = "Document parsed"
 
         elif ext in (".png", ".jpg", ".jpeg"):
@@ -118,7 +126,9 @@ def check_file(path: Path, rel_str: str) -> dict[str, Any]:
             except Exception:
                 res["plan_rooms_ok"] = False
 
+            res["no_crash"] = res["parse_ok"]
             res["qa_ok"] = res["parse_ok"]
+            res["has_answer"] = res["parse_ok"]
             res["qa_answer"] = "Raster image OK"
 
     except Exception as e:
@@ -168,19 +178,20 @@ def run_check(data_dir: Path, output_file: Path | None = None) -> str:
         "",
         "## 1. Summary by Source Directory",
         "",
-        "| Source | Files | Parse Pass Rate | Total Rooms Detected | Q&A Pass Rate | Avg Latency (ms) |",
-        "| :--- | :---: | :---: | :---: | :---: | :---: |",
+        "| Source | Files | Parse Pass Rate | Total Rooms Detected | No Crash | Has Answer | Avg Latency (ms) |",
+        "| :--- | :---: | :---: | :---: | :---: | :---: | :---: |",
     ]
 
     for source, flist in sorted(results_by_source.items()):
         total = len(flist)
         parsed = sum(1 for x in flist if x["parse_ok"])
-        qa_ok = sum(1 for x in flist if x["qa_ok"])
+        no_crash = sum(1 for x in flist if x.get("no_crash", False))
+        has_ans = sum(1 for x in flist if x.get("has_answer", False))
         rooms = sum(x["rooms_count"] for x in flist)
         avg_lat = sum(x["duration_ms"] for x in flist) / max(1, total)
 
         lines.append(
-            f"| `{source}` | {total} | {parsed/total*100:.1f}% ({parsed}/{total}) | {rooms} | {qa_ok/total*100:.1f}% | {avg_lat:.0f} ms |"
+            f"| `{source}` | {total} | {parsed/total*100:.1f}% ({parsed}/{total}) | {rooms} | {no_crash/total*100:.1f}% | {has_ans/total*100:.1f}% | {avg_lat:.0f} ms |"
         )
 
     # 2. Focus on ifc_bench (The 5 Benchmark Models)
