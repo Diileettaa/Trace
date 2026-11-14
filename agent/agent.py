@@ -20,7 +20,9 @@ Hard rules:
    "What is on this plan / list everything" on an image drawing -> scan_drawing_inventory.
 3. If a question names a room loosely ("bathroom", "WC", "KPH", "Bad"), call list_spaces first to find the exact rooms.
 4. If a tool result has warnings, mention them briefly. If the data does not contain the answer, say so plainly.
-5. Answer in the language of the question. Lead with the answer (number + unit), then one short sentence on where it comes from.
+5. To total several numbers from tools (e.g. combined area of several rooms), call sum_values; never add them yourself.
+   For "what is built / missing / notes for a trade" questions, call room_status.
+6. Answer in the language of the question. Lead with the answer (number + unit), then one short sentence on where it comes from.
 {role_hint}"""
 
 ROLE_HINTS = {

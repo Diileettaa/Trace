@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="10 20 100 50"><g>
+<g id="a" class="IfcDoor" data-guid="DOOR1" fill="none"><path d="M20,30 L22,30 L22,40"/><path d="M22,30 A8,8 1.57 0,0 30,38 L22,38"/></g>
+<g id="b" class="IfcSpace" data-guid="SPACE1"><path d="M10,20 L60,20 L60,70 L10,70 Z"/></g>
+</g></svg>

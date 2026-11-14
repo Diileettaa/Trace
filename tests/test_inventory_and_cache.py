@@ -178,3 +178,42 @@ def test_engine_prior_is_not_presented_as_answer(monkeypatch):
                                                     "method": "cubicasa:prior:toilet", "warnings": []})
     r = engine_adapter.answer("data/cubicasa5k/x.png", "How many toilets?")
     assert r["value"] is None and "count_in_drawing" in r["warnings"][0]
+
+
+def test_sum_values_makes_totals_checkable(monkeypatch):
+    from agent import agent, tools
+
+    r = tools.call("sum_values", {"values": [4.2, 1.8], "unit": "m2"})
+    assert r["value"] == 6.0 and CONTRACT <= r.keys()
+    ev = [{"value": 4.2}, {"value": 1.8}]
+    assert agent.unsupported_numbers("Total 6.0 m2", "q", ev) == [6.0]
+    assert agent.unsupported_numbers("Total 6.0 m2", "q", ev + [r]) == []
+
+
+def test_room_status_reads_room_board():
+    from agent import collab, tools
+
+    assert tools.call("room_status", {})["warnings"]
+    collab.set_status("B204", "missing_wall", "architect")
+    collab.post_message("B204", "Fix wall before WC", role="architect", notify=["plumber"])
+    r = tools.call("room_status", {"space_id": "B204"})
+    assert r["items"][0]["status"] == "missing_wall" and r["messages"][0]["notify"] == ["plumber"]
+
+
+def test_ifc_plan_boxes_from_svg_guid_groups(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter, ifc_plan
+
+    ifc_plan._boxes.cache_clear()
+    px = 150 / 25.4
+    b = ifc_plan.boxes_for("data/ifc_models/m_plan.pdf", ["DOOR1", "SPACE1", "MISSING"])
+    assert b["DOOR1"] == [round(10 * px), round(10 * px), round(20 * px), round(20 * px)]  # arc end point included
+    assert "MISSING" not in b
+    fake = {"value": 2, "unit": "count", "method": "ifc:count_door", "warnings": [],
+            "items": [{"guid": "DOOR1", "category": "IFCDOOR"}, {"guid": "MISSING", "category": "IFCDOOR"}],
+            "sources": [{"file": "data/ifc_models/m.ifc"}]}
+    monkeypatch.setattr(ea, "answer", lambda p, q: fake)
+    r = engine_adapter.answer("data/ifc_models/m_plan.pdf", "How many doors?")
+    assert len(r["sources"]) == 1 and r["sources"][0]["label"] == "Door 1"
+    assert any("not on this floor plan" in w for w in r["warnings"])

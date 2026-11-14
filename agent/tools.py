@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from . import engine_adapter, vision
+from . import collab, engine_adapter, vision
 
 MOCK_DIR = Path(__file__).resolve().parent.parent / "mock"
 
@@ -56,6 +56,13 @@ DECLARATIONS = [
     _decl("scan_drawing_inventory", "List and number EVERY element on a raster drawing in one pass "
           "(WC 1, WC 2, Door 1 ...). Use for 'what is on this plan' / 'list everything' questions on image drawings.",
           {"path": _S, "page": _I}, ["path"]),
+    _decl("room_status", "Construction status (built / missing_wall / pending) and Room Board messages that people "
+          "on site have recorded for rooms. Use for questions about what is already built, what is missing, or notes "
+          "left for a trade. Omit space_id to get every room.",
+          {"space_id": _S}, []),
+    _decl("sum_values", "Add up numbers that earlier tool calls returned (e.g. total area of several rooms). "
+          "Never add numbers yourself: call this so the total is computed and checkable.",
+          {"values": {"type": "array", "items": {"type": "number"}}, "unit": _S, "label": _S}, ["values"]),
     _decl("count_in_drawing", "Count objects drawn on a raster drawing (PNG/JPG scan or a PDF page) using vision. "
           "Use for image and scanned drawings, where there is no model to query. "
           "`target` is a short English description, e.g. 'toilet bowls (WC seats)'.",
@@ -93,6 +100,10 @@ def _mock(name: str) -> dict:
 def call(name: str, args: dict[str, Any]) -> dict:
     """Run one tool call and always return the shared result format (never raise to the model)."""
     try:
+        if name == "room_status":
+            return room_status(**args)
+        if name == "sum_values":
+            return sum_values(**args)
         if name == "answer_from_engine":
             return engine_adapter.answer(**args)
         if name == "count_in_drawing":
@@ -107,3 +118,21 @@ def call(name: str, args: dict[str, Any]) -> dict:
     except Exception as e:  # report to the model instead of crashing the request
         return {"value": None, "items": [], "sources": [], "method": "error",
                 "warnings": [f"{type(e).__name__}: {e}"]}
+
+
+def room_status(space_id: str | None = None) -> dict:
+    data = collab.for_space(space_id)
+    items = [{"id": sid, "space_id": sid, "category": "room_status", "name": f"{sid}: {v['status']}",
+              "status": v["status"]} for sid, v in data["status"].items()]
+    msgs = [{"space_id": m["space_id"], "role": m.get("role", ""), "text": m["text"], "notify": m.get("notify", [])}
+            for m in data["messages"] if m.get("role") != "system"]
+    return {"value": len(items), "unit": "rooms with status", "items": items, "sources": [], "messages": msgs,
+            "method": "Room Board records entered by people on site (not read from the drawings)",
+            "warnings": [] if items or msgs else ["No status or messages have been recorded yet"]}
+
+
+def sum_values(values: list, unit: str | None = None, label: str | None = None) -> dict:
+    nums = [float(v) for v in values]
+    total = round(sum(nums), 3)
+    return {"value": total, "unit": unit, "items": [], "sources": [], "terms": nums,
+            "method": f"sum of {len(nums)} tool values" + (f" ({label})" if label else ""), "warnings": []}

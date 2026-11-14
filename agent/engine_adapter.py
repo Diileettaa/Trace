@@ -7,7 +7,7 @@ pixel space of the drawing the user is looking at (PDFs are shown rendered at 15
 """
 from __future__ import annotations
 
-from . import config, drawings
+from . import config, drawings, ifc_plan
 
 PT_TO_PX = drawings.PDF_RENDER_DPI / 72.0
 _NICE = {"wc": "WC", "washbasin": "Washbasin", "bathtub": "Bathtub", "shower": "Shower", "door": "Door",
@@ -62,6 +62,17 @@ def answer(path: str, question: str) -> dict:
         out_warn = "Engine has no detection for this raster plan (statistical prior only); use count_in_drawing"
         return {"value": None, "unit": r.get("unit"), "items": [], "sources": [], "method": f"engine:{r.get('method')}",
                 "warnings": [out_warn], "engine_prior_value": r.get("value"), "engine_sources": r.get("sources") or []}
+    # IFC answers come with GUIDs only; the plan PDF has a sibling SVG that names every element by GUID
+    if is_pdf and not sources:
+        guid_items = [i for i in items if i.get("guid")]
+        boxes = ifc_plan.boxes_for(path, [i["guid"] for i in guid_items])
+        for i in guid_items:
+            if i["guid"] in boxes:
+                sources.append({"file": path, "page": 1, "bbox": boxes[i["guid"]], "label": i["name"]})
+        if guid_items and len(boxes) < len(guid_items):
+            n = len(guid_items) - len(boxes)
+            r.setdefault("warnings", [])
+            r["warnings"] = list(r["warnings"]) + [f"{n} of {len(guid_items)} elements are not on this floor plan (shown in 3D only)"]
     model = next((s["file"] for s in r.get("sources") or [] if str(s.get("file", "")).endswith(".ifc")), None)
     out = {
         "value": r.get("value"),
