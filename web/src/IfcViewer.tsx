@@ -155,6 +155,7 @@ type ViewerEngine = { components: OBC.Components; world: World; fragments: OBC.F
 const HIGHLIGHT = { color: new THREE.Color('#E9B949'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
 const FOCUS_HIGHLIGHT = { color: new THREE.Color('#202427'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
 const EMPTY_COLLAB: CollabState = { status: {}, messages: [] }
+const EMPTY_ELEMENT_TAGS: NonNullable<Props['elementTags']> = []
 
 interface ErrorBoundaryProps { children: ReactNode }
 interface ErrorBoundaryState { hasError: boolean; error: Error | null }
@@ -338,6 +339,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
   const onlyTrade = presentTrades.length === 1 ? presentTrades[0] : null
+  // Real3D unmounts these props when returning to Whole Building. Keep the
+  // viewer defensive so an old render cannot leave evidence hovering behind.
+  const interiorElementTags = isolateSpaceGuid ? elementTags : EMPTY_ELEMENT_TAGS
 
   useEffect(() => {
     let cancelled = false
@@ -811,7 +815,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   useEffect(() => {
     const model = modelRef.current
     const camera = engine.current?.world.camera
-    if (!isolateSpaceGuid || !model || !camera || (!elementTags.length && !clearances) || !allLocalIds.length) {
+    if (!isolateSpaceGuid || !model || !camera || (!interiorElementTags.length && !clearances) || !allLocalIds.length) {
       setElementTagPositions({})
       setClearanceLines([])
       return
@@ -824,7 +828,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         model.getBoxes(allLocalIds),
       ])
       if (cancelled) return
-      const wanted = new Set([...elementTags.map(tag => tag.guid), ...(clearances?.guid ? [clearances.guid] : [])])
+      const wanted = new Set([...interiorElementTags.map(tag => tag.guid), ...(clearances?.guid ? [clearances.guid] : [])])
       const boxesByGuid = new Map<string, THREE.Box3>()
       guids.forEach((guid, index) => {
         const elementBox = boxes[index]
@@ -873,7 +877,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       update()
     })().catch(error => console.warn('[Trace] could not anchor interior evidence tags', error))
     return () => { cancelled = true; cancelAnimationFrame(frame) }
-  }, [allLocalIds, clearances, elementTags, isolateSpaceGuid, modelReady, rooms])
+  }, [allLocalIds, clearances, interiorElementTags, isolateSpaceGuid, modelReady, rooms])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
@@ -1766,7 +1770,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       <div className="room-label-layer" aria-label="Room labels">
         {isolateSpaceGuid && clearanceLines.length > 0 && <svg className="interior-clearances" aria-label="Fixture clearances">{clearanceLines.map(line => <g key={line.side}><line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} /><text x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2}>{line.value} mm</text></g>)}</svg>}
         {isolateSpaceGuid && roomDims && <div className="room-floor-dimensions">{roomDims.L != null && <span className="room-dim-l">↔ {roomDims.L.toFixed(2)} m</span>}{roomDims.B != null && <span className="room-dim-b">↕ {roomDims.B.toFixed(2)} m</span>}</div>}
-        {isolateSpaceGuid && elementTags.slice(0, 12).map((tag) => {
+        {interiorElementTags.slice(0, 12).map((tag) => {
           const position = elementTagPositions[tag.guid]
           if (!position) return null
           const tagKind = tag.issue ? 'issue' : tag.verified ? 'verified' : 'unverified'
