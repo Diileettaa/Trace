@@ -37,7 +37,7 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
     })
   }, [selected, size, sources])
 
-  if (!path) return <div className="viewer empty">选一道题或输入图纸路径后，图纸会显示在这里</div>
+  if (!path) return <div className="viewer empty">Select a question or enter a drawing path to preview here</div>
 
   return (
     <div className="viewer">
@@ -53,7 +53,7 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
           <img
             src={drawingUrl(path, page)}
             onLoad={(e) => setSize([e.currentTarget.naturalWidth, e.currentTarget.naturalHeight])}
-            onError={() => setError('图纸加载失败（路径不对，或这个格式还不能显示，比如 IFC/DXF）')}
+            onError={() => setError('Failed to load drawing (invalid path, or unsupported preview format e.g. IFC/DXF)')}
             style={{ width: '100%' }}
             alt={path}
           />

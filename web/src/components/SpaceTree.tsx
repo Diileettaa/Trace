@@ -25,7 +25,7 @@ const NO_SPACE = '(no room)'
 /** Module 2: Building -> Storey -> Room -> numbered elements. Click a room to scope questions to it. */
 export default function SpaceTree({ entries, collab, selected, activeSpace, onSelectElement, onSelectSpace }: Props) {
   const [closed, setClosed] = useState<Record<string, boolean>>({})
-  if (entries.length === 0) return <p className="dim small">还没有构件。先“识别全部构件”或提一个问题。</p>
+  if (entries.length === 0) return <p className="dim small">No elements yet. Click "Scan &amp; number all elements" or ask a question first.</p>
 
   const tree = new Map<string, Map<string, TreeEntry[]>>()
   for (const e of entries) {

@@ -43,7 +43,7 @@ export default function IfcViewer({ path, guids }: Props) {
 
     ;(async () => {
       try {
-        setStatus('加载 3D 引擎…')
+        setStatus('Loading 3D engine…')
         fragments.init(await OBC.FragmentsManager.getWorker())
         world.camera.controls.addEventListener('rest', () => fragments.core.update(true))
         fragments.list.onItemSet.add(({ value: model }) => {
@@ -53,17 +53,17 @@ export default function IfcViewer({ path, guids }: Props) {
         })
         const loader = components.get(OBC.IfcLoader)
         await loader.setup({ autoSetWasm: true })
-        setStatus('下载模型…')
+        setStatus('Downloading model…')
         const res = await fetch(fileUrl(path))
         if (!res.ok) throw new Error(`${res.status}`)
         const bytes = new Uint8Array(await res.arrayBuffer())
         if (cancelled) return
-        setStatus('转换 IFC（大模型可能要几十秒）…')
+        setStatus('Converting IFC (may take tens of seconds for large models)…')
         await loader.load(bytes, true, path)
         await world.camera.fitToItems()
         setStatus('')
       } catch (e) {
-        if (!cancelled) setStatus(`3D 加载失败：${e}`)
+        if (!cancelled) setStatus(`3D loading failed: ${e}`)
       }
     })()
 
@@ -92,7 +92,7 @@ export default function IfcViewer({ path, guids }: Props) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="path">{path}</span>
-        {guids.length > 0 && <span>{guids.length} 个构件已高亮</span>}
+        {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       </div>
       {status && <div className="status">{status}</div>}
       <div className="three" ref={box} />

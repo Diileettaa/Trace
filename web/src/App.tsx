@@ -9,11 +9,11 @@ import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source 
 
 const SOURCES = ['', 'cubicasa5k', 'swiss_dwellings', 'ifc_models', 'ifc_bench', 'opening_design']
 const ROLES: { v: Role; label: string }[] = [
-  { v: '', label: '任何角色' },
-  { v: 'architect', label: '建筑师 Architect' },
-  { v: 'electrician', label: '电工 Electrician' },
-  { v: 'plumber', label: '水管工 Plumber' },
-  { v: 'owner', label: '业主 Owner' },
+  { v: '', label: 'Any role' },
+  { v: 'architect', label: 'Architect' },
+  { v: 'electrician', label: 'Electrician' },
+  { v: 'plumber', label: 'Plumber' },
+  { v: 'owner', label: 'Owner' },
 ]
 
 export default function App() {
@@ -119,15 +119,15 @@ export default function App() {
         <p className="sub">Ask a drawing anything. Every answer shows where it came from.</p>
 
         <label>
-          题库样例
+          Dataset samples
           <div className="row">
             <select value={source} onChange={(e) => setSource(e.target.value)}>
               {SOURCES.map((s) => (
-                <option key={s} value={s}>{s || '全部来源'}</option>
+                <option key={s} value={s}>{s || 'All sources'}</option>
               ))}
             </select>
             <select value="" onChange={(e) => pick(samples[Number(e.target.value)])}>
-              <option value="">选一道题…</option>
+              <option value="">Select a question…</option>
               {samples.map((q, i) => (
                 <option key={i} value={i}>{q.question.slice(0, 70)}</option>
               ))}
@@ -136,13 +136,13 @@ export default function App() {
         </label>
 
         <label>
-          图纸 / 模型路径
+          Drawing / model path
           <input value={path} onChange={(e) => { setPath(e.target.value); setInv(null) }}
             placeholder="data/cubicasa5k/high_quality-108.png" />
         </label>
 
         <label>
-          问题{space && <span className="scope"> · 限定房间：{space.name} <a onClick={() => setSpace(null)}>×</a></span>}
+          Question{space && <span className="scope"> · Room scope: {space.name} <a onClick={() => setSpace(null)}>×</a></span>}
           <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={3}
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
         </label>
@@ -151,9 +151,9 @@ export default function App() {
           <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
           </select>
-          <button className="primary" onClick={submit} disabled={busy}>{busy ? '思考中…' : '提问'}</button>
+          <button className="primary" onClick={submit} disabled={busy}>{busy ? 'Thinking…' : 'Ask'}</button>
         </div>
-        {!isIfc && path && <button onClick={scan} disabled={busy}>识别全部构件并编号</button>}
+        {!isIfc && path && <button onClick={scan} disabled={busy}>Scan &amp; number all elements</button>}
 
         {err && <div className="error">{err}</div>}
         {mock && <div className="mock">MOCK DATA — engine not connected, numbers are placeholders</div>}
@@ -163,13 +163,13 @@ export default function App() {
             <p className="answer-text">{res.answer_text}</p>
             {res.evidence.map((e, i) => <VerifyBadge key={i} ev={e} />)}
             {expected && (
-              <p className="expected">题库标准答案：{String(expected.answer)} {expected.unit ?? ''}</p>
+              <p className="expected">Ground truth answer: {String(expected.answer)} {expected.unit ?? ''}</p>
             )}
             {warnings.length > 0 && (
               <ul className="warnings">{warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}</ul>
             )}
             <details>
-              <summary>工具调用（{res.tool_calls.length}）：{res.tool_calls.map((t) => t.name).join(' → ')}</summary>
+              <summary>Tool calls ({res.tool_calls.length}): {res.tool_calls.map((t) => t.name).join(' → ')}</summary>
               <pre>{JSON.stringify(res.tool_calls, null, 2)}</pre>
             </details>
           </section>
@@ -177,7 +177,7 @@ export default function App() {
 
         {(entries.length > 0 || inv) && (
           <section>
-            <h3>建筑目录（点击定位 / 点房间限定提问）</h3>
+            <h3>Building hierarchy (click to locate / scope question to room)</h3>
             {inv?.by_category && (
               <p className="dim small">{Object.entries(inv.by_category).map(([c, n]) => `${n} ${c}`).join(' · ')}</p>
             )}
