@@ -1820,6 +1820,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         <button type="button" disabled={!modelReady} onClick={advancePeel}>Peel · {peelStep}/3</button>
         {peelStep > 0 && <span>Step {peelStep}: {['', 'Lift slabs', 'Fade envelope', 'Reveal systems'][peelStep]}</span>}
       </div>
+      {hideRoomLabels && !isolateSpaceGuid && !walkMode && rooms.length > 0 && <aside className="room-picker" aria-label="Choose a room">
+        <strong>Choose a room</strong>
+        <div>{rooms.slice(0, 12).map(room => <button type="button" key={room.key} onClick={() => focusRoom(room.key)}>{englishRoomName(room.name)}{room.areaM2 ? ` · ${room.areaM2.toFixed(1)} m²` : ''}</button>)}</div>
+      </aside>}
       {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
         {isolateSpaceGuid && clearanceLines.length > 0 && <svg className="interior-clearances" aria-label="Fixture clearances">{clearanceLines.map(line => <g key={line.side}><line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} /><text x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2}>≈ {line.value} mm</text></g>)}</svg>}
