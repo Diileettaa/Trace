@@ -10,3 +10,4 @@ httpx
 numpy
 opencv-python-headless  # engine: calibrates boxes on PNG drawings
 ultralytics
+pypdf  # document store: text from PDFs (search ranking, tests)
