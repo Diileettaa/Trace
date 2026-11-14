@@ -26,6 +26,7 @@ import CalendarOrdersView from './CalendarOrdersView'
 import OrderModal from './OrderModal'
 import RoomExtrasPanel from './RoomExtrasPanel'
 import ProjectSettingsModal from './ProjectSettingsModal'
+import PlanRooms3D from './PlanRooms3D'
 import { DatasetBrowser, type CatalogItem } from './DatasetBrowser'
 import type { CollabState } from '../types'
 import type { ProjectDocument } from '../api'
@@ -155,7 +156,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
     <div className="workbench-grid">
       <aside className="workbench-room-tree"><h2>Building</h2>{modelPath ? <><p className="workbench-tree-node">⌄ {modelPath.split('/').pop()}</p><p className="workbench-tree-group">Rooms</p>{selectedRoom ? <button className="workbench-room-node selected" onClick={() => setRoomTab('Overview')}><i className={`room-status-dot ${collab.status[selectedRoom.id]?.status || ''}`} />{selectedRoom.name}<small>{collab.messages.filter(item => item.space_id === selectedRoom.id).length || ''}</small></button> : <p className="workbench-empty">Select a room in the model to see its details here.</p>}</> : <p className="workbench-empty">Choose a model to browse its rooms.</p>}</aside>
       <section className="workbench-center"><nav className="workbench-tabs" aria-label="Project workspace tabs">{mainTabs.map(tab => <button key={tab} className={mainTab === tab ? 'active' : ''} onClick={() => setMainTab(tab as typeof mainTab)}>{tab}</button>)}</nav>
-        {mainTab === '3D' && <>{!modelPath.toLowerCase().endsWith('.ifc') ? <div className="project-model-empty">Choose a 3D model from the project library to load the building.</div> : <div className="workbench-viewport"><IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom} onRoomAction={tab => { setRoomTab(tab); if (selectedRoom) setMainTab('3D') }} onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>}</>}
+        {mainTab === '3D' && <>{!modelPath.toLowerCase().endsWith('.ifc') ? <PlanRooms3D path={drawingPath || modelPath} /> : <div className="workbench-viewport"><IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom} onRoomAction={tab => { setRoomTab(tab); if (selectedRoom) setMainTab('3D') }} onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>}</>}
         {mainTab === '2D plan' && <SharedPlanPanel drawingPath={drawingPath} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} selectedRoomId={selectedRoom?.id} onRoomSelect={selectRoom} />}
         {mainTab === 'Files' && <section className="workbench-files"><div className="project-section-heading"><div><h2>Project files</h2><p className="sub">Plans, permits and reports</p></div></div><DocsLibrary selectedDocumentId={selectedDocumentId} onAskDocument={onAskDocument} /></section>}
         {mainTab === 'Schedule' && !isStreamlinedOwner && <section className="workbench-schedule"><WorkTimeline collab={collab} onChange={onChange} /></section>}

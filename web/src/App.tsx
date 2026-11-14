@@ -11,6 +11,7 @@ import UploadButton from './components/UploadButton'
 import VerifyBadge from './components/VerifyBadge'
 import { HowIGotThis } from './components/HowIGotThis'
 import { DatasetBrowser, CatalogProjects, type CatalogItem, type CatalogProject } from './components/DatasetBrowser'
+import PlanRooms3D from './components/PlanRooms3D'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
 
 const SOURCES = ['', 'cubicasa5k', 'swiss_dwellings', 'ifc_models', 'ifc_bench', 'opening_design']
@@ -579,7 +580,7 @@ export default function App() {
               setRenderError('')
             }}
           />
-        ) : (
+        ) : viewMode === '3d' ? <PlanRooms3D path={path} /> : (
           <DrawingViewer
             path={path}
             page={page}
