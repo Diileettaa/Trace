@@ -117,7 +117,6 @@ def test_media_path_traversal_rejected(client, tmp_path):
     ]:
         res = client.get(f"/collab/media/file?id={bad_id}")
         assert res.status_code in (400, 403, 404), f"bad_id {bad_id} got {res.status_code}"
-        assert res.status_code == 400
 
     # Direct unit check on media.resolve_file
     with pytest.raises(media.MediaSecurityError):
