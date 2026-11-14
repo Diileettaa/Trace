@@ -274,6 +274,10 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
         out["verified_by"] = r["verified_by"]
     if r.get("badge"):
         out["badge"] = r["badge"]
+    for k in ("interpreted", "canonical_question", "classified"):
+        # free-form questions: how engine.nlq read the question (shown as "Interpreted as ..." in the panel)
+        if r.get(k):
+            out[k] = r[k]
     if r.get("evidence"):
         # area answers: formula + per-room breakdown (+ excluded rooms with reason) so a judge can re-add it
         out["evidence"] = r["evidence"]
