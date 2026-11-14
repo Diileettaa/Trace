@@ -114,16 +114,90 @@ def _upload_answer(path: str, question: str) -> dict:
             "warnings": ["Uploaded plan has no vector data for the engine; use count_in_drawing or scan_drawing_inventory"]}
 
 
+# Where an engine answer comes from (Xinran's full eval, docs/04 section 2): geometry (DXF/IFC, exact),
+# detector (YOLO on raster plans), prior (most common value, only where it beats vision: kitchens),
+# vision (a vision LLM read the plan; rooms), needs_vision (engine has nothing: agent calls count_in_drawing).
+SOURCE_LABEL = {"geometry": "exact from geometry", "detector": "trained detector (YOLO)", "prior": "statistical prior",
+                "vision": "vision LLM", "needs_vision": "no engine answer"}
+
+
+def route(method: str) -> str:
+    m = str(method or "")
+    if m.startswith(("swiss_dxf:", "ifc:", "ifc_")):
+        return "geometry"
+    if m.startswith("cubicasa:vlm[yolo"):
+        return "detector"
+    if m.startswith(("cubicasa:prior:kitchen", "cubicasa:vlm+prior:")):
+        return "prior"
+    if m.startswith("cubicasa:vlm["):
+        return "vision"
+    return "needs_vision"
+
+
+def _cubicasa_fast(path: str, question: str) -> dict | None:
+    """Fixture/door/window counts straight from the YOLO detector, and kitchens from the prior.
+    engine.cubicasa.answer() asks the vision LLM first even when the detector will overrule it; skipping that call
+    here gives the same answer at zero tokens and ~1 s instead of ~20 s."""
+    import engine.answer as ea
+    from engine import cubicasa
+
+    c = cubicasa.category(question)
+    if c is None:
+        return None
+    if c in cubicasa.PRIOR_PREFERRED:
+        return {"value": cubicasa.CATS[c][2], "unit": "count", "items": [], "sources": [{"file": path}],
+                "method": f"cubicasa:prior:{c}",
+                "warnings": ["answered the most common value (more reliable than the vision model here)"]}
+    if c not in cubicasa.DETECTOR_CATS:
+        return None
+    png = str((config.DATA_DIR / path).resolve())
+    try:
+        boxes = cubicasa.detector_boxes(png, c)
+        w, h = ea._png_size(png)
+    except Exception:
+        return None
+    if boxes is None:
+        return None
+    items = [{"category": c, "box_norm1000": b,
+              "png_bbox": [round(b[0] * w / 1000), round(b[1] * h / 1000), round(b[2] * w / 1000), round(b[3] * h / 1000)]}
+             for b in boxes]
+    return {"value": len(boxes), "unit": "count", "items": items, "sources": [{"file": path}],
+            "method": f"cubicasa:vlm[yolo-cubicasa]:{c}", "warnings": []}
+
+
 def answer(path: str, question: str) -> dict:
     """Tool: ask the exact data engine. Pass the user's question unchanged."""
+    import time
+
     import engine.answer as ea
 
     ea.DATA = str(config.DATA_DIR)
     early = None
     if "cubicasa5k" in path and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
-        # the Nemotron second count does not depend on the engine result: run both at the same time
-        early = _POOL.submit(nemotron_check, path, question)
-    r = _upload_answer(path, question) if _is_upload_path(path) else ea.answer(path, question)
+        from engine import cubicasa
+
+        if cubicasa.category(question) not in (None, *cubicasa.PRIOR_PREFERRED):
+            # the Nemotron second count does not depend on the engine result: run both at the same time
+            early = _POOL.submit(nemotron_check, path, question)
+    t0 = time.perf_counter()
+    r = None
+    if _is_upload_path(path):
+        r = _upload_answer(path, question)
+    elif "cubicasa5k" in path:
+        r = _cubicasa_fast(path, question)
+    if r is None:
+        r = ea.answer(path, question)
+    engine_ms = round((time.perf_counter() - t0) * 1000, 1)
+    source = route(r.get("method"))
+    out = _convert(path, question, r, source, early)
+    out["source"] = source
+    out["source_label"] = SOURCE_LABEL[source]
+    out["engine_ms"] = engine_ms
+    out["evidence_count"] = len(out.get("items") or [])
+    return out
+
+
+def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict:
     is_pdf = path.lower().endswith(".pdf")
     counters: dict[str, int] = {}
     items, sources = [], []
@@ -144,7 +218,7 @@ def answer(path: str, question: str) -> dict:
             x0, y0, x1, y1 = box
             sources.append({"file": path, "page": 1, "bbox": [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)],
                             "label": label})
-    if "prior" in str(r.get("method")):
+    if source == "needs_vision" and "prior" in str(r.get("method")):
         # cubicasa without a vision result: the engine falls back to typical-plan statistics, not a detection
         out_warn = "Engine has no detection for this raster plan (statistical prior only); use count_in_drawing"
         return {"value": None, "unit": r.get("unit"), "items": [], "sources": [], "method": f"engine:{r.get('method')}",
@@ -160,22 +234,21 @@ def answer(path: str, question: str) -> dict:
             n = len(guid_items) - len(boxes)
             r.setdefault("warnings", [])
             r["warnings"] = list(r["warnings"]) + [f"{n} of {len(guid_items)} elements are not on this floor plan (shown in 3D only)"]
-    # raster plans: the engine's count comes from a vision model, so get an independent second count from Nemotron
-    method = str(r.get("method"))
-    if method.startswith("cubicasa:vlm") and isinstance(r.get("value"), int):
+    # Nemotron is only a consistency badge (docs/04 section 3): it never replaces the engine's value. When the two
+    # disagree the detector is right 3-8x more often. Geometry answers are exact, so no second check (no cost).
+    if source in ("detector", "vision") and isinstance(r.get("value"), int) \
+            and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
         r["warnings"] = list(r.get("warnings") or [])
         try:
-            verify = early.result(timeout=180) if early else nemotron_check(path, question)
+            verify = dict(early.result(timeout=180) if early else nemotron_check(path, question))
         except Exception as e:  # never fail the answer because the second opinion failed
             verify = {"nemotron_count": None, "model": config.NEMOTRON_MODEL or None, "error": type(e).__name__}
-        verify = dict(verify)
         verify["agreement"] = None if verify["nemotron_count"] is None else verify["nemotron_count"] == r["value"]
         r["verified_by"] = verify
-        if verify["nemotron_count"] is None:
-            r["warnings"].append("Second check (Nemotron) not run")
-        elif not verify["agreement"]:
-            r["warnings"].append(f"Detector found {r['value']} but Nemotron counted {verify['nemotron_count']}: "
-                                 "please check the highlighted boxes")
+        if verify["agreement"] is False:
+            r["warnings"].append(f"Methods disagree: engine found {r['value']}, Nemotron counted "
+                                 f"{verify['nemotron_count']}; answer keeps the engine value, check the boxes")
+    r["badge"] = badge(source, r.get("verified_by"))
     model = next((s["file"] for s in r.get("sources") or [] if str(s.get("file", "")).endswith(".ifc")), None)
     if not model and r.get("model_file"):
         model = r.get("model_file")
@@ -190,6 +263,8 @@ def answer(path: str, question: str) -> dict:
     }
     if r.get("verified_by"):
         out["verified_by"] = r["verified_by"]
+    if r.get("badge"):
+        out["badge"] = r["badge"]
     if model:
         out["model_file"] = model
     return out
@@ -202,3 +277,14 @@ def nemotron_check(path: str, question: str) -> dict:
     second, _ = vision.cached_call("nemotron-count", png_bytes, vision.VERIFY_PROMPT.format(target=target),
                                    config.NEMOTRON_MODEL or "none", lambda: vision._nemotron_count(png_bytes, target))
     return {"nemotron_count": second, "model": config.NEMOTRON_MODEL or None}
+
+
+def badge(source: str, verify: dict | None) -> dict | None:
+    """Consistency badge for the UI: green = two independent methods agree, yellow = they disagree, grey = exact."""
+    if source == "geometry":
+        return {"color": "grey", "text": "exact from geometry"}
+    if not verify or verify.get("nemotron_count") is None:
+        return None
+    if verify.get("agreement"):
+        return {"color": "green", "text": "2 independent methods agree"}
+    return {"color": "yellow", "text": "methods disagree - check boxes", "other_count": verify["nemotron_count"]}

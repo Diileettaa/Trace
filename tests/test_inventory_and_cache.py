@@ -225,6 +225,7 @@ def test_engine_raster_count_gets_nemotron_check(monkeypatch):
     from agent import engine_adapter, vision
 
     monkeypatch.setattr(vision.config, "NEMOTRON_MODEL", "nemotron-test")
+    monkeypatch.setattr(vision.config, "NVIDIA_API_KEY", "test")
     monkeypatch.setattr(vision, "_nemotron_count", lambda png, t: 13)
     fake = {"value": 10, "unit": "count", "method": "cubicasa:vlm[gemini]:window", "warnings": [],
             "items": [{"category": "window", "png_bbox": [1, 2, 3, 4]}], "sources": [{"file": "data/demo/plan.png"}]}
@@ -232,6 +233,44 @@ def test_engine_raster_count_gets_nemotron_check(monkeypatch):
     r = engine_adapter.answer("data/demo/plan.png", "How many windows?")
     assert r["verified_by"]["nemotron_count"] == 13 and r["verified_by"]["agreement"] is False
     assert any("Nemotron counted 13" in w for w in r["warnings"])
+    # the badge flags the disagreement but the engine value is kept (detector right 3-8x more often)
+    assert r["value"] == 10 and r["badge"]["color"] == "yellow" and r["source"] == "vision"
+
+
+def test_route_by_engine_method():
+    from agent.engine_adapter import route
+
+    assert route("swiss_dxf:doors") == "geometry" and route("ifc:space_area[geometry:footprint]") == "geometry"
+    assert route("cubicasa:vlm[yolo-cubicasa]:door") == "detector"
+    assert route("cubicasa:prior:kitchen") == "prior" and route("cubicasa:vlm+prior:shower_tub") == "prior"
+    assert route("cubicasa:vlm[gemini:gemini-3.8-flash]:bedroom") == "vision"
+    assert route("cubicasa:prior:bedroom") == "needs_vision" and route("upload:no_vector_data") == "needs_vision"
+
+
+def test_geometry_answer_is_grey_badge_without_nemotron(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter, vision
+
+    monkeypatch.setattr(vision.config, "NEMOTRON_MODEL", "nemotron-test")
+    monkeypatch.setattr(vision.config, "NVIDIA_API_KEY", "test")
+    monkeypatch.setattr(vision, "_nemotron_count", lambda png, t: (_ for _ in ()).throw(AssertionError("called")))
+    monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 3, "unit": "count", "items": [], "sources": [],
+                                                    "method": "swiss_dxf:doors", "warnings": []})
+    r = engine_adapter.answer("data/swiss_dwellings/a.png", "How many doors?")
+    assert r["value"] == 3 and r["source"] == "geometry" and r["badge"]["color"] == "grey"
+    assert "verified_by" not in r and r["engine_ms"] >= 0
+
+
+def test_kitchen_prior_is_kept(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter
+
+    monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 1, "unit": "count", "items": [], "sources": [],
+                                                    "method": "cubicasa:prior:kitchen", "warnings": []})
+    r = engine_adapter.answer("data/swiss_dwellings/x.png", "How many kitchens?")
+    assert r["value"] == 1 and r["source"] == "prior"
 
 
 def test_ask_endpoint_caches_answers(monkeypatch):

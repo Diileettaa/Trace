@@ -123,3 +123,22 @@ def test_answer_has_trace_and_usage(monkeypatch):
     assert kinds[0] == "question" and kinds[-1] == "answer" and "tool" in kinds
     assert any(s["kind"] == "check" and "Nemotron" in s["title"] and s["ok"] for s in out["trace"])
     assert out["usage"]["gemini_calls"] == 2 and out["usage"]["nemotron_calls"] == 1
+
+
+def test_summary_for_reasoning_panel(monkeypatch):
+    import engine.answer as ea
+
+    from agent import agent
+
+    monkeypatch.setattr(ea, "answer", lambda p, q: {
+        "value": 2, "unit": "count", "method": "swiss_dxf:doors", "warnings": [],
+        "items": [{"category": "door", "png_bbox": [1, 2, 3, 4]}, {"category": "door", "png_bbox": [5, 6, 7, 8]}],
+        "sources": []})
+    call = types.FunctionCall(name="answer_from_engine", args={"path": "data/demo/plan.png", "question": "doors?"})
+    out = agent.ask("How many doors?", "data/demo/plan.png",
+                    client=FakeClient([_Resp(calls=[call]), _Resp(text="2 doors.")]))
+    s = out["summary"]
+    assert s["source"] == "geometry" and s["method"] == "engine:swiss_dxf:doors" and s["evidence_count"] == 2
+    assert s["engine_tokens"] == 0 and s["badge"]["color"] == "grey" and isinstance(s["cost_usd"], float)
+    step = next(t for t in out["trace"] if t["kind"] == "tool")
+    assert step["source"] == "geometry" and step["tokens"] == 0 and step["engine_ms"] is not None

@@ -12,8 +12,13 @@ SYSTEM_PROMPT = """You answer questions about construction drawings and building
 Hard rules:
 1. Never estimate or calculate numbers yourself. Every number in your answer must come from a tool result.
 2. If answer_from_engine is available and the file is under swiss_dwellings, ifc_models, ifc_bench or cubicasa5k,
-   call it FIRST with the user's question unchanged and trust its value. Only if it returns no value or
-   "question not recognised" fall back to the tools below.
+   call it FIRST with the user's question unchanged. Its `source` field says where the value comes from:
+   - "geometry" (exact from DXF/IFC), "detector" (trained YOLO detector), "prior" or "vision": use its `value`
+     directly and do NOT call count_in_drawing or any other counting tool for the same question.
+   - "needs_vision" (value null): only then call count_in_drawing.
+   If it returns "question not recognised", fall back to the tools below.
+   A yellow `badge` means a second model counted differently: keep the engine value, mention the other count
+   in one short clause and point to the numbered boxes.
    Otherwise choose tools by file type: IFC models -> list_spaces / count_elements / elements_in_space / space_area /
    locate_elements / element_status. PNG, JPG or scanned PDF drawings -> count_in_drawing.
    Vector PDF text, room names and schedules -> search_drawings.
@@ -148,8 +153,44 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
     usage["vision_calls"] = sum(1 for e in evidence if e.get("tool") in ("count_in_drawing", "scan_drawing_inventory")
                                 and not e.get("cached"))
     usage["nemotron_calls"] = sum(1 for e in evidence if (e.get("verified_by") or {}).get("nemotron_count") is not None)
+    usage["cost_usd"] = cost_usd(usage)
     return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls, "timing": timing,
-            "usage": usage, "trace": build_trace(question, tool_calls, evidence, answer)}
+            "usage": usage, "summary": summarize(evidence, timing, usage),
+            "trace": build_trace(question, tool_calls, evidence, answer)}
+
+
+def cost_usd(usage: dict) -> float:
+    """Gemini cost of one answer from token counts (engine and detector cost nothing)."""
+    out_tokens = usage.get("output", 0) + usage.get("thinking", 0)
+    return round((usage.get("input", 0) * config.GEMINI_PRICE_IN + out_tokens * config.GEMINI_PRICE_OUT) / 1e6, 6)
+
+
+def summarize(evidence: list[dict], timing: dict, usage: dict) -> dict:
+    """One-glance facts for the "How I got this" panel: where the number came from and what it cost."""
+    main = next((e for e in evidence if e.get("tool") == "answer_from_engine" and e.get("value") is not None), None)
+    if main is None:
+        main = next((e for e in evidence if e.get("tool") not in ("number_check",) and e.get("value") is not None), {})
+    tool = main.get("tool")
+    source = main.get("source") or ("vision" if tool in ("count_in_drawing", "scan_drawing_inventory") else
+                                    "computed" if tool == "sum_values" else "tool" if tool else None)
+    warnings = [w for e in evidence for w in (e.get("warnings") or [])]
+    return {
+        "source": source,
+        "source_label": main.get("source_label") or {"vision": "vision LLM", "computed": "computed from tool values",
+                                                    "tool": tool}.get(source),
+        "method": main.get("method"),
+        "interpreted": main.get("interpreted"),
+        "evidence_count": len(main.get("items") or []),
+        "boxes": len(main.get("sources") or []),
+        "engine_ms": main.get("engine_ms"),
+        "llm_s": round(sum(timing.get("gemini_calls_s") or []), 2),
+        "total_s": timing.get("total_s"),
+        "engine_tokens": 0,
+        "llm_tokens": usage.get("input", 0) + usage.get("output", 0) + usage.get("thinking", 0),
+        "cost_usd": usage.get("cost_usd"),
+        "badge": main.get("badge"),
+        "warnings": warnings,
+    }
 
 
 def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], answer: str) -> list[dict]:
@@ -170,6 +211,9 @@ def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], ans
             "method": e.get("method"), "boxes": len(e.get("sources") or []),
             "items": len(e.get("items") or []), "elapsed_s": e.get("elapsed_s"), "cached": bool(e.get("cached")),
             "warnings": e.get("warnings") or [],
+            "source": e.get("source"), "source_label": e.get("source_label"), "engine_ms": e.get("engine_ms"),
+            "evidence_count": e.get("evidence_count"), "badge": e.get("badge"),
+            "tokens": 0 if call.get("name") == "answer_from_engine" else None,
         })
         v = e.get("verified_by")
         if v and v.get("nemotron_count") is not None:
