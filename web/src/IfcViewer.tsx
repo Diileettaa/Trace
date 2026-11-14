@@ -264,7 +264,7 @@ function makeCatalogThumbnailModel(product: FurnitureProduct) {
   return makePlaceholder(product, `catalog-${product.id}`)
 }
 
-function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, onRoomAction, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange, isolateSpaceGuid, elementTags = [], clearances, roomDims, hideRoomLabels = false }: Props) {
+function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsChange, onScreenshot, onSelectRoom, onRoomAction, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange, isolateSpaceGuid, elementTags = [], clearances, roomDims, hideRoomLabels = false }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
@@ -1626,7 +1626,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         {isolateSpaceGuid && clearances && <div className="interior-clearances">{(['left', 'right', 'front', 'rear'] as const).map((side, index) => clearances[side] == null ? null : <span key={side} style={{ left: `${16 + (index % 2) * 55}%`, top: `${60 + Math.floor(index / 2) * 12}%` }}><i />{clearances[side]} mm</span>)}</div>}
         {isolateSpaceGuid && roomDims && <div className="room-floor-dimensions">{roomDims.L != null && <span className="room-dim-l">↔ {roomDims.L.toFixed(2)} m</span>}{roomDims.B != null && <span className="room-dim-b">↕ {roomDims.B.toFixed(2)} m</span>}</div>}
         {(isolateSpaceGuid || guids.length > 0) && elementTags.slice(0, 20).map((tag, index) => <button key={tag.guid} type="button" className={`element-world-tag ${tag.issue || !tag.verified ? 'issue' : ''}`} style={{ left: `${12 + (index % 4) * 21}%`, top: `${12 + Math.floor(index / 4) * 13}%` }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>)}
-        {!walkMode && !hideRoomLabels && rooms.filter((room, index, list) => !selectedStoreyId || room.storeyId === selectedStoreyId).filter((room, index, list) => list.findIndex(candidate => englishRoomName(candidate.name) === englishRoomName(room.name)) === index).map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
+        {!walkMode && !hideRoomLabels && rooms.filter(room => !selectedStoreyId || room.storeyId === selectedStoreyId).filter((room, index, list) => list.findIndex(candidate => englishRoomName(candidate.name) === englishRoomName(room.name)) === index).map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
           onClick={() => focusRoom(room.key)} title="Open room actions">
