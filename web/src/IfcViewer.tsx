@@ -547,6 +547,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
                 areaM2: typeof areaValue === 'number' && Number.isFinite(areaValue) && areaValue > 0 ? areaValue : undefined, storeyId: roomStorey?.id }]
             })
             setRooms(nextRooms)
+            ;(window as unknown as { __traceRooms?: unknown }).__traceRooms = nextRooms.map(r => ({ name: r.name, min: r.box.min.toArray(), max: r.box.max.toArray() }))  // debug: axis check
             if (nextRooms.length) {
               setSelectedRoomKey(nextRooms[0].key)
             }
