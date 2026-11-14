@@ -101,6 +101,35 @@ _UNIT = {"count": "", "m2": " m²", "m3": " m³", "m": " m"}
 _CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
 
 
+def follow_ups(question: str, evidence: list[dict], path: str | None) -> list[str]:
+    """2-3 next questions the assistant offers after an answer (architect's request: 'ask a deeper question').
+    Rule-based, 0 tokens; every suggestion is something the tools can actually answer."""
+    main = next((e for e in evidence if e.get("value") is not None), {})
+    unit = str(main.get("unit") or "")
+    cat = str(((main.get("interpreted") or {}).get("category")) or "")
+    items = main.get("items") or []
+    rooms = sorted({str(i.get("number") or i.get("name")) for i in items if i.get("category") in ("room", "IFCSPACE")
+                    and (i.get("number") or i.get("name"))})
+    out: list[str] = []
+    if unit == "m2":
+        out.append("Which rooms were left out of this area, and why?")
+        if rooms:
+            out.append(f"What is inside room {rooms[0]}?")
+    elif items:
+        thing = cat or "these"
+        out.append(f"Which of the {thing}s are already verified on site with a photo?" if cat else
+                   "Which of these are already verified on site with a photo?")
+        out.append("What else is in the same room?")
+    if path and str(path).lower().endswith((".ifc",)) or main.get("model_file"):
+        out.append("Show them in the 3D model")
+    out.append("Who is scheduled to work in this room next?")
+    seen, uniq = set(), []
+    for q in out:
+        if q not in seen and q.lower() != question.strip().lower():
+            seen.add(q); uniq.append(q)
+    return uniq[:3]
+
+
 def _fmt(v) -> str:
     return str(int(v)) if isinstance(v, (int, float)) and float(v).is_integer() else f"{v}"
 
@@ -151,7 +180,8 @@ def _direct(question: str, path: str | None) -> dict | None:
              "cost_usd": 0.0}
     trace = build_trace(question, tool_calls, evidence, text, direct=True)
     return {"answer_text": text, "evidence": evidence, "tool_calls": tool_calls, "timing": timing, "usage": usage,
-            "summary": summarize(evidence, timing, usage), "trace": trace, "llm_used": False}
+            "summary": summarize(evidence, timing, usage), "trace": trace, "llm_used": False,
+            "follow_ups": follow_ups(question, evidence, path)}
 
 
 def ask(question: str, path: str | None = None, role: str | None = None, client=None) -> dict:
@@ -225,6 +255,7 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
     usage["cost_usd"] = cost_usd(usage)
     return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls, "timing": timing,
             "usage": usage, "summary": summarize(evidence, timing, usage), "llm_used": True,
+            "follow_ups": follow_ups(question, evidence, path),
             "trace": build_trace(question, tool_calls, evidence, answer)}
 
 
