@@ -133,7 +133,17 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   useEffect(() => {
     setSheetGroups([]);
     fetch(`/api/sheetset?project=${encodeURIComponent(project.id)}`).then((r) => r.json())
-      .then((d) => setSheetGroups(Array.isArray(d?.groups) ? d.groups : [])).catch(() => setSheetGroups([]));
+      .then((d) => {
+        const groups: SheetGroup[] = Array.isArray(d?.groups) ? d.groups : [];
+        setSheetGroups(groups);
+        // drawing-set projects: open on an architectural floor plan, not whatever PDF sorted first
+        if (project.id.startsWith('set-')) {
+          const all = groups.flatMap((g) => g.sheets).filter((sh) => !/\.ifc$/i.test(sh.path));
+          const best = all.find((sh) => sh.discipline === 'architecture' && sh.kind === 'plan' && sh.level)
+            || all.find((sh) => sh.discipline === 'architecture' && sh.kind === 'plan') || all[0];
+          if (best) { setAskPath(best.path); setSheetPage(best.page); }
+        }
+      }).catch(() => setSheetGroups([]));
   }, [project.id]);
   useEffect(() => { save(chatKey, chats); }, [chats, chatKey]);
   useEffect(() => {

@@ -15,7 +15,7 @@ _lock = threading.Lock()
 
 def _project(pid: str) -> dict | None:
     from . import catalog
-    for p in catalog.tree().get("projects", []):
+    for p in catalog.get_all_projects():
         if p.get("id") == pid:
             return p
     return None

@@ -267,6 +267,33 @@ def _auto_generate_projects(paths: set[str], data_root: Path) -> list[dict[str, 
     return auto_projects
 
 
+def _drawing_sets(paths: set[str], taken: set[str]) -> list[dict[str, Any]]:
+    """Real multi-sheet PDF sets (opening_design/<Project>/...) without an IFC project: one card each, so the
+    sheet set (engine.sheetset) can sort their drawings and pick the sheet that answers a question."""
+    by: dict[str, list[str]] = defaultdict(list)
+    for p in paths:
+        parts = p.split("/")
+        if "opening_design" in parts and p.lower().endswith(".pdf"):
+            i = parts.index("opening_design")
+            if len(parts) > i + 2:
+                by[parts[i + 1]].append(p)
+    out = []
+    for folder, pdfs in sorted(by.items(), key=lambda kv: -len(kv[1])):
+        if folder in taken or len(pdfs) < 2:
+            continue
+        pdfs.sort(key=lambda x: (0 if re.search(r"floor|level|1st|2nd", Path(x).name, re.I) else 1 if re.search(r"plan", Path(x).name, re.I) and not re.search(r"site", x, re.I) else 2, x))
+        out.append({
+            "id": f"set-{folder}"[:40],
+            "title": _pretty(folder).title(),
+            "subtitle": f"Drawing set · {len(pdfs)} PDF files",
+            "description": f"Real project drawing set ({folder}); the sheet menu sorts it by discipline and level.",
+            "model": None,
+            "plan": pdfs[0],
+            "demo_data": False,
+        })
+    return out
+
+
 def _get_dataset_mtime(data_dir: Path) -> float:
     """Calculate directory mtime for cache invalidation."""
     mtimes = []
@@ -387,12 +414,15 @@ def tree() -> dict[str, Any]:
     # Auto-generate projects for all IFC models and Swiss buildings
     auto_projects = _auto_generate_projects(paths, data)
     auto_projects = [p for p in auto_projects if (p["model"], p["plan"]) not in featured_pairs]
+    taken = {x.split("/")[x.split("/").index("opening_design") + 1] for p in featured_projects + auto_projects
+             for x in (p.get("model"), p.get("plan")) if x and "opening_design" in x.split("/")}
+    set_projects = _drawing_sets(paths, taken)
 
     # Combine all projects
-    all_projects = featured_projects + auto_projects + uploaded_projects
+    all_projects = featured_projects + set_projects[:3] + auto_projects + set_projects[3:] + uploaded_projects
 
     # /catalog top-level returns at most 12 projects
-    top_projects = all_projects[:12]
+    top_projects = all_projects[:15]
 
     result = {
         "featured": [p for p in FEATURED if p in paths],
