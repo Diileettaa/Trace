@@ -1,0 +1,8 @@
+{
+  "name": "Trace.",
+  "description": "Verifiable construction drawing intelligence, 3D spatial dimension inspection, as-built site photo memory, and trade workflow coordination.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

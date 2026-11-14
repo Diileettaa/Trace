@@ -1,0 +1,30 @@
+# 31 给 Gemini CLI：Gigi 工作台需要的后端（11/14 21:15）
+
+配合 Codex 30 号。只改 agent/、tests/、scripts/seed_demo.py、README 接口表。不改 engine/、web/。不读 .env。不 push。每项单独 commit，先跑 pytest。
+
+## 1. 构件状态（不带照片也能改）
+- `POST /verify/item` body `{path, item_id, space_id?, status: "Installed"|"In Progress"|"Issue Reported", note?, author}` → 存到 collab 状态（JSON 文件，和照片同处）
+- `POST /collab/media` 加可选 query `status`，上传照片时一并写状态
+- `GET /verify/status` 每个 id 返回：`{verified, status, note, author, ts, photos, latest:{url,ts,author}}`；`verified` = 有照片或 status 被人设过；无记录时 status="In Progress", verified=false
+
+## 2. 构件信息 `GET /element/info?path=&id=`
+- IFC（id=GlobalId）：`{type, name, manufacturer, model, storey, space, bbox_m:{L,B,H}, clearances:{left_wall, right_wall, front, rear, height_aff}}`
+  - manufacturer/model：Pset_ManufacturerTypeInformation（Manufacturer、ModelReference/ModelLabel），没有就 IfcTypeObject.Name / ObjectType
+  - clearances：构件包围盒到所在 IfcSpace 包围盒四边的距离（mm，取整），height_aff = 构件底到楼层标高。用 room_contents 的缓存索引，不要每次重算几何（用子进程那套）
+- swiss DXF（id 形如 `<path>#wc-1`）：类别、房间、bbox_m、到房间多边形四边距离
+- 扫描图：只返回 type、bbox（像素）、其余 null
+- 测试：clinic IFC 一个马桶、swiss 一个 WC 各一条
+
+## 3. /ask 补字段（只在 agent/engine_adapter.py 输出层加，不动 engine）
+- `summary.room`：items 里最多的 space_id、room_name，以及从 /plan/rooms 取的 area_m2、dims_m（能取到就填）
+- 每个 item 加 `source_index`：它在 sources 里的框下标（方便前端对应框）
+
+## 4. Demo 数据（SEED_DEMO=1）
+- 把 design/gigi/src/assets/images 里 3 张马桶照片 + 2 张风管照片复制到 demo 媒体目录
+- Tallinn（esplanades 平面 PDF）问「How many toilets」得到的前 3 个马桶 id：第 1 个 Installed + wc_installed_standard 照片（M. Lindqvist）；第 2 个无照片 In Progress；第 3 个 Issue Reported + wc_installed_accessible 照片 + note「transfer zone 865 mm, 35 mm short of 900 mm (DIN 18040)」（K. Korhonen）
+- swiss site1000 的 WC 同样配 2 张
+- 标 Demo（author 后加「· Demo」）
+
+## 5. 验收
+- pytest 全过；对本地跑：Tallinn 马桶题 → /verify/status 返回 1 Installed / 1 In Progress / 1 Issue；/element/info 返回 clearances
+- 完成告诉 Diletta
