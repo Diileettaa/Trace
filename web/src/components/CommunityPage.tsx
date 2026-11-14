@@ -66,12 +66,12 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   const [modelPlacements, setModelPlacements] = useState<ScenePlacement[]>([])
   const [guideStep, setGuideStep] = useState(() => localStorage.getItem('trace-project-guide-dismissed') === '1' ? -1 : 0)
   const [roomBlockerWarning, setRoomBlockerWarning] = useState<string>('')
-  let profile: { name?: string; trade?: string } | null = null
-  try { profile = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') } catch { /* profile is optional until Community */ }
+  let profile: { name?: string; trade?: string } | null = { name: 'Demo', trade: 'Architect' }
+  try { profile = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') || profile } catch { /* demo identity is optional until Community */ }
   let currentPerson = ''
   try { currentPerson = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* profile is registered in Project */ }
 
-  useEffect(() => { if (!profile) setProfileOpen(true) }, [])
+  // Identity stays optional: the avatar opens the form when a user chooses to edit it.
 
   useEffect(() => {
     void getProjectSettings().then(s => setProjectSettings(s)).catch(() => {})
