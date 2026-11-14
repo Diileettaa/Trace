@@ -30,6 +30,8 @@ export interface FixtureVerification {
   dimensions3D: Record<string, string>; // filled from /api/element/info clearances; empty = hide rows
   position: Box | null;  // drawing pixels (same frame as /api/drawing PNG); null = no box on this sheet
   reviewId?: number | string; // id for /api/review
+  spaceId?: string | null;     // raw IfcSpace GlobalId / room key (for 3D isolation)
+  clearanceMm?: { left?: number; right?: number; front?: number; rear?: number };
 }
 
 export interface FollowUp { id: string; question: string; answer?: string }
@@ -51,6 +53,7 @@ export interface QueryScenario {
   requiredLayers: LayerId[];
   roomHighlight: Box | null;
   roomPolygon: [number, number][] | null;
+  roomDimsM: { L: number; B: number; H: number | null } | null;
   targetIds: string[];
   aiSummary: string;
   followUpQuestions: FollowUp[];
@@ -149,6 +152,7 @@ export function toScenario(
       dimensions3D: {},
       position: boxFrom(src, imgW, imgH) || boxFrom(it, imgW, imgH),
       reviewId: it.review_id,
+      spaceId: it.space_id ?? null,
     };
   });
 
@@ -208,6 +212,7 @@ export function toScenario(
       requiredLayers: [...layers],
       roomHighlight,
       roomPolygon: room?.polygon_px || null,
+      roomDimsM: (dims as any) || null,
       targetIds: Object.keys(fixtures),
       aiSummary: stripMd(ask?.answer_text || ''),
       followUpQuestions: (ask?.follow_ups || []).map((q: string, i: number) => ({ id: `fu-${i}`, question: q })),
@@ -252,6 +257,7 @@ export function withElementInfo(f: FixtureVerification, info: any): FixtureVerif
       || (isIfc ? 'Not recorded in the IFC model (no Pset_ManufacturerTypeInformation)' : 'Not in this drawing (2D plans carry no product data)'),
     modelSpec: info.model || info.type
       || (isIfc ? 'No model/type name in the IFC model' : 'Not in this drawing'),
+    clearanceMm: { left: c.left_wall ?? undefined, right: c.right_wall ?? undefined, front: c.front ?? undefined, rear: c.rear ?? undefined },
     dimensions3D: Object.keys(rows).length ? { ...rows, note: 'approx. — from bounding boxes of the element and its room' }
       : { note: isIfc ? 'Clearances need the room (IfcSpace) around this element; none found in the model'
                       : 'Clearances need wall geometry; this drawing has none we can measure' },

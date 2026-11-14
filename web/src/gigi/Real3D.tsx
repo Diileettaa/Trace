@@ -103,7 +103,12 @@ export const Real3D: React.FC<Props> = ({
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
           {model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
-              onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }} />
+              onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }}
+              isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}
+              elementTags={siblingFixtures.filter((f) => isGuid(f.id)).slice(0, 60).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
+              clearances={mode === 'room' && fixture && isGuid(fixture.id) && fixture.clearanceMm ? { guid: fixture.id, ...fixture.clearanceMm } : undefined}
+              roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
+              hideRoomLabels={mode === 'room'} />
           ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (
             <PlanRooms3D path={plan} />
           ) : (
