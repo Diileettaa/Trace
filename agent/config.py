@@ -22,9 +22,9 @@ UPLOAD_PREFIX = "uploads/"  # paths of user-uploaded drawings, stored under CACH
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 # Cost shown in the reasoning panel: USD per 1M tokens for GEMINI_MODEL (thinking billed as output).
-# Defaults are Gemini Flash list prices; override in .env if the model changes. The engine itself is 0 tokens.
-GEMINI_PRICE_IN = float(os.getenv("GEMINI_PRICE_IN", "0.30"))
-GEMINI_PRICE_OUT = float(os.getenv("GEMINI_PRICE_OUT", "2.50"))
+# Defaults match web/src/pricing.ts (Gemini 3.8 Flash, checked 2026-11-14); override in .env if the model changes. The engine itself is 0 tokens.
+GEMINI_PRICE_IN = float(os.getenv("GEMINI_PRICE_IN", "0.75"))
+GEMINI_PRICE_OUT = float(os.getenv("GEMINI_PRICE_OUT", "3.75"))
 
 # Agent behaviour
 MAX_TOOL_STEPS = int(os.getenv("MAX_TOOL_STEPS", "5"))
