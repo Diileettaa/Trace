@@ -219,3 +219,36 @@ export async function getDocsMailbox(): Promise<{ connected: boolean; receipts: 
   const body = await response.json() as { receipts?: unknown[] }
   return { connected: true, receipts: body.receipts || [] }
 }
+
+export interface WorkflowBlocker {
+  reason: string
+  needs_trade: string
+  needs_status: string
+}
+
+export interface BookingViolation {
+  booking_id: string
+  space_id: string
+  trade: string
+  person: string
+  start: number
+  end: number
+  what: string
+  blockers: WorkflowBlocker[]
+}
+
+export async function checkWorkflow(spaceId: string, trade: string, start = '', end = ''): Promise<{ ok: boolean; blockers: WorkflowBlocker[] }> {
+  const params = new URLSearchParams({ space_id: spaceId, trade })
+  if (start) params.set('start', start)
+  if (end) params.set('end', end)
+  const r = await fetch(`${BASE}/workflow/check?${params}`)
+  if (!r.ok) return { ok: true, blockers: [] }
+  return r.json()
+}
+
+export async function getWorkflowBlockers(): Promise<{ blockers: BookingViolation[] }> {
+  const r = await fetch(`${BASE}/workflow/blockers`)
+  if (!r.ok) return { blockers: [] }
+  return r.json()
+}
+

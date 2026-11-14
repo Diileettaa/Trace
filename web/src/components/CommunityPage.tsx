@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { postDirect, postRoomChat, setRoomStatus } from '../api'
+import { checkWorkflow, postDirect, postRoomChat, setRoomStatus } from '../api'
 import IfcViewer from '../IfcViewer'
 import ContactRegistration from './ContactRegistration'
 import DirectMessages from './DirectMessages'
@@ -39,12 +39,26 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   const [dmOpen, setDmOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [guideStep, setGuideStep] = useState(() => localStorage.getItem('trace-project-guide-dismissed') === '1' ? -1 : 0)
+  const [roomBlockerWarning, setRoomBlockerWarning] = useState<string>('')
   let profile: { name?: string; trade?: string } | null = null
   try { profile = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') } catch { /* profile is optional until Community */ }
   let currentPerson = ''
   try { currentPerson = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* profile is registered in Project */ }
 
   useEffect(() => { if (!profile) setProfileOpen(true) }, [])
+
+  useEffect(() => {
+    if (!selectedRoom) { setRoomBlockerWarning(''); return }
+    let cancelled = false
+    void checkWorkflow(selectedRoom.id, 'plumber').then(res => {
+      if (!cancelled && !res.ok && res.blockers?.length) {
+        setRoomBlockerWarning(res.blockers.map(b => b.reason).join(' · '))
+      } else if (!cancelled) {
+        setRoomBlockerWarning('')
+      }
+    }).catch(() => { if (!cancelled) setRoomBlockerWarning('') })
+    return () => { cancelled = true }
+  }, [selectedRoom, collab.status])
 
   const selectRoom = useCallback((room: { id: string; name: string } | null) => {
     setSelectedRoom(room)
@@ -77,10 +91,12 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
         {mainTab === 'Schedule' && <section className="workbench-schedule"><WorkTimeline collab={collab} onChange={onChange} /></section>}
       </section>
       {selectedRoom && <aside className="workbench-room-card"><div className="workbench-room-title"><div><small>ROOM DETAILS</small><h2>{selectedRoom.name}</h2></div><button aria-label="Close room" onClick={() => selectRoom(null)}>×</button></div><nav className="workbench-tabs room-tabs">{(['Overview', 'Chat', 'Photos', 'Schedule'] as const).map(tab => <button key={tab} className={roomTab === tab ? 'active' : ''} onClick={() => setRoomTab(tab)}>{tab}</button>)}</nav>
-        {roomTab === 'Overview' && <div className="workbench-overview"><p><b>Room</b><span>{selectedRoom.name}</span></p><label className="workbench-field"><b>Area m²</b><input type="number" min="0" step="0.1" placeholder="Not available" /></label><label className="workbench-field"><b>Status</b><select value={collab.status[selectedRoom.id]?.status || 'pending'} onChange={event => void setRoomStatus(selectedRoom.id, event.target.value as 'pending' | 'built' | 'missing_wall').then(onChange).catch(error => setFeedback(String(error)))}><option value="pending">Not started / pending</option><option value="built">Built</option><option value="missing_wall">Missing wall</option></select></label><button onClick={() => setRoomTab('Chat')}>Add a room note</button></div>}
+        {roomTab === 'Overview' && <div className="workbench-overview">
+          {roomBlockerWarning && <div className="room-blocker-banner">⚠ Work sequence alert: {roomBlockerWarning}</div>}
+          <p><b>Room</b><span>{selectedRoom.name}</span></p><label className="workbench-field"><b>Area m²</b><input type="number" min="0" step="0.1" placeholder="Not available" /></label><label className="workbench-field"><b>Status</b><select value={collab.status[selectedRoom.id]?.status || 'pending'} onChange={event => void setRoomStatus(selectedRoom.id, event.target.value as 'pending' | 'built' | 'missing_wall').then(onChange).catch(error => setFeedback(String(error)))}><option value="pending">Not started / pending</option><option value="built">Built</option><option value="missing_wall">Missing wall</option></select></label><button onClick={() => setRoomTab('Chat')}>Add a room note</button></div>}
         {roomTab === 'Chat' && <RoomCollabPanel spaceId={selectedRoom.id} spaceName={selectedRoom.name} role="" collab={collab} onChange={onChange} onHighlightSpace={() => {}} />}
         {roomTab === 'Photos' && <RoomMediaPanel spaceId={selectedRoom.id} roomName={selectedRoom.name} />}
-        {roomTab === 'Schedule' && <WorkTimeline collab={collab} onChange={onChange} />}
+        {roomTab === 'Schedule' && <WorkTimeline collab={collab} onChange={onChange} defaultRoomId={selectedRoom.id} />}
       </aside>}
     </div>
     {profileOpen && <div className="workbench-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setProfileOpen(false) }}><section className="workbench-dialog"><button className="workbench-dialog-close" onClick={() => setProfileOpen(false)}>×</button><h2>Your project identity</h2><p>Set your name and trade. Add contact details so teammates can reach you.</p><ContactRegistration compact onRegister={state => { onChange(state); setProfileOpen(false) }} /></section></div>}
