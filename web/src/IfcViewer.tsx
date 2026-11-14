@@ -1566,9 +1566,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       {showcase && <span className="showcase-quality">{showcaseDegraded ? 'Performance lighting' : 'Soft-shadow lighting'}</span>}
       <button title="Fit the whole model in view" disabled={!modelReady} onClick={fitModel}>Fit</button>
       <button title="Restore the model, camera and filters to their initial state" disabled={!modelReady} onClick={resetView}>Reset view</button>
-      {walkMode
-        ? <button className="walk-active" onClick={stopWalk}>Exit Walk · Esc</button>
-        : <button title="Enter first-person room view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
+      {!walkMode && <button title="Enter room walk view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
       <button className={touring ? 'tour-active' : ''} title="Play a 40 second guided model tour" disabled={!modelReady || walkMode} onClick={() => touring ? stopTour() : startTour()}>{touring ? 'Stop tour · Esc' : 'Tour · 40s'}</button>
       <button className={recording ? 'recording-active' : ''} title="Record the 40 second tour as 1920 × 1080 WebM" disabled={!modelReady || (touring && !recording)} onClick={() => recording ? stopRecording() : recordTour()}>{recording ? 'Stop recording' : 'Record tour'}</button>
       <button title="Download the current 3D view as a 2× PNG" disabled={!modelReady} onClick={saveHiResScreenshot}>Hi-res PNG</button>
@@ -1663,7 +1661,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         </div>
       </>}
       {showFirstWalkHint && <div className="first-walk-hint">Pick a floor on the left, then click a room to fly in. Press Walk to look around inside.</div>}
-      {!walkMode && <button className="walk-inside-button" type="button" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>🚶 Walk inside</button>}
+      <button className="walk-inside-button" type="button" disabled={!modelReady || (!walkMode && !selectedRoomKey)} onClick={walkMode ? stopWalk : startWalk}>{walkMode ? 'Exit Walk · Esc' : '🚶 Walk inside'}</button>
       <div className="viewer-help-control">
         <button type="button" aria-label="3D controls help" aria-expanded={helpOpen} onClick={() => { setHelpOpen(open => !open); if (walkMode) setWalkHelpVisible(true) }}>?</button>
         {helpOpen && <aside className="viewer-help-popover">
