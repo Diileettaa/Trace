@@ -905,8 +905,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         Math.cos(walkYawRef.current) * Math.cos(walkPitchRef.current),
         Math.sin(walkPitchRef.current),
       )
-      camera.position.copy(walkPositionRef.current)
-      camera.lookAt(walkPositionRef.current.clone().add(direction))
+      // Third-person follow: keep the yellow walker in front of the camera.
+      camera.position.copy(walkPositionRef.current).addScaledVector(direction, -3).add(new THREE.Vector3(0, 0, 2))
+      camera.lookAt(walkPositionRef.current.clone().add(new THREE.Vector3(0, 0, .85)))
       camera.updateMatrixWorld()
     }
     const onPointerDown = (event: PointerEvent) => {
@@ -1634,7 +1635,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       </div>
       {walkMode && <>
         <div className={`walk-hud ${walkHelpVisible ? 'visible' : ''}`}><strong>Walk mode</strong><span>W A S D / arrows move · drag right side to look · Esc exits · ? help</span></div>
-        <div className="walk-joystick" aria-label="Walk joystick">
+        <div className="walk-joystick walk-ground-arrows" aria-label="Walk direction arrows">
           <button onPointerDown={() => walkKeysRef.current.add('KeyW')} onPointerUp={() => walkKeysRef.current.delete('KeyW')}>▲</button>
           <button onPointerDown={() => walkKeysRef.current.add('KeyA')} onPointerUp={() => walkKeysRef.current.delete('KeyA')}>◀</button>
           <button onPointerDown={() => walkKeysRef.current.add('KeyD')} onPointerUp={() => walkKeysRef.current.delete('KeyD')}>▶</button>

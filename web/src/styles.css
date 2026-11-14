@@ -553,7 +553,7 @@ html { scrollbar-gutter: stable; }
 .element-world-tag { position:absolute; z-index:24; border:1px solid #202427; border-radius:3px; padding:3px 6px; background:#E9B949; color:#202427; font:700 11px/1 monospace; cursor:pointer; }.element-world-tag.issue { background:#b42318; border-color:#fee4e2; color:#fff; }
 .interior-clearances span { position:absolute; z-index:23; display:flex; align-items:center; gap:5px; color:#202427; font:700 11px monospace; }.interior-clearances i { display:block; width:48px; border-top:1px solid #E9B949; }
 .room-floor-dimensions span { position:absolute; z-index:22; padding:2px 6px; background:#fff; border:1px solid #202427; color:#202427; font:700 11px monospace; }.room-dim-l { left:42%; bottom:14%; }.room-dim-b { right:12%; top:45%; }
-.walk-joystick,.walk-minimap,.walk-hud { display:none !important; }
+.walk-minimap,.walk-hud { display:none !important; }.walk-ground-arrows { display:grid !important; position:absolute; z-index:28; left:50%; bottom:42px; grid-template-columns:repeat(3,32px); gap:4px; transform:translateX(-50%); background:transparent; }.walk-ground-arrows button { border:1px solid #E9B949; border-radius:50%; background:rgba(233,185,73,.4); color:#202427; }.walk-ground-arrows button:first-child { grid-column:2; }.walk-ground-arrows button:last-child { grid-column:2; }
 .workbench-grid { grid-template-columns:220px minmax(480px,1fr) minmax(270px,330px); overflow:hidden; }
 .workbench-viewport { min-width:480px; height:calc(100vh - 140px); overflow:hidden; }
 .workbench-viewport .viewer { overflow:hidden; contain:layout paint; }
