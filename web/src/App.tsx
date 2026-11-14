@@ -368,13 +368,13 @@ export default function App() {
   return (
     <div className="app-shell">
       <nav className="top-nav" aria-label="Main navigation">
-        <button className="nav-brand" onClick={() => setActivePage('home')}>[ ] TRACE.</button>
+        <button className="nav-brand" onClick={() => setActivePage('home')}>{activePage === 'ask' ? 'TRACE DESKTOP APP' : '[ ] TRACE.'}</button>
         <div className="nav-links">
           <button className={activePage === 'home' ? 'active' : ''} onClick={() => setActivePage('home')}>Home</button>
         <button className={activePage === 'ask' ? 'active' : ''} onClick={() => setActivePage('ask')}>Ask</button>
         <button className={activePage === 'community' ? 'active' : ''} onClick={() => setActivePage('community')}>Project</button>
         </div>
-        <div className="nav-actions"><button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
+        <div className="nav-actions">{activePage === 'ask' && <><span className="desktop-project">PROJECT 01</span><button className="desktop-level" onClick={() => setViewMode(viewMode === '2d' ? '3d' : '2d')}>LEVEL 02 ▾</button></>}<button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
       </nav>
       {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || ''); setProjectPlanPath(next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProjectPlanPath(item.kind === 'plan' ? item.path : ''); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === '3d' ? item.path : null, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
         collab={collab} onChange={setCollab}
@@ -384,7 +384,7 @@ export default function App() {
         drawingPath={path.toLowerCase().endsWith('.ifc') ? projectPlanPath : path}
         onModelPathChange={(nextPath) => { setPath(nextPath); setViewMode('3d') }}
         projectName={project?.title || 'Demo project'} onSwitchProject={() => { setProject(null); setProjectPlanPath('') }}
-      /> : <div className="app">
+      /> : <div className="app gigi-workspace">
       <aside className="panel">
         <header className="header">
           <div className="title-row">
@@ -551,6 +551,12 @@ export default function App() {
       </aside>
 
       <main className="stage" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="workspace-heading"><div><span>Floor plan</span><small> · Demo workspace</small></div><div className="workspace-mode"><button className={viewMode === '2d' ? 'on' : ''} onClick={() => setViewMode('2d')}>2D</button><button className={viewMode === '3d' ? 'on' : ''} onClick={() => setViewMode('3d')}>3D</button></div></div>
+        <section className="keynote-cards" aria-label="Room summary">
+          <article><span>ROOM</span><strong>{space?.name || 'LEVEL 02'}</strong><b>{selectedAreaRoom ? 'Selected area' : '— m²'}</b><small>L × B × H · available with room evidence</small></article>
+          <article><span>OBJECTS FOUND</span><strong>{res?.summary?.evidence_count ?? evidence.reduce((n, item) => n + (item.items?.length ?? 0), 0)}</strong><small>Evidence in current answer</small></article>
+          <article><span>STATUS</span><strong className="status-progress">In progress</strong><small>2/3 verified · Demo</small></article>
+        </section>
         {modelFile && !isIfc && (
           <div className="viewer-tabs">
             <button className={viewMode === '2d' ? 'on' : ''} onClick={() => setViewMode('2d')}>2D Drawing</button>
@@ -617,6 +623,12 @@ export default function App() {
           </section>
         )}
       </main>
+      <aside className="workspace-chat" aria-label="Assistant chat">
+        <header><span>ASSISTANT</span><small>Evidence-first chat</small></header>
+        {question && <div className="chat-question">{question}</div>}
+        {res ? <article className="chat-answer"><strong>{String(res.answer_text.match(/\d+(?:[.,]\d+)?/)?.[0] ?? 'Answer')}</strong><p>{renderAnswerWithDocuments(res.answer_text, answerDocuments, openAnswerDocument)}</p><button onClick={() => activeIfcPath && setViewMode('3d')}>View evidence in 3D →</button>{(res as AskResponse & { follow_ups?: string[] }).follow_ups?.length ? <div className="follow-ups"><b>Follow-up:</b>{(res as AskResponse & { follow_ups?: string[] }).follow_ups?.map((item: string, index: number) => <button key={index} onClick={() => { setQuestion(item); questionRef.current?.focus() }}>{item}</button>)}</div> : null}</article> : <article className="chat-answer empty"><strong>Ask a question</strong><p>Your evidence-backed answer will appear here.</p></article>}
+        <div className="chat-compose"><textarea value={question} onChange={event => setQuestion(event.target.value)} placeholder="Ask about this level…" rows={3} /><button className="primary" onClick={submit} disabled={busy}>Send</button></div>
+      </aside>
     </div>}
     </div>
   )
