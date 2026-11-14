@@ -362,7 +362,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const classByLocalIdRef = useRef(new Map<number, string>())
   const modelBoundsRef = useRef<THREE.Box3 | null>(null)
   const roomSectionBoundsRef = useRef<THREE.Box3 | null>(null)
-  const clampingTargetRef = useRef(false)
   const keyLightRef = useRef<THREE.DirectionalLight | null>(null)
   const selectionOutlineRef = useRef<THREE.Box3Helper | null>(null)
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -450,17 +449,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         setStatus('Loading 3D model… (large models take ~10 s)')
         fragments.init(await OBC.FragmentsManager.getWorker())
         world.camera.controls.addEventListener('rest', () => fragments.core.update(true))
-        world.camera.controls.addEventListener('update', () => {
-          const targetBounds = roomSectionBoundsRef.current ?? modelBoundsRef.current
-          if (!targetBounds || clampingTargetRef.current) return
-          const target = world.camera.controls.getTarget(new THREE.Vector3())
-          const clamped = target.clone().clamp(targetBounds.min, targetBounds.max)
-          if (target.distanceToSquared(clamped) < 1e-8) return
-          clampingTargetRef.current = true
-          void world.camera.controls.moveTo(clamped.x, clamped.y, clamped.z, false).finally(() => {
-            clampingTargetRef.current = false
-          })
-        })
         fragments.list.onItemSet.add(({ value: model }) => {
           modelRef.current = model
           model.useCamera(world.camera.three)
@@ -884,6 +872,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       camera.controls.minPolarAngle = .15
       camera.controls.maxPolarAngle = Math.PI / 2 - .08
       camera.controls.dollyToCursor = true
+      camera.controls.setBoundary(modelBounds?.clone().expandByScalar(.5))
+      camera.controls.boundaryFriction = .2
+      camera.controls.boundaryEnclosesCamera = false
       return
     }
     const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
@@ -903,6 +894,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     camera.controls.minPolarAngle = .15
     camera.controls.maxPolarAngle = Math.PI / 2 - .08
     camera.controls.dollyToCursor = false
+    camera.controls.setBoundary(bounds.clone().expandByScalar(.5))
+    camera.controls.boundaryFriction = .2
+    camera.controls.boundaryEnclosesCamera = false
     const previousSmoothTime = camera.controls.smoothTime
     camera.controls.smoothTime = .6
     void camera.controls.setLookAt(
