@@ -27,3 +27,5 @@
 
 | T-18 | 数据引擎离线抽样评测 | Codex | [?] | scripts/eval_engine.py、docs/eval-results.md | pytest 31 passed；web build 通过；每来源 50 题离线抽样已记录 |
 | T-25 | 团队协作：联系人、房间/私聊、施工时间线冲突、3D 截图备注 | Codex | [?] | agent/collab.py、agent/app.py、web/src/**（不含 DrawingViewer.tsx）、tests/** | 四块分别提交；pytest 41 passed，web build 通过；a0f8ac5、13f51ae、74c531c、c4da309 |
+| T-27 | Gigi 视觉系统、落地页和 Home/Ask/Community 导航 | Codex | [~] | web/src/**（样式及新增页面；viewer 仅颜色） | 本次代码检查到位；npm run build 当前被未跟踪的 viewer3d/ TypeScript 错误阻塞，未提交 |
+| T-26 | IFC 3D 楼层裁切与施工专业图层筛选 | Codex | [?] | web/src/viewer3d/**、web/src/IfcViewer.tsx | npm run build 通过；pytest 41 passed；默认全楼显示；缺少 MEP 时显示说明 |

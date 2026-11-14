@@ -4,6 +4,18 @@ import * as THREE from 'three'
 import { RenderedFaces } from '@thatopen/fragments'
 import { fileUrl } from './api'
 import catalogUrl from './catalog.json?url'
+import {
+  BuildingExplorer,
+  applyBuildingVisibility,
+  applyStoreyCut,
+  classifyModelTrades,
+  createInitialTrades,
+  loadStoreys,
+  type StoreyInfo,
+  type TradeKey,
+  type TradesState,
+} from './viewer3d'
+import type { FragmentsModel } from '@thatopen/fragments'
 
 interface Props {
   path: string
@@ -54,8 +66,8 @@ interface RoomOption {
 type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>
 type ViewerEngine = { components: OBC.Components; world: World; fragments: OBC.FragmentsManager }
 
-const HIGHLIGHT = { color: new THREE.Color('#e4572e'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
-const FOCUS_HIGHLIGHT = { color: new THREE.Color('#1a56db'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
+const HIGHLIGHT = { color: new THREE.Color('#E9B949'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
+const FOCUS_HIGHLIGHT = { color: new THREE.Color('#202427'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
 
 interface ErrorBoundaryProps { children: ReactNode }
 interface ErrorBoundaryState { hasError: boolean; error: Error | null }
@@ -181,6 +193,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [selectedProductId, setSelectedProductId] = useState('')
   const [placed, setPlaced] = useState<PlacedProduct[]>([])
   const [selectedPlacementId, setSelectedPlacementId] = useState('')
+  const [storeys, setStoreys] = useState<StoreyInfo[]>([])
+  const [selectedStoreyId, setSelectedStoreyId] = useState<string | null>(null)
+  const [trades, setTrades] = useState<TradesState>(createInitialTrades)
+  const [allLocalIds, setAllLocalIds] = useState<number[]>([])
+  const [explorerReady, setExplorerReady] = useState(false)
+  const modelRef = useRef<FragmentsModel | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -197,6 +215,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     setRooms([])
     setSelectedRoomKey('')
     setPlaced([])
+    setStoreys([])
+    setSelectedStoreyId(null)
+    setTrades(createInitialTrades())
+    setAllLocalIds([])
+    setExplorerReady(false)
+    modelRef.current = null
     placementsRef.current.clear()
     onPlacementsChange?.([])
 
@@ -213,7 +237,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>()
         world.scene = new OBC.SimpleScene(components)
         world.scene.setup()
-        world.scene.three.background = new THREE.Color('#f5f5f3')
+        world.scene.three.background = new THREE.Color('#F7F6F2')
         world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true })
         world.camera = new OBC.SimpleCamera(components)
         components.init()
@@ -225,9 +249,34 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         fragments.init(await OBC.FragmentsManager.getWorker())
         world.camera.controls.addEventListener('rest', () => fragments.core.update(true))
         fragments.list.onItemSet.add(({ value: model }) => {
+          modelRef.current = model
           model.useCamera(world.camera.three)
           world.scene.three.add(model.object)
           fragments.core.update(true)
+          void (async () => {
+            try {
+              const [nextStoreys, nextTrades, allByCategory] = await Promise.all([
+                loadStoreys(model),
+                classifyModelTrades(model),
+                model.getItemsOfCategories([/.+/]).catch(() => ({})),
+              ])
+              if (cancelled) return
+              const ids = new Set<number>(Object.values(allByCategory).flat())
+              for (const trade of Object.values(nextTrades)) for (const id of trade.itemIds) ids.add(id)
+              for (const storey of nextStoreys) {
+                ids.add(storey.localId)
+                for (const id of storey.itemIds) ids.add(id)
+              }
+              setStoreys(nextStoreys)
+              setSelectedStoreyId(null)
+              setTrades(nextTrades)
+              setAllLocalIds([...ids])
+              setExplorerReady(true)
+            } catch (error) {
+              console.warn('Could not initialize the building explorer:', error)
+              if (!cancelled) setExplorerReady(true)
+            }
+          })()
           void (async () => {
             try {
               const byCategory = await model.getItemsOfCategories([/IFCSPACE/i])
@@ -286,6 +335,19 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       if (components) { try { components.dispose() } catch { /* best effort */ } }
     }
   }, [path])
+
+  useEffect(() => {
+    const current = engine.current
+    const model = modelRef.current
+    if (!current || !model || !explorerReady) return
+    const selectedStorey = selectedStoreyId ? storeys.find((item) => item.id === selectedStoreyId) ?? null : null
+    applyStoreyCut(current.components, current.world, model, selectedStorey)
+    void applyBuildingVisibility(model, storeys, selectedStoreyId, trades, allLocalIds)
+  }, [allLocalIds, explorerReady, selectedStoreyId, storeys, trades])
+
+  function toggleTrade(key: TradeKey, enabled: boolean) {
+    setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
+  }
 
   useEffect(() => {
     const e = engine.current
@@ -471,6 +533,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   }, [modelReady, rooms])
 
   return <div className="viewer">
+    <BuildingExplorer
+      storeys={storeys}
+      selectedStoreyId={selectedStoreyId}
+      onSelectStorey={(id) => setSelectedStoreyId(id)}
+      trades={trades}
+      onToggleTrade={toggleTrade}
+      disabled={!modelReady || !explorerReady}
+    />
     <div className="viewer-bar furniture-bar">
       <span className="path">{path}</span>
       <span className="catalog-label">Demo catalog</span>

@@ -1,0 +1,55 @@
+.explorer-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px 12px;
+  color: var(--ink, #202427);
+  background: var(--paper, #F7F6F2);
+  border-bottom: 1px solid var(--line, #A9AFB0);
+  font-size: 12px;
+}
+
+.explorer-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.explorer-label { min-width: 54px; margin-right: 4px; color: var(--ink, #202427); font-weight: 650; }
+.explorer-pills { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.storey-pill {
+  padding: 4px 9px;
+  color: var(--ink, #202427);
+  background: #fff;
+  border: 1px solid var(--line, #A9AFB0);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.storey-pill:hover:not(:disabled) { background: rgba(233,185,73,.16); border-color: var(--accent, #E9B949); }
+.storey-pill.active { color: var(--ink, #202427); background: rgba(233,185,73,.3); border-color: var(--accent, #E9B949); font-weight: 700; }
+.storey-pill:disabled { opacity: .55; cursor: not-allowed; }
+.trade-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  color: var(--ink, #202427);
+  background: #fff;
+  border: 1px solid var(--line, #A9AFB0);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.trade-checkbox-label:has(input:checked) { background: rgba(233,185,73,.18); border-color: var(--accent, #E9B949); }
+.trade-checkbox-label input[type="checkbox"] { margin: 0; accent-color: var(--ink, #202427); }
+.trade-checkbox-label.disabled { opacity: .6; cursor: default; }
+.trade-checkbox-label input:disabled { cursor: default; }
+.trade-none, .trade-count { color: var(--muted, #A9AFB0); font-size: 11px; }
+.no-mep { padding-left: 5px; color: var(--muted, #A9AFB0); font-size: 11px; }
+.explorer-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  color: var(--muted, #A9AFB0);
+  background: rgba(233,185,73,.12);
+  border-left: 3px solid var(--accent, #E9B949);
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+}
+.explorer-hint .hint-badge { color: var(--ink, #202427); font-weight: 700; }
