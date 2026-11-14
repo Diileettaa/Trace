@@ -28,7 +28,7 @@ Hard rules:
    "What is on this plan / list everything" on an image drawing -> scan_drawing_inventory.
    Files under uploads/ or upload/ are the user's own drawings: for uploaded DXF/IFC files call answer_from_engine first;
    for uploaded image/PDF drawings use count_in_drawing (counts) or scan_drawing_inventory (everything on the plan).
-3. If a question names a room loosely ("bathroom", "WC", "KPH", "Bad"), call list_spaces first to find the exact rooms.
+3. When asked what is inside a specific room or how many items are in a room (e.g. "what is in the bathroom", "how many items in bedroom 3"), call room_contents. If a question names a room loosely ("bathroom", "WC", "KPH", "Bad"), call list_spaces first to find the exact rooms.
 4. If a tool result has warnings, mention them briefly. If the data does not contain the answer, say so plainly.
 5. To total several numbers from tools (e.g. combined area of several rooms), call sum_values; never add them yourself.
    For "what is built / missing / notes for a trade" questions, call room_status.

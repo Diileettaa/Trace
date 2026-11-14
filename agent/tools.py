@@ -82,11 +82,21 @@ def _doc_decls() -> list[dict]:
     return [t for t in docs_tools.TOOLS if t["name"] in DOC_TOOL_NAMES]
 
 
+ROOM_CONTENTS_DECL = _decl(
+    "room_contents",
+    "List everything inside one room (fixtures, doors, windows, furniture, lights...) with evidence boxes. "
+    "Use for 'what is in the bathroom', 'how many X in room Y'.",
+    {"path": _S, "room": _S},
+    ["path", "room"],
+)
+
+
 def declarations() -> list[dict]:
     """Engine connected: offer the engine plus vision tools only (no mock tools that could mislead the model)."""
+    extra = [ROOM_CONTENTS_DECL]
     if engine_adapter.available():
-        return [ENGINE_DECL] + [d for d in DECLARATIONS if d["name"] not in ENGINE_TOOLS] + _doc_decls()
-    return DECLARATIONS + _doc_decls()
+        return [ENGINE_DECL] + [d for d in DECLARATIONS if d["name"] not in ENGINE_TOOLS] + _doc_decls() + extra
+    return DECLARATIONS + _doc_decls() + extra
 
 
 def _docs_call(name: str, args: dict) -> dict:
@@ -142,6 +152,9 @@ def _call(name: str, args: dict[str, Any]) -> dict:
             return vision.count_in_drawing(**args)
         if name == "scan_drawing_inventory":
             return vision.scan_drawing_inventory(**args)
+        if name == "room_contents":
+            from . import room_contents
+            return room_contents.get_room_contents(**args)
         if name in DOC_TOOL_NAMES:
             return _docs_call(name, args)
         if name in ENGINE_TOOLS:

@@ -40,6 +40,7 @@ from . import (
     plan_rooms,
     recommend,
     render as render_service,
+    room_contents,
     scene,
     uploads,
     vision,
@@ -802,5 +803,16 @@ def recommend_people_get(trade: str = "", space_id: str = ""):
         return {"people": recommend.recommend_people(trade=trade, space_id=space_id)}
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+@app.get("/room/contents")
+def room_contents_route(path: str, room: str):
+    try:
+        return room_contents.get_room_contents(path=path, room=room)
+    except drawings.DrawingError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
 
 
