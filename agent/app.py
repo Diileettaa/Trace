@@ -8,6 +8,9 @@ GET  /inventory?path=...&page=1         -> every element on a drawing, numbered 
 GET  /collab?space_id=...               -> room status + message board (modules 3 & 4)
 POST /collab/status  {space_id, status, author?}
 POST /collab/message {space_id, text, author?, role?, notify?}
+POST /collab/media   ?space_id=&author=&role=&note=&filename= -> record {id, space_id, author, role, note, file, kind, created_at}
+GET  /collab/media   ?space_id=                               -> list of media records (newest first)
+GET  /collab/media/file ?id=                                  -> raw media file
 """
 from __future__ import annotations
 
@@ -18,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import agent, collab, config, drawings, render as render_service, uploads, vision
+from . import agent, collab, config, drawings, media, render as render_service, uploads, vision
 
 app = FastAPI(title="Trace API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -257,6 +260,106 @@ def collab_message(body: MessageIn):
         return collab.for_space(None, body.author)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.post("/collab/media")
+async def collab_media_post(
+    request: Request,
+    space_id: str = "",
+    author: str = "",
+    role: str = "",
+    note: str = "",
+    filename: str = "",
+):
+    size = int(request.headers.get("content-length") or 0)
+    if size > media.MAX_MEDIA_BYTES:
+        raise HTTPException(413, f"file too large (max {media.MAX_MEDIA_BYTES // (1024 * 1024)} MB)")
+
+    ctype = request.headers.get("content-type", "")
+    data = None
+    fname = filename or ""
+    if "multipart/form-data" in ctype:
+        try:
+            form = await request.form()
+            for v in form.values():
+                if isinstance(v, UploadFile):
+                    data = await v.read()
+                    fname = fname or v.filename or ""
+                    break
+        except Exception:
+            pass
+
+    if data is None:
+        data = await request.body()
+
+    if not fname:
+        fname = request.headers.get("x-filename") or ""
+        if not fname:
+            import re
+
+            cd = request.headers.get("content-disposition", "")
+            m = re.search(r'filename=["\']?([^"\';]+)["\']?', cd)
+            if m:
+                fname = m.group(1)
+
+    if not fname:
+        raise HTTPException(400, "filename is required")
+
+    if not data:
+        raise HTTPException(400, "empty file")
+
+    if len(data) > media.MAX_MEDIA_BYTES:
+        raise HTTPException(413, f"file too large (max {media.MAX_MEDIA_BYTES // (1024 * 1024)} MB)")
+
+    try:
+        return media.save_media(
+            filename=fname,
+            data=data,
+            space_id=space_id,
+            author=author,
+            role=role,
+            note=note,
+        )
+    except media.MediaError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/collab/media")
+def collab_media_list(space_id: str | None = None):
+    return media.list_media(space_id=space_id)
+
+
+@app.get("/collab/media/file")
+def collab_media_file(id: str = ""):
+    if not id:
+        raise HTTPException(400, "id is required")
+    try:
+        file_path = media.resolve_file(id)
+    except media.MediaSecurityError as e:
+        raise HTTPException(400, str(e))
+    except media.MediaNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+    import mimetypes
+
+    mime_map = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".pdf": "application/pdf",
+    }
+    ctype = (
+        mime_map.get(file_path.suffix.lower())
+        or mimetypes.guess_type(file_path.name)[0]
+        or "application/octet-stream"
+    )
+    return FileResponse(file_path, media_type=ctype)
 
 
 class RenderIn(BaseModel):

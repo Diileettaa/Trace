@@ -1,0 +1,185 @@
+"""Room media storage and retrieval (T-30): JPG, PNG, MP4, MOV, PDF up to 50MB.
+
+Saves files by SHA256 content hash under CACHE_DIR/media/<sha256>.<ext>.
+Maintains metadata record {id, space_id, author, role, note, file, kind, created_at}.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import hashlib
+import json
+import mimetypes
+from pathlib import Path
+import threading
+import uuid
+
+from . import config
+
+MAX_MEDIA_BYTES = 50 * 1024 * 1024  # 50 MB
+ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".mp4", ".mov", ".pdf"}
+
+_lock = threading.Lock()
+
+
+class MediaError(ValueError):
+    """Base exception for media errors."""
+    pass
+
+
+class MediaSecurityError(MediaError):
+    """Raised when an id or path attempts path traversal or escapes CACHE_DIR/media."""
+    pass
+
+
+class MediaNotFoundError(MediaError):
+    """Raised when a requested media file or record is not found."""
+    pass
+
+
+def _media_dir() -> Path:
+    return (config.CACHE_DIR / "media").resolve()
+
+
+def _meta_file() -> Path:
+    return (config.CACHE_DIR / "media.json").resolve()
+
+
+def get_kind(ext: str) -> str:
+    ext = ext.lower()
+    if ext in (".jpg", ".jpeg", ".png"):
+        return "image"
+    if ext in (".mp4", ".mov"):
+        return "video"
+    if ext == ".pdf":
+        return "pdf"
+    return "other"
+
+
+def load_records() -> list[dict]:
+    f = _meta_file()
+    if f.exists():
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return data
+        except (ValueError, OSError):
+            pass
+    return []
+
+
+def _save_records(records: list[dict]) -> None:
+    f = _meta_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def save_media(
+    filename: str,
+    data: bytes,
+    space_id: str = "",
+    author: str = "",
+    role: str = "",
+    note: str = "",
+) -> dict:
+    if not filename or not filename.strip():
+        raise MediaError("filename is required")
+    if not data:
+        raise MediaError("empty file")
+    if len(data) > MAX_MEDIA_BYTES:
+        raise MediaError(f"file too large ({len(data) // (1024 * 1024)} MB > 50 MB)")
+
+    raw_ext = Path(filename).suffix.lower()
+    if raw_ext not in ALLOWED_EXT:
+        raise MediaError(f"unsupported media type '{raw_ext or '?'}': use JPG, PNG, MP4, MOV, or PDF")
+
+    ext = ".jpg" if raw_ext == ".jpeg" else raw_ext
+    kind = get_kind(ext)
+    sha = hashlib.sha256(data).hexdigest()
+    file_name = f"{sha}{ext}"
+
+    media_dir = _media_dir()
+    media_dir.mkdir(parents=True, exist_ok=True)
+    file_path = media_dir / file_name
+
+    # Duplicate file stored once
+    if not file_path.exists():
+        file_path.write_bytes(data)
+
+    record = {
+        "id": uuid.uuid4().hex,
+        "space_id": space_id or "",
+        "author": author or "",
+        "role": role or "",
+        "note": note or "",
+        "file": file_name,
+        "kind": kind,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    with _lock:
+        records = load_records()
+        records.append(record)
+        _save_records(records)
+
+    return record
+
+
+def list_media(space_id: str | None = None) -> list[dict]:
+    with _lock:
+        records = load_records()
+
+    if space_id is not None and space_id.strip() != "":
+        target = space_id.strip()
+        records = [r for r in records if r.get("space_id") == target]
+
+    # Newest first. Stable sort on created_at descending with reverse insertion fallback.
+    records = list(reversed(records))
+    records.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+    return records
+
+
+def resolve_file(target: str) -> Path:
+    if not target or not target.strip():
+        raise MediaNotFoundError("missing media id")
+
+    clean = target.replace("\\", "/").strip()
+    root = _media_dir()
+
+    # Look up whether target corresponds to an existing record id or file field
+    with _lock:
+        records = load_records()
+
+    found_file: str | None = None
+    for r in records:
+        if r.get("id") == clean:
+            found_file = r.get("file")
+            break
+        if r.get("file") == clean:
+            found_file = r.get("file")
+            break
+
+    file_to_check = found_file if found_file else clean
+    file_to_check = file_to_check.replace("\\", "/").strip()
+    if file_to_check.startswith("media/"):
+        file_to_check = file_to_check[len("media/"):]
+
+    try:
+        full = (root / file_to_check).resolve()
+    except (ValueError, RuntimeError):
+        raise MediaSecurityError(f"invalid path: {target}")
+
+    # Check path traversal / escaping CACHE_DIR/media
+    try:
+        rel = full.relative_to(root)
+        if rel == Path(".") or str(rel) == ".":
+            raise MediaSecurityError(f"path escapes media directory: {target}")
+    except ValueError:
+        raise MediaSecurityError(f"path escapes media directory: {target}")
+
+    if root not in full.parents:
+        raise MediaSecurityError(f"path escapes media directory: {target}")
+
+    if not full.is_file():
+        raise MediaNotFoundError(f"media file not found: {target}")
+
+    return full
