@@ -116,6 +116,7 @@ export interface CollabMessage {
 }
 
 export interface CollabPerson { id: string; name: string; trade: string; email: string; phone: string }
+export interface RoomMedia { id: string; space_id: string; author: string; role: string; note: string; file: string; kind: 'image' | 'video' | 'pdf' | string; created_at: string }
 export interface CollabBooking { id: string; space_id: string; trade: string; person: string; start: number; end: number; what: string; created_at: number; demo?: boolean; conflict_with?: string | null; winner?: CollabBooking }
 
 export interface CollabState {

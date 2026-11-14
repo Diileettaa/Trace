@@ -5,6 +5,7 @@ import ContactRegistration from './ContactRegistration'
 import DirectMessages from './DirectMessages'
 import RoomCollabPanel from './RoomCollabPanel'
 import WorkTimeline from './WorkTimeline'
+import RoomMediaPanel from './RoomMediaPanel'
 import type { CollabState } from '../types'
 
 interface Props {
@@ -63,11 +64,12 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
             setSelectedRoom(null); setRoomId(''); setRoomName(''); onModelPathChange(modelDraft.trim())
           }}>Load model</button>
         </div>
-        {modelPath.toLowerCase().endsWith('.ifc') ? <div className="project-model-viewer">
-          <IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom}
-            onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} />
+        {modelPath.toLowerCase().endsWith('.ifc') ? <div className="project-shared-layout">
+          <div className="project-model-viewer"><IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom}
+            onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>
+          {selectedRoom ? <RoomMediaPanel spaceId={selectedRoom.id} roomName={selectedRoom.name} />
+            : <aside className="room-media-sidebar room-media-empty">Select a room in the model to view its notes and media.</aside>}
         </div> : <div className="project-model-empty">Load an IFC model path to share an interactive room view with the team.</div>}
-        {selectedRoom && <p className="selected-project-room">Selected room: <strong>{selectedRoom.name}</strong> · room chat is linked</p>}
       </section>
 
       <div className="project-side">

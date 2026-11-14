@@ -1,4 +1,4 @@
-import type { AskResponse, CollabState, CollabPerson, DatasetQuestion, Evidence, Role, RoomStatus } from './types'
+import type { AskResponse, CollabState, CollabPerson, DatasetQuestion, Evidence, Role, RoomStatus, RoomMedia } from './types'
 import type { CollabBooking } from './types'
 
 const BASE = '/api'
@@ -42,6 +42,18 @@ export async function getCollab(): Promise<CollabState> {
 export async function getPeople(): Promise<CollabPerson[]> {
   const response = await fetch(`${BASE}/collab/people`)
   return response.ok ? response.json() : []
+}
+export async function getRoomMedia(spaceId: string): Promise<RoomMedia[]> {
+  const response = await fetch(`${BASE}/collab/media?${new URLSearchParams({ space_id: spaceId })}`)
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+export const roomMediaUrl = (id: string) => `${BASE}/collab/media/file?${new URLSearchParams({ id })}`
+export async function uploadRoomMedia(spaceId: string, author: string, role: string, note: string, file: File): Promise<RoomMedia> {
+  const query = new URLSearchParams({ space_id: spaceId, author, role, note, filename: file.name })
+  const response = await fetch(`${BASE}/collab/media?${query}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file })
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
 }
 export async function registerPerson(person: Omit<CollabPerson, 'id'>): Promise<CollabPerson> {
   const response = await fetch(`${BASE}/collab/people`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(person) })
