@@ -11,6 +11,7 @@ except ImportError:  # python-dotenv is optional
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+os.environ.setdefault("GEMINI_MODEL", GEMINI_MODEL)  # engine/cubicasa.py reads it for room questions (else gemini-2.5-pro)
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 NEMOTRON_BASE_URL = os.getenv("NEMOTRON_BASE_URL", "https://integrate.api.nvidia.com/v1")
