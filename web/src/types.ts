@@ -7,6 +7,25 @@ export interface Source {
   label?: string
 }
 
+export interface AreaEvidenceRoom {
+  number?: string | null
+  name?: string | null
+  area_m2?: number | null
+  gross_area_m2?: number | null
+  holes?: { area_m2?: number }[]
+  net_formula?: string
+  reason?: string
+  png_polygon?: [number, number][]
+  pdf_polygon_pt?: [number, number][]
+}
+
+export interface AreaEvidence {
+  formula: string
+  rule: string
+  breakdown: AreaEvidenceRoom[]
+  excluded: AreaEvidenceRoom[]
+}
+
 export interface Item {
   id?: string
   guid?: string // IFC elements: used to highlight in 3D
@@ -34,6 +53,7 @@ export interface Evidence {
   cached?: boolean
   verified_by?: { nemotron_count: number | null; agreement: boolean | null; model?: string | null }
   model_file?: string
+  evidence?: AreaEvidence
 }
 
 export interface AskResponse {

@@ -86,3 +86,12 @@
 }
 .trace-warnings ul { margin: 5px 0 0; padding-left: 18px; }
 .trace-warnings li + li { margin-top: 3px; }
+.area-proof { margin: 0 0 13px; padding: 10px; background: #fff; border: 1px solid rgba(169,175,176,.55); border-radius: 7px; }
+.area-proof h4 { margin: 0 0 6px; font-size: 12px; }
+.area-formula { margin: 0; color: var(--ink); font-size: 14px; font-weight: 750; line-height: 1.45; overflow-wrap: anywhere; }
+.area-rule { margin: 4px 0 8px; color: #687174; font-size: 10px; line-height: 1.4; }
+.area-evidence-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 8px; width: 100%; margin: 3px 0; padding: 6px 7px; text-align: left; border: 1px solid transparent; border-radius: 5px; font-size: 11px; }
+.area-evidence-row.included { background: rgba(72,145,94,.11); }
+.area-evidence-row.excluded { color: #596164; background: repeating-linear-gradient(135deg, #f0f1f1 0, #f0f1f1 5px, #e4e6e6 5px, #e4e6e6 8px); }
+.area-evidence-row.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(233,185,73,.23); }
+.area-evidence-row small { grid-column: 1 / -1; color: #687174; font-size: 10px; font-weight: 400; }

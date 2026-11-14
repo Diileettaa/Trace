@@ -92,6 +92,15 @@
   height: 100%;
   pointer-events: none;
 }
+.area-evidence-layer .area-polygon { pointer-events: all; cursor: pointer; }
+.area-evidence-layer polygon { fill: rgba(77,153,98,.22); stroke: #388650; stroke-width: 1.5; }
+.area-evidence-layer .excluded polygon { fill: url(#area-excluded-hatch); stroke: #747b7e; }
+.area-evidence-layer .area-polygon:hover polygon { fill: rgba(77,153,98,.38); stroke-width: 2.5; }
+.area-evidence-layer .excluded:hover polygon { fill: rgba(140,146,149,.4); }
+.area-evidence-layer .area-polygon.selected polygon { stroke: #202427; stroke-width: 3; }
+.area-number circle { fill: #388650; stroke: #fff; stroke-width: 1.5; }
+.excluded .area-number circle { fill: #747b7e; }
+.area-number text { fill: #fff; font-weight: 800; pointer-events: none; }
 
 /* Boxes: Thin strokes and light fill so overlapping boxes stay readable */
 .rects-layer rect.box {

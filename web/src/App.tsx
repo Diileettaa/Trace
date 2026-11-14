@@ -41,6 +41,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [selected, setSelected] = useState<number | null>(null)
+  const [selectedAreaRoom, setSelectedAreaRoom] = useState<string | null>(null)
   const [selectedGuid, setSelectedGuid] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [collab, setCollab] = useState<CollabState>({ status: {}, messages: [] })
@@ -134,6 +135,7 @@ export default function App() {
     return null
   }, [evidence])
   const activeIfcPath = isIfc ? path : (modelFile ?? '')
+  const areaEvidence = res?.evidence.find((item) => item.tool === 'answer_from_engine')?.evidence || null
 
   const guids = useMemo(
     () => [...new Set(evidence.flatMap((e) => e.items ?? []).map((i) => i.guid).filter((g): g is string => !!g))],
@@ -249,6 +251,7 @@ export default function App() {
     const q = space ? `In room ${space.name} (space_id ${space.id}): ${question}` : question
     setRes(null)
     setSelectedGuid(null)
+    setSelectedAreaRoom(null)
     run(() => ask(q, path, role), setRes)
   }
   const scan = () => path && run(() => inventory(path, page), setInv)
@@ -413,7 +416,7 @@ export default function App() {
                 ))}
                 <span className="dim"> ({res.tool_calls.length} call{res.tool_calls.length === 1 ? '' : 's'})</span>
             </div>}
-            <HowIGotThis response={res} />
+            <HowIGotThis response={res} areaEvidence={areaEvidence} selectedAreaRoom={selectedAreaRoom} onSelectAreaRoom={setSelectedAreaRoom} />
           </section>
         )}
 
@@ -470,6 +473,9 @@ export default function App() {
             page={page}
             sources={sources}
             selected={selected}
+            areaEvidence={areaEvidence}
+            selectedAreaRoom={selectedAreaRoom}
+            onSelectAreaRoom={setSelectedAreaRoom}
             onSelect={(i) => {
               setSelected(i)
               const entry = entries.find((e) => e.index === i)

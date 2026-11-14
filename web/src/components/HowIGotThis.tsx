@@ -1,4 +1,5 @@
-import type { AnswerBadge, AnswerTraceStep, AskResponse, Evidence } from '../types'
+import { useEffect, useRef } from 'react'
+import type { AnswerBadge, AnswerTraceStep, AreaEvidence, AskResponse, Evidence } from '../types'
 import { estimateGeminiCostUsd, GEMINI_PRICING } from '../pricing'
 import './HowIGotThis.css'
 
@@ -39,7 +40,12 @@ function stepClass(step: AnswerTraceStep) {
   return `trace-${step.kind}`
 }
 
-export function HowIGotThis({ response }: { response: AskResponse }) {
+export function HowIGotThis({ response, areaEvidence, selectedAreaRoom, onSelectAreaRoom }: {
+  response: AskResponse
+  areaEvidence?: AreaEvidence | null
+  selectedAreaRoom?: string | null
+  onSelectAreaRoom?: (room: string) => void
+}) {
   const evidence = response.evidence || []
   const trace = response.trace || []
   const usage = response.usage
@@ -79,6 +85,8 @@ export function HowIGotThis({ response }: { response: AskResponse }) {
   const answerElements = summary?.evidence_count ?? elementCount
   const evidenceLabel = answerBoxes > 0 ? `${answerBoxes} ${answerBoxes === 1 ? 'box' : 'boxes'}`
     : answerElements > 0 ? `${answerElements} ${answerElements === 1 ? 'element' : 'elements'}` : 'No boxes or elements'
+  const selectedRow = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => { selectedRow.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [selectedAreaRoom])
 
   return (
     <details className="how-got-this" open>
@@ -92,6 +100,29 @@ export function HowIGotThis({ response }: { response: AskResponse }) {
         {cached && <span className="cache-badge">From cache</span>}
       </summary>
       <div className="how-got-body">
+        {areaEvidence && <section className="area-proof" aria-label="Area calculation evidence">
+          <h4>Area calculation</h4>
+          <p className="area-formula">{areaEvidence.formula}</p>
+          <p className="area-rule">{areaEvidence.rule}</p>
+          {areaEvidence.breakdown.map((room, index) => {
+            const key = room.number || room.name || String(index + 1)
+            const selected = selectedAreaRoom === key
+            return <button key={`included-${key}-${index}`} ref={selected ? selectedRow : undefined}
+              className={`area-evidence-row included${selected ? ' selected' : ''}`}
+              onClick={() => onSelectAreaRoom?.(key)} title={room.net_formula || undefined}>
+              <span>{room.number || index + 1}. {room.name || 'Room'}</span>
+              <strong>{room.area_m2?.toFixed(2) ?? '—'} m²</strong>
+              {room.net_formula && <small>{room.net_formula}</small>}
+            </button>
+          })}
+          {areaEvidence.excluded.map((room, index) => <button key={`excluded-${room.number || room.name || index}`}
+            className={`area-evidence-row excluded${selectedAreaRoom === (room.number || room.name) ? ' selected' : ''}`}
+            onClick={() => onSelectAreaRoom?.(room.number || room.name || '')} title={room.reason || 'Excluded from total'}>
+            <span>{room.number || index + 1}. {room.name || 'Excluded room'}</span>
+            <strong>{room.area_m2?.toFixed(2) ?? '—'} m²</strong>
+            <small>{room.reason || 'Excluded from total'}</small>
+          </button>)}
+        </section>}
         {methods.length > 0 && <p className="method-line"><strong>Method:</strong> {methods.join(' · ')}</p>}
         {summary?.interpreted && <p className="interpreted-line"><strong>Interpreted as:</strong> {summary.interpreted}</p>}
         <div className="trace-timing">

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { drawingUrl } from './api'
 import LicenseBadge from './components/LicenseBadge'
-import type { Source } from './types'
+import type { AreaEvidence, AreaEvidenceRoom, Source } from './types'
 import './drawing.css'
 
 interface Props {
@@ -11,10 +11,25 @@ interface Props {
   selected: number | null
   onSelect: (i: number) => void
   flash?: Set<number> // boxes of a room that just changed (Room Board)
+  areaEvidence?: AreaEvidence | null
+  selectedAreaRoom?: string | null
+  onSelectAreaRoom?: (room: string) => void
+}
+
+function areaPolygon(room: AreaEvidenceRoom, path: string): [number, number][] {
+  const pdfPath = path.toLowerCase().endsWith('.pdf')
+  if (pdfPath && room.pdf_polygon_pt?.length) return room.pdf_polygon_pt.map(([x, y]) => [x * 150 / 72, y * 150 / 72])
+  return room.png_polygon || room.pdf_polygon_pt?.map(([x, y]) => [x * 150 / 72, y * 150 / 72]) || []
+}
+
+function polygonCenter(points: [number, number][]): [number, number] {
+  if (!points.length) return [0, 0]
+  return [points.reduce((sum, point) => sum + point[0], 0) / points.length,
+    points.reduce((sum, point) => sum + point[1], 0) / points.length]
 }
 
 /** Shows one drawing page as an image with an SVG layer on top; every source bbox becomes a numbered box. */
-export default function DrawingViewer({ path, page, sources, selected, onSelect, flash }: Props) {
+export default function DrawingViewer({ path, page, sources, selected, onSelect, flash, areaEvidence, selectedAreaRoom, onSelectAreaRoom }: Props) {
   const [size, setSize] = useState<[number, number] | null>(null)
   const [error, setError] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -288,6 +303,31 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
                   )
                 })}
               </g>
+
+              {areaEvidence && <g className="area-evidence-layer">
+                <defs><pattern id="area-excluded-hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                  <rect width="8" height="8" fill="rgba(125,132,135,.18)" />
+                  <line x1="0" y1="0" x2="0" y2="8" stroke="#7d8487" strokeWidth="2" />
+                </pattern></defs>
+                {[...areaEvidence.breakdown.map((room, index) => ({ room, index, excluded: false })),
+                  ...areaEvidence.excluded.map((room, index) => ({ room, index, excluded: true }))].map(({ room, index, excluded }) => {
+                    const points = areaPolygon(room, path)
+                    if (points.length < 3) return null
+                    const roomKey = room.number || room.name || String(index + 1)
+                    const isSelected = selectedAreaRoom === roomKey
+                    const [cx, cy] = polygonCenter(points)
+                    const listedIndex = excluded ? areaEvidence.breakdown.length + index : index
+                    return <g key={`${excluded ? 'excluded' : 'included'}-${roomKey}-${index}`} className={`area-polygon${excluded ? ' excluded' : ' included'}${isSelected ? ' selected' : ''}`}
+                      onClick={(event) => { event.stopPropagation(); onSelectAreaRoom?.(roomKey) }}>
+                      <title>{excluded ? room.reason || 'Excluded from total' : room.net_formula || `${roomKey} · ${room.area_m2 ?? ''} m²`}</title>
+                      <polygon points={points.map(([x, y]) => `${x},${y}`).join(' ')} vectorEffect="non-scaling-stroke" />
+                      <g className="area-number">
+                        <circle cx={cx} cy={cy} r={12 / (zoom || 1)} vectorEffect="non-scaling-stroke" />
+                        <text x={cx} y={cy} fontSize={10 / (zoom || 1)} textAnchor="middle" dominantBaseline="central">{room.number || listedIndex + 1}</text>
+                      </g>
+                    </g>
+                  })}
+              </g>}
 
               {/* Layer 2: Numbered badges and full labels (hover/selected) */}
               <g className="badges-layer">
