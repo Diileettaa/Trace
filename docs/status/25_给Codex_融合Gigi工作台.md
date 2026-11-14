@@ -55,3 +55,8 @@ Gigi 在 Google AI Studio 里做了一个设计稿式的 App（**她的代码不
 
 ## 顺序
 1 工作台三栏 + keynote 卡 + 聊天（含 follow_ups）→ 2 图纸上的高亮、编号、红色未核实、悬停照片、Verify 按钮 → 3 3D 修穿模和缩放 → 4 History / Scale / Layer / Mobile → 5 着陆页、价格、教育版
+
+## 补充（Claude 线上实测 11/14 20:10）
+- 进项目第一次会弹「Your project identity」表单挡住整页 → 不要自动弹；默认身份「Demo · Architect」，改到顶条头像里
+- Project 卡片前两张（Tallinn、Swiss）缩略图空白 → 用 /drawing 第一页或 3D 截图做缩略图
+- 首次引导浮层（Choose a room / Next step）在新布局里保留，但可一键关闭且不再出现
