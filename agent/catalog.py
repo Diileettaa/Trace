@@ -16,6 +16,23 @@ FEATURED = ["data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc",
             "data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf",
             "data/swiss_dwellings/site1000_bldg2082_floor9385.pdf",
             "data/ifc_bench/ac20_arc.ifc"]
+# Start screen of the Project page: a few ready-made projects, one click each (the demo data is written for them).
+PROJECTS = [
+    {"id": "esplanades", "title": "Apartment building, Tallinn", "subtitle": "BIM model + floor plan · demo team data",
+     "description": "Six-storey residential building. Room status, notes, photos and furniture are already filled in.",
+     "model": "data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc",
+     "plan": "data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf", "demo_data": True},
+    {"id": "swiss", "title": "Swiss apartment floor", "subtitle": "Vector floor plan · exact areas",
+     "description": "Two apartments on one floor: rooms, areas and fixtures computed from the drawing.",
+     "model": None, "plan": "data/swiss_dwellings/site1000_bldg2082_floor9385.pdf", "demo_data": True},
+    {"id": "fzk", "title": "Family house (FZK-Haus)", "subtitle": "Small BIM model · good for walking through",
+     "description": "Two-storey house with basement and attic: try the floors, rooms and walk mode.",
+     "model": "data/ifc_bench/ac20_arc.ifc", "plan": None, "demo_data": False},
+    {"id": "clinic", "title": "Clinic – plumbing", "subtitle": "BIM model · one trade only",
+     "description": "Pipes and sanitary fixtures of a medical clinic: what a plumber sees.",
+     "model": "data/ifc_models/bsc-clinic_clinic-plumbing.ifc", "plan": None, "demo_data": False},
+]
+
 SOURCES = {  # folder -> (label, description, order)
     "ifc_models": ("BIM models", "3D building models (IFC) with their floor-plan sheets", 0),
     "ifc_bench": ("BIM models – benchmark", "More 3D building models (IFC)", 1),
@@ -97,7 +114,8 @@ def tree() -> dict:
                                 "items": sorted(v, key=lambda i: (i["kind"] != "3d", i["label"]))}
                                for k, v in sorted(groups.items())]})
     paths = {i["path"] for s in out for g in s["groups"] for i in g["items"]}
-    return {"featured": [p for p in FEATURED if p in paths], "sources": out}
+    projects = [p for p in PROJECTS if all(x is None or x in paths for x in (p["model"], p["plan"]))]
+    return {"featured": [p for p in FEATURED if p in paths], "projects": projects, "sources": out}
 
 
 def catalog(kind: str | None = None) -> dict:
@@ -110,4 +128,5 @@ def catalog(kind: str | None = None) -> dict:
         groups = [{**g, "count": len(g["items"])} for g in groups if g["items"]]
         if groups:
             sources.append({**s, "groups": groups, "count": sum(g["count"] for g in groups)})
-    return {"featured": [p for p in t["featured"] if p.endswith(".ifc") == (kind == "3d")], "sources": sources}
+    return {"featured": [p for p in t["featured"] if p.endswith(".ifc") == (kind == "3d")], "projects": t["projects"],
+            "sources": sources}
