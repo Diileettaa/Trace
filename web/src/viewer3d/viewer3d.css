@@ -8,6 +8,17 @@
   border-bottom: 1px solid var(--line, #A9AFB0);
   font-size: 12px;
 }
+.viewer-main-row { display: flex; flex: 1; min-height: 260px; min-width: 0; }
+.viewer-main-row > .explorer-bar { flex: 0 0 210px; max-height: 100%; overflow: auto; border: 0; border-right: 1px solid var(--line, #A9AFB0); }
+.storey-sidebar { display: flex; flex-direction: column; gap: 6px; }
+.storey-sidebar > strong { font-size: 13px; }
+.storey-sidebar .storey-pill { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.storey-meta { color: #687174; font-size: 10px; }
+.explorer-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.explorer-actions label { display: flex; align-items: center; gap: 4px; }
+.explorer-actions button { border: 1px solid var(--line, #A9AFB0); background: #fff; border-radius: 5px; padding: 4px 8px; color: var(--ink, #202427); cursor: pointer; }
+.explorer-actions button.active { background: rgba(233,185,73,.3); border-color: var(--accent, #E9B949); }
+.viewer-main-row > .three { flex: 1; width: auto; min-width: 0; }
 
 .explorer-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .explorer-label { min-width: 54px; margin-right: 4px; color: var(--ink, #202427); font-weight: 650; }

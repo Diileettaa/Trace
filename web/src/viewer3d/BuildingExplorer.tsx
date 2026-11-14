@@ -7,6 +7,11 @@ interface BuildingExplorerProps {
   storeys: StoreyInfo[]
   selectedStoreyId: string | null
   onSelectStorey: (storeyId: string | null) => void
+  roomCounts?: Record<string, number>
+  exploded: boolean
+  onExplodedChange: (value: boolean) => void
+  planView: boolean
+  onPlanViewChange: (value: boolean) => void
   trades: TradesState
   onToggleTrade: (key: TradeKey, enabled: boolean) => void
   disabled?: boolean
@@ -16,6 +21,11 @@ export function BuildingExplorer({
   storeys,
   selectedStoreyId,
   onSelectStorey,
+  roomCounts,
+  exploded,
+  onExplodedChange,
+  planView,
+  onPlanViewChange,
   trades,
   onToggleTrade,
   disabled = false,
@@ -26,6 +36,7 @@ export function BuildingExplorer({
         storeys={storeys}
         selectedStoreyId={selectedStoreyId}
         onSelectStorey={onSelectStorey}
+        roomCounts={roomCounts}
         disabled={disabled}
       />
       <TradeLayersPanel
@@ -33,6 +44,10 @@ export function BuildingExplorer({
         onToggleTrade={onToggleTrade}
         disabled={disabled}
       />
+      <div className="explorer-actions">
+        <label><input type="checkbox" checked={exploded} onChange={event => onExplodedChange(event.target.checked)} disabled={disabled} /> Explode</label>
+        <button type="button" className={planView ? 'active' : ''} onClick={() => onPlanViewChange(!planView)} disabled={disabled}>Plan view</button>
+      </div>
       <div className="explorer-hint">
         <span className="hint-badge">💡 Hint:</span>
         <span>

@@ -15,6 +15,7 @@ import {
   createInitialTrades,
   loadStoreys,
   loadIfcClassItems,
+  applyExplodedView,
   type StoreyInfo,
   type TradeKey,
   type TradesState,
@@ -59,6 +60,9 @@ interface RoomOption {
   name: string
   guid: string
   box: THREE.Box3
+  number?: string
+  areaM2?: number
+  storeyId?: string
 }
 
 interface IfcElementInfo {
@@ -90,7 +94,7 @@ function friendlyIfcCategory(category: string): string {
   return known[name] || name.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Building element'
 }
 
-type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>
+type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>
 type ViewerEngine = { components: OBC.Components; world: World; fragments: OBC.FragmentsManager }
 
 const HIGHLIGHT = { color: new THREE.Color('#E9B949'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
@@ -233,6 +237,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [trades, setTrades] = useState<TradesState>(createInitialTrades)
   const [allLocalIds, setAllLocalIds] = useState<number[]>([])
   const [explorerReady, setExplorerReady] = useState(false)
+  const [exploded, setExploded] = useState(false)
+  const [planView, setPlanView] = useState(false)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -276,12 +282,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     ;(async () => {
       try {
         components = new OBC.Components()
-        const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>()
+        const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>()
         world.scene = new OBC.SimpleScene(components)
         world.scene.setup()
         world.scene.three.background = new THREE.Color('#F7F6F2')
         world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true })
-        world.camera = new OBC.SimpleCamera(components)
+        world.camera = new OBC.OrthoPerspectiveCamera(components)
         components.init()
         world.camera.controls.minDistance = 0.02
         world.camera.controls.dollyToCursor = true
@@ -322,11 +328,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         const loadedModel = await loader.load(bytes, true, path)
         if (cancelled) return
         modelRef.current = loadedModel
-        const [allByClass, nextStoreys] = await Promise.all([
+        const [allByClass, loadedStoreys] = await Promise.all([
           loadIfcClassItems(loadedModel),
           loadStoreys(loadedModel),
         ])
         if (cancelled) return
+        const baseElevation = loadedStoreys[0]?.elevation ?? 0
+        const displayOffset = Math.abs(baseElevation) > 5 ? baseElevation : 0
+        const nextStoreys = loadedStoreys.map(floor => ({ ...floor, displayElevation: floor.elevation - displayOffset }))
         classByLocalIdRef.current = new Map(Object.entries(allByClass).flatMap(([className, ids]) => ids.map((id) => [id, className] as const)))
         const nextTrades = classifyModelTrades(loadedModel, allByClass)
         await applyTradeColors(loadedModel, nextTrades)
@@ -352,11 +361,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
             if (cancelled) return
             const nextRooms = spaceIds.flatMap((localId, index) => {
               const attributes = data[index] ?? {}
-              const name = String((attributes.Name as { value?: unknown } | undefined)?.value ?? `Room ${localId}`)
+              const read = (key: string) => {
+                const raw = attributes[key] as { value?: unknown } | undefined
+                return raw?.value === undefined || raw?.value === null ? '' : String(raw.value)
+              }
+              const name = read('LongName') || read('Name') || `Room ${localId}`
               const roomBox = boxes[index]
               if (!roomBox || roomBox.isEmpty()) return []
+              const areaValue = Number(read('NetFloorArea') || read('GrossFloorArea') || read('Area'))
+              const centerZ = roomBox.getCenter(new THREE.Vector3()).z
+              const roomStorey = nextStoreys.find(floor => floor.itemIds.includes(localId))
+                ?? [...nextStoreys].sort((a, b) => Math.abs(a.elevation - centerZ) - Math.abs(b.elevation - centerZ))[0]
               return [{ key: `${loadedModel.modelId}:${localId}`, modelId: loadedModel.modelId, localId, name,
-                guid: guidsById[index] ?? '', box: roomBox }]
+                guid: guidsById[index] ?? '', box: roomBox, number: read('Tag') || read('Reference'),
+                areaM2: Number.isFinite(areaValue) && areaValue > 0 ? areaValue : undefined, storeyId: roomStorey?.id }]
             })
             setRooms(nextRooms)
             if (nextRooms.length) {
@@ -391,9 +409,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     const current = engine.current
     const model = modelRef.current
     if (!current || !model || !explorerReady) return
-    const selectedStorey = selectedStoreyId ? storeys.find((item) => item.id === selectedStoreyId) ?? null : null
-    applyStoreyCut(current.components, current.world, model, selectedStorey)
+    applyStoreyCut(current.components, current.world, model, null)
     void (async () => {
+      await applyExplodedView(model, storeys, exploded, 6, placementsRef.current)
       await applyTradeColors(model, trades)
       let visibleIds = allLocalIds
       if (previewRoomGuid) {
@@ -412,11 +430,46 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       }
       await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, visibleIds)
     })()
-  }, [allLocalIds, explorerReady, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades])
+  }, [allLocalIds, explorerReady, exploded, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
   }
+
+  const roomCounts = storeys.reduce<Record<string, number>>((counts, floor) => {
+    counts[floor.id] = rooms.filter(room => room.storeyId === floor.id).length
+    return counts
+  }, {})
+
+  function selectStorey(id: string | null) {
+    setSelectedStoreyId(id)
+    setPlanView(false)
+    const floor = id ? storeys.find(item => item.id === id) : null
+    if (!floor || floor.box.isEmpty()) { if (!id) fitModel(); return }
+    const e = engine.current
+    if (!e) return
+    const center = floor.box.getCenter(new THREE.Vector3())
+    const size = floor.box.getSize(new THREE.Vector3())
+    const distance = Math.max(size.x, size.y, 3) * 1.35
+    void e.world.camera.controls.setLookAt(center.x + distance, center.y - distance, center.z + distance * 0.75,
+      center.x, center.y, center.z, true)
+  }
+
+  useEffect(() => {
+    const camera = engine.current?.world.camera
+    if (!camera) return
+    const selected = selectedStoreyId ? storeys.find(item => item.id === selectedStoreyId) : null
+    if (planView && selected) {
+      void camera.projection.set('Orthographic').then(() => {
+        const center = selected.box.getCenter(new THREE.Vector3())
+        const size = selected.box.getSize(new THREE.Vector3())
+        const distance = Math.max(size.x, size.y, 5) * 1.4
+        void camera.controls.setLookAt(center.x, center.y, center.z + distance, center.x, center.y, center.z, true)
+      })
+    } else if (!planView && camera.projection.current === 'Orthographic') {
+      void camera.projection.set('Perspective')
+    }
+  }, [planView, selectedStoreyId, storeys])
 
   function selectRoom(key: string) {
     setSelectedRoomKey(key)
@@ -818,14 +871,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   }, [modelReady, onSelectRoom, rooms])
 
   return <div className="viewer">
-    <BuildingExplorer
-      storeys={storeys}
-      selectedStoreyId={selectedStoreyId}
-      onSelectStorey={(id) => setSelectedStoreyId(id)}
-      trades={trades}
-      onToggleTrade={toggleTrade}
-      disabled={!modelReady || !explorerReady}
-    />
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
       ? 'This model contains only plumbing (pipes and fixtures).'
       : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
@@ -854,6 +899,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     </div>
     {status && <div className="status">{status}</div>}
     {selectedRoomKey && <div className="status room-hint">Selected room: {rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'IfcSpace'} · click a room in the model to change selection</div>}
+    <div className="viewer-main-row">
+    <BuildingExplorer
+      storeys={storeys}
+      selectedStoreyId={selectedStoreyId}
+      onSelectStorey={selectStorey}
+      roomCounts={roomCounts}
+      trades={trades}
+      onToggleTrade={toggleTrade}
+      exploded={exploded}
+      onExplodedChange={setExploded}
+      planView={planView}
+      onPlanViewChange={setPlanView}
+      disabled={!modelReady || !explorerReady}
+    />
     <div className="three" ref={box}>
       {selectedElement && <aside className="ifc-info-card" aria-label="Selected IFC element details">
         <div className="ifc-info-heading"><div><span>{selectedElement.category}</span><h3>{selectedElement.name}</h3></div>
@@ -867,6 +926,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         </dl>
         <small>Double-click the element to zoom in.</small>
       </aside>}
+    </div>
     </div>
     {catalogOpen && <FurnitureCatalogModal products={catalog}
       roomName={rooms.find((room) => room.key === selectedRoomKey)?.name || 'No room selected'}

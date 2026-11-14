@@ -88,12 +88,12 @@ export async function loadStoreys(model: FragmentsModel, byClass?: IfcClassItems
     const rawElevation = (data.Elevation as { value?: unknown } | undefined)?.value ?? data.Elevation
     const elevationVal = typeof rawElevation === 'number' ? rawElevation : typeof rawElevation === 'string' ? parseFloat(rawElevation) : undefined
 
+    // IFC's Elevation is the floor datum. A storey's descendant geometry can
+    // include site meshes and upper-level elements, so its box minimum is not
+    // a reliable floor height when the property is present.
     let elevation = 0
-    if (!storeyBox.isEmpty()) {
-      elevation = storeyBox.min.z
-    } else if (elevationVal !== undefined && !isNaN(elevationVal)) {
-      elevation = elevationVal
-    }
+    if (elevationVal !== undefined && Number.isFinite(elevationVal)) elevation = elevationVal
+    else if (!storeyBox.isEmpty()) elevation = storeyBox.min.z
 
     storeys.push({
       id: `${model.modelId}:${storeyId}`,
@@ -113,7 +113,7 @@ export async function loadStoreys(model: FragmentsModel, byClass?: IfcClassItems
 
 export function applyStoreyCut(
   components: OBC.Components,
-  world: OBC.SimpleWorld<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>,
+  world: OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>,
   model: FragmentsModel,
   storey: StoreyInfo | null
 ) {

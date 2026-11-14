@@ -5,6 +5,7 @@ export interface StoreyInfo {
   localId: number
   name: string
   elevation: number
+  displayElevation?: number
   itemIds: number[]
   box: THREE.Box3
 }
