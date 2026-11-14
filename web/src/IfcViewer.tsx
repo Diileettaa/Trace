@@ -1460,6 +1460,17 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     )
   }
 
+  function clearRoomClipping() {
+    const e = engine.current
+    const model = modelRef.current
+    if (!e || !e.world.renderer || !model) return
+    model.useClippingPlanes([])
+    e.components.get(OBC.Clipper).deleteAll()
+    e.world.renderer.three.localClippingEnabled = false
+    const bounds = modelBoundsRef.current
+    if (bounds) e.world.camera.controls.setBoundary(bounds.clone().expandByScalar(.5))
+  }
+
   function zoomCamera(factor: number) {
     const e = engine.current
     if (!e) return
@@ -1521,6 +1532,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     setTrades(createInitialTrades())
     const model = modelRef.current
     if (model) void applyExplodedView(model, storeys, 0, 6, placementsRef.current)
+    clearRoomClipping()
     requestAnimationFrame(() => fitModel())
   }
 
@@ -1781,7 +1793,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
     <div className="viewer-bar furniture-bar">
       <span className="path">{path}</span>
-      <div className="building-view-tabs" role="tablist" aria-label="3D view mode"><button role="tab" aria-selected={buildingView === 'whole'} className={buildingView === 'whole' ? 'active' : ''} onClick={() => { setBuildingView('whole'); setSelectedStoreyId(null); setPeelStep(0); setPlanView(false); requestAnimationFrame(() => fitModel()) }}>Whole Building</button><button role="tab" aria-selected={buildingView === 'interior'} className={buildingView === 'interior' ? 'active' : ''} onClick={() => { const room = rooms.find(item => item.key === selectedRoomKey) ?? rooms[0]; setBuildingView('interior'); if (room?.storeyId) setSelectedStoreyId(room.storeyId); setPeelStep(2); setPlanView(false) }}>Interior</button></div>
+      <div className="building-view-tabs" role="tablist" aria-label="3D view mode"><button role="tab" aria-selected={buildingView === 'whole'} className={buildingView === 'whole' ? 'active' : ''} onClick={() => { clearRoomClipping(); setBuildingView('whole'); setSelectedStoreyId(null); setPeelStep(0); setPlanView(false); requestAnimationFrame(() => fitModel()) }}>Whole Building</button><button role="tab" aria-selected={buildingView === 'interior'} className={buildingView === 'interior' ? 'active' : ''} onClick={() => { const room = rooms.find(item => item.key === selectedRoomKey) ?? rooms[0]; setBuildingView('interior'); if (room?.storeyId) setSelectedStoreyId(room.storeyId); setPeelStep(2); setPlanView(false) }}>Interior</button></div>
       <button className="viewer-tools-toggle" onClick={() => setToolsOpen(open => !open)}>{toolsOpen ? 'Tools ▴' : 'Tools ▾'}</button>
       <span className="catalog-label" title="Demo catalog">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
