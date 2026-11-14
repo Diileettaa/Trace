@@ -69,11 +69,34 @@ DECLARATIONS = [
           {"path": _S, "target": _S, "page": _I}, ["path", "target"]),
 ]
 
+# Shared project documents (Xinran, agent/docs_tools.py): search, versions, details, quantity questions on filed drawings.
+# upload_doc is left out: files are uploaded by people in the Files area, not by the model.
+DOC_TOOL_NAMES = {"search_docs", "list_versions", "get_doc", "ask_drawing"}
+
+
+def _doc_decls() -> list[dict]:
+    try:
+        from . import docs_tools
+    except ImportError:
+        return []
+    return [t for t in docs_tools.TOOLS if t["name"] in DOC_TOOL_NAMES]
+
+
 def declarations() -> list[dict]:
     """Engine connected: offer the engine plus vision tools only (no mock tools that could mislead the model)."""
     if engine_adapter.available():
-        return [ENGINE_DECL] + [d for d in DECLARATIONS if d["name"] not in ENGINE_TOOLS]
-    return DECLARATIONS
+        return [ENGINE_DECL] + [d for d in DECLARATIONS if d["name"] not in ENGINE_TOOLS] + _doc_decls()
+    return DECLARATIONS + _doc_decls()
+
+
+def _docs_call(name: str, args: dict) -> dict:
+    from . import docs_tools
+
+    r = docs_tools.run_tool(name, args)
+    if name == "ask_drawing" and isinstance(r, dict) and "value" in r:
+        return {**r, "method": f"docs:ask_drawing:{r.get('method')}", "items": r.get("items") or [],
+                "sources": r.get("sources") or [], "warnings": r.get("warnings") or []}
+    return {"value": None, "items": [], "sources": [], "method": f"docs:{name}", "warnings": [], "result": r}
 
 
 ENGINE_TOOLS = {"list_spaces", "count_elements", "elements_in_space", "space_area",
@@ -119,6 +142,8 @@ def _call(name: str, args: dict[str, Any]) -> dict:
             return vision.count_in_drawing(**args)
         if name == "scan_drawing_inventory":
             return vision.scan_drawing_inventory(**args)
+        if name in DOC_TOOL_NAMES:
+            return _docs_call(name, args)
         if name in ENGINE_TOOLS:
             fn = _engine_fn(name)
             return fn(**args) if fn else _mock(name)

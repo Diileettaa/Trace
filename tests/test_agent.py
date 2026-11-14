@@ -174,3 +174,15 @@ def test_vision_answer_still_uses_llm(monkeypatch):
     monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 3, "unit": "count", "method": "cubicasa:vlm[gemini:x]:sauna",
                                                     "warnings": [], "sources": [], "items": []})
     assert agent._direct("How many saunas?", "data/demo/plan.png") is None
+
+
+def test_docs_tools_offered_and_dispatched(tmp_path, monkeypatch):
+    monkeypatch.setenv("DOCS_ROOT", str(tmp_path))
+    from agent import docs_tools, tools
+
+    docs_tools._STORE = None
+    names = [d["name"] for d in tools.declarations()]
+    assert "search_docs" in names and "upload_doc" not in names
+    r = tools.call("search_docs", {"query": "floor plan"})
+    assert r["method"] == "docs:search_docs" and "result" in r
+    docs_tools._STORE = None
