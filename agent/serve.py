@@ -5,6 +5,8 @@ Run: uvicorn agent.serve:app --host 0.0.0.0 --port 8080   (after `cd web && npm 
 """
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -14,9 +16,28 @@ from fastapi.staticfiles import StaticFiles
 from .app import app as api
 
 DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+logger = logging.getLogger("trace.serve")
+
+# Default demo project when running in demo seed mode
+if os.environ.get("SEED_DEMO") == "1":
+    os.environ.setdefault("DOCS_PROJECT", "Demo project")
 
 app = FastAPI(title="Trace")
 app.mount("/api", api)
+
+
+@app.on_event("startup")
+def _seed_on_startup():
+    if os.environ.get("SEED_DEMO") == "1":
+        try:
+            from scripts.seed_demo import seed_demo_data
+
+            logger.info("SEED_DEMO=1 detected: running seed_demo on startup...")
+            res = seed_demo_data(reset=False, seed_docs=True)
+            logger.info("SEED_DEMO=1 startup seed completed: %s", res)
+        except Exception as e:
+            logger.warning("SEED_DEMO=1 startup seed failed (continuing startup): %s", e, exc_info=True)
+
 
 if DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
