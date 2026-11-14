@@ -1,0 +1,182 @@
+/* drawing.css - 2D Drawing Viewer UX enhancements (T-24) */
+
+.viewer-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: #fdfbf7;
+  border-bottom: 1px solid var(--line, #d8d8d4);
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.viewer-hint .hint-pill {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #e4572e);
+  flex-shrink: 0;
+}
+
+.viewer-bar .fit-btn {
+  font-size: 12px;
+  padding: 3px 8px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid var(--line, #d8d8d4);
+  background: #f8f8f6;
+  color: #333;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.viewer-bar .fit-btn:hover {
+  background: #eee;
+  border-color: #bbb;
+}
+
+.viewer-bar .zoom-value {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+}
+
+/* Canvas & Pan UX */
+.canvas {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  cursor: grab;
+  position: relative;
+  background: #eeebe6;
+}
+
+.canvas.panning {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.canvas.panning * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.stack {
+  position: relative;
+  max-width: none;
+  margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  background: #fff;
+  line-height: 0;
+  user-select: none;
+}
+
+.stack img {
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Boxes: Thin strokes and light fill so overlapping boxes stay readable */
+.rects-layer rect.box {
+  pointer-events: all;
+  cursor: pointer;
+  fill: rgba(228, 87, 46, 0.08);
+  stroke: var(--accent, #e4572e);
+  stroke-width: 1.5;
+  transition: fill 0.15s ease, stroke-width 0.15s ease;
+}
+
+.rects-layer rect.box:hover,
+.rects-layer rect.box.hover {
+  fill: rgba(228, 87, 46, 0.18);
+  stroke-width: 2.5;
+}
+
+/* Selected box gets a thick outline */
+.rects-layer rect.box.on {
+  fill: rgba(228, 87, 46, 0.25);
+  stroke: var(--accent, #e4572e);
+  stroke-width: 4;
+}
+
+/* Flash animation for room board updates */
+.rects-layer rect.box.flash {
+  fill: rgba(26, 86, 219, 0.25);
+  stroke: #1a56db;
+  stroke-width: 4;
+  animation: pulse 0.8s ease-in-out 5;
+}
+
+/* Badges: small numbered badge at corner */
+.badges-layer .badge-group {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.badges-layer .badge-bg {
+  fill: var(--accent, #e4572e);
+  stroke: #ffffff;
+  stroke-width: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  transition: fill 0.15s ease;
+}
+
+.badges-layer .badge-text {
+  fill: #ffffff;
+  font-weight: 700;
+  font-family: system-ui, -apple-system, sans-serif;
+  user-select: none;
+  pointer-events: none;
+}
+
+.badges-layer .badge-group.on .badge-bg {
+  fill: #1d1d1f;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.badges-layer .badge-group:hover .badge-bg,
+.badges-layer .badge-group.hover .badge-bg {
+  fill: #c03c15;
+}
+
+.badges-layer .badge-group.flash .badge-bg {
+  fill: #1a56db;
+}
+
+/* Full label tooltip */
+.badges-layer .full-label {
+  pointer-events: none;
+}
+
+.badges-layer .full-label-bg {
+  fill: rgba(29, 29, 31, 0.92);
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 0.5;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.badges-layer .full-label-text {
+  fill: #ffffff;
+  font-weight: 600;
+  font-family: system-ui, -apple-system, sans-serif;
+  user-select: none;
+  pointer-events: none;
+}
