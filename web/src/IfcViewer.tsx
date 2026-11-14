@@ -299,6 +299,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [walkMap, setWalkMap] = useState({ x: 0, y: 0, yaw: 0 })
   const [helpOpen, setHelpOpen] = useState(false)
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
+  const [walkHelpVisible, setWalkHelpVisible] = useState(false)
+  const walkHelpTimerRef = useRef<number | null>(null)
   const [showcase, setShowcase] = useState(false)
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
   const [touring, setTouring] = useState(false)
@@ -828,6 +830,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     e.world.camera.controls.stop()
     e.world.camera.controls.enabled = false
     setWalkSpeed(1.5)
+    setWalkHelpVisible(true)
+    if (walkHelpTimerRef.current) window.clearTimeout(walkHelpTimerRef.current)
+    walkHelpTimerRef.current = window.setTimeout(() => setWalkHelpVisible(false), 5000)
     setWalkMode(true)
   }
 
@@ -846,6 +851,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     savedWalkCameraRef.current = null
     walkKeysRef.current.clear()
     walkMouseRef.current = null
+    if (walkHelpTimerRef.current) window.clearTimeout(walkHelpTimerRef.current)
     setWalkMode(false)
   }
 
@@ -909,6 +915,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * speed
       }
       walkPositionRef.current.z = walkFloorZRef.current
+      walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, walkFloorBounds.min.x + .3, walkFloorBounds.max.x - .3)
+      walkPositionRef.current.y = THREE.MathUtils.clamp(walkPositionRef.current.y, walkFloorBounds.min.y + .3, walkFloorBounds.max.y - .3)
       updateCamera()
       if (++mapTick % 6 === 0) setWalkMap({ x: walkPositionRef.current.x, y: walkPositionRef.current.y, yaw: walkYawRef.current })
       frame = requestAnimationFrame(tick)
@@ -1588,7 +1596,13 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         </button>})}
       </div>
       {walkMode && <>
-        <div className="walk-hud"><strong>Walk mode</strong><span>WASD / arrows · drag to look · wheel speed {walkSpeed.toFixed(1)} m/s · Esc exit</span></div>
+        <div className={`walk-hud ${walkHelpVisible ? 'visible' : ''}`}><strong>Walk mode</strong><span>W A S D / arrows move · drag right side to look · Esc exits · ? help</span></div>
+        <div className="walk-joystick" aria-label="Walk joystick">
+          <button onPointerDown={() => walkKeysRef.current.add('KeyW')} onPointerUp={() => walkKeysRef.current.delete('KeyW')}>▲</button>
+          <button onPointerDown={() => walkKeysRef.current.add('KeyA')} onPointerUp={() => walkKeysRef.current.delete('KeyA')}>◀</button>
+          <button onPointerDown={() => walkKeysRef.current.add('KeyD')} onPointerUp={() => walkKeysRef.current.delete('KeyD')}>▶</button>
+          <button onPointerDown={() => walkKeysRef.current.add('KeyS')} onPointerUp={() => walkKeysRef.current.delete('KeyS')}>▼</button>
+        </div>
         <div className="walk-minimap" aria-label="Current floor minimap">
           <strong>{storeys.find(floor => floor.id === selectedStoreyId)?.name || 'Floor map'}</strong>
           <svg viewBox="0 0 180 130" role="img" aria-label="Floor outline and viewer position">
@@ -1610,8 +1624,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         </div>
       </>}
       {showFirstWalkHint && <div className="first-walk-hint">Pick a floor on the left, then click a room to fly in. Press Walk to look around inside.</div>}
+      {!walkMode && <button className="walk-inside-button" type="button" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>🚶 Walk inside</button>}
       <div className="viewer-help-control">
-        <button type="button" aria-label="3D controls help" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}>?</button>
+        <button type="button" aria-label="3D controls help" aria-expanded={helpOpen} onClick={() => { setHelpOpen(open => !open); if (walkMode) setWalkHelpVisible(true) }}>?</button>
         {helpOpen && <aside className="viewer-help-popover">
           <div><strong>3D controls</strong><button type="button" aria-label="Close 3D controls help" onClick={() => setHelpOpen(false)}>×</button></div>
           <ul>
