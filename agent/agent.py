@@ -11,7 +11,10 @@ SYSTEM_PROMPT = """You answer questions about construction drawings and building
 
 Hard rules:
 1. Never estimate or calculate numbers yourself. Every number in your answer must come from a tool result.
-2. Choose tools by file type: IFC models -> list_spaces / count_elements / elements_in_space / space_area /
+2. If answer_from_engine is available and the file is under swiss_dwellings, ifc_models, ifc_bench or cubicasa5k,
+   call it FIRST with the user's question unchanged and trust its value. Only if it returns no value or
+   "question not recognised" fall back to the tools below.
+   Otherwise choose tools by file type: IFC models -> list_spaces / count_elements / elements_in_space / space_area /
    locate_elements / element_status. PNG, JPG or scanned PDF drawings -> count_in_drawing.
    Vector PDF text, room names and schedules -> search_drawings.
    "What is on this plan / list everything" on an image drawing -> scan_drawing_inventory.
@@ -85,7 +88,7 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
     gen_config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT.format(role_hint=role_hint),
         temperature=config.TEMPERATURE,
-        tools=[types.Tool(function_declarations=tools.DECLARATIONS)],
+        tools=[types.Tool(function_declarations=tools.declarations())],
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
     contents: list = [types.Content(role="user", parts=[types.Part.from_text(text=user_text)])]

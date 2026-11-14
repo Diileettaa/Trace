@@ -13,7 +13,7 @@
 | T-07 | 数据源署名 + IFC 实测 | Claude / Diletta | [~] | `LicenseBadge.tsx` 只写来源名，许可证文字要按数据集 LICENSE 补；真实 IFC 加载需在本机测 |
 | T-08 | 后端 collab 接口 + 角色 | Claude | [?] | `agent/collab.py`，`/collab*`；角色加 plumber、owner |
 | T-09 | 前端总装 + Nemotron 徽章 | Claude | [?] | `App.tsx`、`DrawingViewer.tsx`、`VerifyBadge.tsx`；`npm run build` 通过 |
-| T-10 | 接 Xinran 的 engine.tools | Diletta + Xinran | [ ] | `agent/tools.py` 已按 `engine.tools` 自动切换 |
+| T-10 | 接 Xinran 的 engine | Claude | [~] | `engine/` 从 origin/main 拷入（Xinran 维护，只读）；`agent/engine_adapter.py` 转成统一格式；智能体优先调 `answer_from_engine`；单测过，待用真实数据抽测 |
 | T-11 | Verda 批处理 + Dockerfile + 部署 | Codex / Diletta | [?] | 预热脚本完成；pytest 23 passed，前端 build 通过；Verda 部署仍待确认 |
 | T-12 | README 各 Tech Challenge + verda-log | Codex | [?] | 文档完成；pytest 23 passed，前端 build 通过 |
 | T-13 | Codex 真实提交（Codex 挑战证据） | Codex | [ ] | 上面的 T-04 是 Claude 写的，Codex 挑战需要 Codex 自己做 T-11/T-12 |

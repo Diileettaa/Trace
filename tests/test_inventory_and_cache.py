@@ -128,3 +128,42 @@ def test_role_hints_cover_all_trades():
     from agent import agent
 
     assert {"architect", "electrician", "plumber", "owner"} <= agent.ROLE_HINTS.keys()
+
+
+def test_engine_adapter_converts_boxes_and_guids(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter, tools
+
+    fake = {"value": 2, "unit": "count", "method": "swiss_dxf:wc", "warnings": [],
+            "items": [{"category": "wc", "bbox_m": [0, 0, 1, 1], "png_bbox": [10, 20, 30, 40], "pdf_bbox_pt": [72, 72, 144, 144]},
+                      {"category": "wc", "bbox_m": [1, 1, 2, 2], "png_bbox": [50, 60, 70, 80], "pdf_bbox_pt": [0, 0, 72, 72]}],
+            "sources": [{"file": "data/swiss_dwellings/a.dxf"}]}
+    monkeypatch.setattr(ea, "answer", lambda p, q: fake)
+    png = tools.call("answer_from_engine", {"path": "data/swiss_dwellings/a.png", "question": "How many WC?"})
+    assert CONTRACT <= png.keys() and png["value"] == 2
+    assert [s["bbox"] for s in png["sources"]] == [[10, 20, 30, 40], [50, 60, 70, 80]]
+    assert [i["name"] for i in png["items"]] == ["WC 1", "WC 2"]
+    pdf = engine_adapter.answer("data/swiss_dwellings/a.pdf", "How many WC?")
+    assert pdf["sources"][0]["bbox"] == [150, 150, 300, 300]
+
+
+def test_engine_adapter_keeps_ifc_guid_and_model(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter
+
+    fake = {"value": 1, "unit": "count", "method": "ifc:count_door", "warnings": [],
+            "items": [{"guid": "abc", "category": "IFCDOOR", "name": "D01", "storey": "1"}],
+            "sources": [{"file": "data/ifc_models/m.ifc"}, {"file": "data/ifc_models/m_L1.pdf"}]}
+    monkeypatch.setattr(ea, "answer", lambda p, q: fake)
+    r = engine_adapter.answer("data/ifc_models/m_L1.pdf", "How many doors?")
+    assert r["items"][0]["guid"] == "abc" and r["items"][0]["name"] == "Door 1 (D01)"
+    assert r["model_file"] == "data/ifc_models/m.ifc"
+
+
+def test_engine_present_hides_mock_tools():
+    from agent import tools
+
+    names = [d["name"] for d in tools.declarations()]
+    assert names[0] == "answer_from_engine" and "count_elements" not in names

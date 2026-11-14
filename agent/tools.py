@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from . import vision
+from . import engine_adapter, vision
 
 MOCK_DIR = Path(__file__).resolve().parent.parent / "mock"
 
@@ -26,6 +26,14 @@ def _decl(name: str, description: str, props: dict, required: list[str]) -> dict
     return {"name": name, "description": description,
             "parameters": {"type": "object", "properties": props, "required": required}}
 
+
+ENGINE_DECL = _decl(
+    "answer_from_engine",
+    "Exact answer from the team's data engine for drawings under swiss_dwellings, ifc_models, ifc_bench and "
+    "cubicasa5k (counts of WC/washbasin/bathtub/shower/doors/windows/rooms/apartments, room and apartment areas, "
+    "IFC spaces/doors/windows/walls/stairs/columns/beams/sanitary/lights, areas, lengths, volumes). "
+    "Pass the user's question unchanged. Use this FIRST; it returns evidence boxes and IFC GUIDs.",
+    {"path": _S, "question": _S}, ["path", "question"])
 
 DECLARATIONS = [
     _decl("list_spaces", "List rooms/spaces in an IFC model, optionally filtered by storey or by a name fragment "
@@ -54,6 +62,13 @@ DECLARATIONS = [
           {"path": _S, "target": _S, "page": _I}, ["path", "target"]),
 ]
 
+def declarations() -> list[dict]:
+    """Engine connected: offer the engine plus vision tools only (no mock tools that could mislead the model)."""
+    if engine_adapter.available():
+        return [ENGINE_DECL] + [d for d in DECLARATIONS if d["name"] not in ENGINE_TOOLS]
+    return DECLARATIONS
+
+
 ENGINE_TOOLS = {"list_spaces", "count_elements", "elements_in_space", "space_area",
                 "locate_elements", "element_status", "search_drawings"}
 
@@ -78,6 +93,8 @@ def _mock(name: str) -> dict:
 def call(name: str, args: dict[str, Any]) -> dict:
     """Run one tool call and always return the shared result format (never raise to the model)."""
     try:
+        if name == "answer_from_engine":
+            return engine_adapter.answer(**args)
         if name == "count_in_drawing":
             return vision.count_in_drawing(**args)
         if name == "scan_drawing_inventory":
