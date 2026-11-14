@@ -524,12 +524,14 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
             wc_std_f = img_dir / "wc_installed_standard_1794668063424.jpg"
             wc_acc_f = img_dir / "wc_installed_accessible_1794668064308.jpg"
             wc_rough_f = img_dir / "wc_rough_in_pipes_1794668065164.jpg"
+            door_f = img_dir / "site_photo_fire_damper_1794662438641.jpg"  # Gigi uses it for the fire door frame
             duct_f = img_dir / "site_photo_hvac_duct_1794662437069.jpg"
             damper_f = img_dir / "site_photo_fire_damper_1794662438641.jpg"
 
             wc_std = wc_std_f.read_bytes() if wc_std_f.is_file() else b""
             wc_acc = wc_acc_f.read_bytes() if wc_acc_f.is_file() else b""
             wc_rough = wc_rough_f.read_bytes() if wc_rough_f.is_file() else b""
+            door_ph = door_f.read_bytes() if door_f.is_file() else b""
             duct_img = duct_f.read_bytes() if duct_f.is_file() else b""
             damper_img = damper_f.read_bytes() if damper_f.is_file() else b""
 
@@ -541,17 +543,17 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
                 id2 = t_items[1]["id"]
                 id3 = t_items[2]["id"]
 
-                # 1st toilet: Installed + wc_installed_standard (M. Lindqvist · Demo)
-                if wc_std:
-                    media.save_media("wc_installed_standard.jpg", wc_std, space_id=t_items[0].get("space_id") or "", item_id=id1, status="Installed", author="M. Lindqvist · Demo", role="plumber", note="Door installed, frame grouted, smoke seals checked")
+                # 1st door: Installed + wc_installed_standard (M. Lindqvist · Demo)
+                if door_ph:
+                    media.save_media("door_installed.jpg", door_ph, space_id=t_items[0].get("space_id") or "", item_id=id1, status="Installed", author="M. Lindqvist · Demo", role="plumber", note="Door installed, frame grouted, smoke seals checked")
                     media_seeded += 1
 
-                # 2nd toilet: In Progress (no photo)
+                # 2nd door: In Progress (no photo)
                 media.update_item_status(item_id=id2, status="In Progress", path=DEMO_IFC_PLAN, space_id=t_items[1].get("space_id") or "", author="Demo inspector · Demo", note="Unverified: no site photo yet.")
 
-                # 3rd toilet: Issue Reported + wc_installed_accessible (K. Korhonen · Demo)
-                if wc_acc:
-                    media.save_media("wc_installed_accessible.jpg", wc_acc, space_id=t_items[2].get("space_id") or "", item_id=id3, status="Issue Reported", author="K. Korhonen · Demo", role="inspector", note="Clear opening 865 mm, 35 mm short of the 900 mm accessible minimum")
+                # 3rd door: Issue Reported + wc_installed_accessible (K. Korhonen · Demo)
+                if door_ph:
+                    media.save_media("door_issue.jpg", door_ph, space_id=t_items[2].get("space_id") or "", item_id=id3, status="Issue Reported", author="K. Korhonen · Demo", role="inspector", note="Clear opening 865 mm, 35 mm short of the 900 mm accessible minimum")
                     media_seeded += 1
 
             # 2. Swiss site1000
