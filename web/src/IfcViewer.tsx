@@ -314,6 +314,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [helpOpen, setHelpOpen] = useState(false)
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
   const [walkHelpVisible, setWalkHelpVisible] = useState(false)
+  const [elementTagPositions, setElementTagPositions] = useState<Record<string, { x: number; y: number }>>({})
   const walkHelpTimerRef = useRef<number | null>(null)
   const [showcase, setShowcase] = useState(false)
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
@@ -801,6 +802,51 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     camera.controls.maxPolarAngle = Math.PI * 5 / 12
     void camera.controls.setLookAt(center.x + diagonal, center.y - diagonal, center.z + diagonal * .9, center.x, center.y, center.z + .8, true)
   }, [isolateSpaceGuid, rooms])
+
+  useEffect(() => {
+    const model = modelRef.current
+    const camera = engine.current?.world.camera
+    if (!isolateSpaceGuid || !model || !camera || !elementTags.length || !allLocalIds.length) {
+      setElementTagPositions({})
+      return
+    }
+    let cancelled = false
+    let frame = 0
+    void (async () => {
+      const [guids, boxes] = await Promise.all([
+        model.getGuidsByLocalIds(allLocalIds),
+        model.getBoxes(allLocalIds),
+      ])
+      if (cancelled) return
+      const wanted = new Set(elementTags.map(tag => tag.guid))
+      const boxesByGuid = new Map<string, THREE.Box3>()
+      guids.forEach((guid, index) => {
+        const elementBox = boxes[index]
+        if (guid && elementBox && !elementBox.isEmpty() && wanted.has(guid)) boxesByGuid.set(guid, elementBox)
+      })
+      const update = () => {
+        if (cancelled) return
+        const rect = box.current?.getBoundingClientRect()
+        if (!rect) return
+        const next: Record<string, { x: number; y: number }> = {}
+        for (const [guid, elementBox] of boxesByGuid) {
+          const anchor = elementBox.getCenter(new THREE.Vector3())
+          anchor.z = elementBox.max.z
+          anchor.project(camera.three)
+          if (anchor.z >= -1 && anchor.z <= 1) {
+            next[guid] = {
+              x: (anchor.x + 1) * .5 * rect.width,
+              y: (1 - anchor.y) * .5 * rect.height,
+            }
+          }
+        }
+        setElementTagPositions(next)
+        frame = requestAnimationFrame(update)
+      }
+      update()
+    })().catch(error => console.warn('[Trace] could not anchor interior evidence tags', error))
+    return () => { cancelled = true; cancelAnimationFrame(frame) }
+  }, [allLocalIds, elementTags, isolateSpaceGuid, modelReady])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
@@ -1662,7 +1708,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       <div className="room-label-layer" aria-label="Room labels">
         {isolateSpaceGuid && clearances && <div className="interior-clearances">{(['left', 'right', 'front', 'rear'] as const).map((side, index) => clearances[side] == null ? null : <span key={side} style={{ left: `${16 + (index % 2) * 55}%`, top: `${60 + Math.floor(index / 2) * 12}%` }}><i />{clearances[side]} mm</span>)}</div>}
         {isolateSpaceGuid && roomDims && <div className="room-floor-dimensions">{roomDims.L != null && <span className="room-dim-l">↔ {roomDims.L.toFixed(2)} m</span>}{roomDims.B != null && <span className="room-dim-b">↕ {roomDims.B.toFixed(2)} m</span>}</div>}
-        {(isolateSpaceGuid || guids.length > 0) && elementTags.slice(0, 20).map((tag, index) => <button key={tag.guid} type="button" className={`element-world-tag ${tag.issue || !tag.verified ? 'issue' : ''}`} style={{ left: `${12 + (index % 4) * 21}%`, top: `${12 + Math.floor(index / 4) * 13}%` }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>)}
+        {isolateSpaceGuid && elementTags.slice(0, 12).map((tag) => {
+          const position = elementTagPositions[tag.guid]
+          if (!position) return null
+          return <button key={tag.guid} type="button" className={`element-world-tag ${tag.issue || !tag.verified ? 'issue' : ''}`} style={{ left: position.x, top: position.y }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>
+        })}
         {!walkMode && !hideRoomLabels && rooms.filter(room => !selectedStoreyId || room.storeyId === selectedStoreyId).filter((room, index, list) => list.findIndex(candidate => englishRoomName(candidate.name) === englishRoomName(room.name)) === index).map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
