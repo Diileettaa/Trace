@@ -49,3 +49,24 @@ export const setRoomStatus = (space_id: string, status: RoomStatus, author = '')
 
 export const postRoomMessage = (space_id: string, text: string, role = '', notify: string[] = []) =>
   post('/collab/message', { space_id, text, role, notify })
+
+
+export interface MoodRenderRequest {
+  image_base64: string
+  room_name: string
+  products: unknown[]
+  style: string
+}
+
+export async function renderMoodImage(body: MoodRenderRequest): Promise<Blob> {
+  const response = await fetch(`${BASE}/render`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => null) as { detail?: string } | null
+    throw new Error(error?.detail || `${response.status}: image render failed`)
+  }
+  return response.blob()
+}

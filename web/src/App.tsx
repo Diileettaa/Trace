@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ask, getCollab, inventory, sampleQuestions } from './api'
+import { ask, getCollab, inventory, renderMoodImage, sampleQuestions } from './api'
 import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer, { type PlacedProduct } from './IfcViewer'
@@ -35,10 +35,17 @@ export default function App() {
   const [space, setSpace] = useState<{ id: string; name: string } | null>(null)
   const [flashSpace, setFlashSpace] = useState<string | null>(null)
   const [placedProducts, setPlacedProducts] = useState<PlacedProduct[]>([])
+  const [renderSource, setRenderSource] = useState('')
+  const [renderRoomName, setRenderRoomName] = useState('')
+  const [renderStyle, setRenderStyle] = useState('Warm minimal')
+  const [renderImageUrl, setRenderImageUrl] = useState('')
+  const [renderError, setRenderError] = useState('')
+  const [renderBusy, setRenderBusy] = useState(false)
 
   useEffect(() => {
     sampleQuestions(source || undefined).then(setSamples)
   }, [source])
+  useEffect(() => () => { if (renderImageUrl) URL.revokeObjectURL(renderImageUrl) }, [renderImageUrl])
   useEffect(() => {
     getCollab().then(setCollab)
   }, [])
@@ -129,6 +136,73 @@ export default function App() {
     setSelected(null)
     setSelectedGuid(null)
     setViewMode(q.path.toLowerCase().endsWith('.ifc') ? '3d' : '2d')
+  }
+
+
+  async function renderMood() {
+    if (!renderSource) return
+    setRenderBusy(true)
+    setRenderError('')
+    setRenderImageUrl('')
+    try {
+      const blob = await renderMoodImage({
+        image_base64: renderSource,
+        room_name: renderRoomName || space?.name || 'Selected room',
+        products: placedProducts.map(({ instanceId: _instanceId, ...product }) => product),
+        style: renderStyle,
+      })
+      setRenderImageUrl(URL.createObjectURL(blob))
+    } catch (error) {
+      setRenderError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setRenderBusy(false)
+    }
+  }
+
+  function exportBom() {
+    const rows: string[][] = [['Name', 'Quantity', 'Dimensions', 'Unit price (EUR)', 'Subtotal (EUR)']]
+    const productGroups = new Map<string, { product: PlacedProduct; quantity: number }>()
+    for (const product of placedProducts) {
+      const current = productGroups.get(product.catalogId)
+      if (current) current.quantity += 1
+      else productGroups.set(product.catalogId, { product, quantity: 1 })
+    }
+    for (const { product, quantity } of productGroups.values()) {
+      rows.push([product.name, String(quantity), `${product.width_mm} × ${product.depth_mm} × ${product.height_mm} mm`,
+        product.price_eur.toFixed(2), (product.price_eur * quantity).toFixed(2)])
+    }
+
+    const answerCounts = new Map<string, number>()
+    for (const result of res?.evidence ?? []) {
+      if (result.unit !== 'count' || typeof result.value !== 'number') continue
+      if (result.by_category && Object.keys(result.by_category).length) {
+        for (const [category, count] of Object.entries(result.by_category)) {
+          answerCounts.set(category, (answerCounts.get(category) ?? 0) + count)
+        }
+      } else if (result.items?.length) {
+        const perCategory = new Map<string, number>()
+        for (const item of result.items) {
+          const name = item.category || item.name || result.tool
+          perCategory.set(name, (perCategory.get(name) ?? 0) + 1)
+        }
+        for (const [name, count] of perCategory) answerCounts.set(name, (answerCounts.get(name) ?? 0) + count)
+      } else {
+        answerCounts.set(result.tool, (answerCounts.get(result.tool) ?? 0) + result.value)
+      }
+    }
+    for (const [name, quantity] of answerCounts) rows.push([`Answer count — ${name}`, String(quantity), '', '', ''])
+
+    const csvCell = (value: string) => {
+      const safe = /^[=+\-@]/.test(value) ? `'${value}` : value
+      return `"${safe.replaceAll('"', '""')}"`
+    }
+    const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'trace-bom.csv'
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   function applyDemo(item: DemoItem) {
@@ -364,6 +438,11 @@ export default function App() {
             selectedGuid={selectedGuid}
             onSelectGuid={setSelectedGuid}
             onPlacementsChange={setPlacedProducts}
+            onScreenshot={(dataUrl, roomName) => {
+              setRenderSource(dataUrl)
+              setRenderRoomName(roomName)
+              setRenderError('')
+            }}
           />
         ) : (
           <DrawingViewer
@@ -378,6 +457,25 @@ export default function App() {
             }}
             flash={flash}
           />
+        )}
+        {(isIfc || viewMode === '3d') && activeIfcPath && (
+          <section className="render-panel">
+            <div className="render-actions">
+              <label>Render style<input value={renderStyle} onChange={(event) => setRenderStyle(event.target.value)} /></label>
+              <button disabled={!renderSource || renderBusy} onClick={renderMood}>
+                {renderBusy ? 'Rendering…' : 'Render mood image'}
+              </button>
+              <button onClick={exportBom} disabled={!placedProducts.length && !(res?.evidence ?? []).some((item) => item.unit === 'count')}>
+                Export BOM (CSV)
+              </button>
+              {renderSource && <span className="dim small">Screenshot ready · {renderRoomName}</span>}
+            </div>
+            {renderError && <p className="error">{renderError}</p>}
+            {renderImageUrl && <div className="mood-result">
+              <img src={renderImageUrl} alt={`Mood render for ${renderRoomName || 'selected room'}`} />
+              <a href={renderImageUrl} download="trace-mood-render.png">Download PNG</a>
+            </div>}
+          </section>
         )}
       </main>
     </div>

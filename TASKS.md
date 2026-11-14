@@ -23,6 +23,6 @@
 | T-17 | 答案卡片打磨：加载动画、显示工具调用链（Gemini → 工具名）、cached 标记、错误提示友好 | Gemini (Antigravity) | [?] | Added loading spinner, styled tool call chain (Gemini → tool badges), cached result badge, friendly error banner, npm run build passed. |
 | T-19 | 3D 摆放（建筑师模块 7/8）：在 IfcViewer 里选一个房间，从小型产品目录（web/src/catalog.json：桌子、灯、马桶等，带真实尺寸 mm、价格、材质、颜色）里选一件，按真实尺寸放进 3D 场景该房间地面中心，可拖动、旋转；"Screenshot" 按钮导出当前 3D 视图 PNG | Codex | [?] | web/src/**；15 件 Demo catalog；IfcSpace 选择、家具摆放编辑与 PNG 截图；pytest 34 passed，web build 通过 |
 | T-20 | 后端 /render：输入 3D 截图 + 产品描述 + 风格，调用 Gemini 图像生成出氛围效果图并缓存；返回 PNG | Codex | [?] | agent/render.py、agent/app.py 新增 /render、tests/test_render.py；FakeClient 单测；pytest 37 passed，web build 通过 |
-| T-21 | 前端效果图面板：T-19 截图后点 "Render mood image"，调用 /render 显示结果并可下载；导出 BOM CSV | Codex | [ ] | web/src/**；截图渲染及 CSV BOM |
+| T-21 | 前端效果图面板：T-19 截图后点 "Render mood image"，调用 /render 显示结果并可下载；导出 BOM CSV | Codex | [?] | web/src/**；截图生成/预览/下载；CSV 汇总放置产品及当前答案计数；pytest 37 passed，web build 通过 |
 
 | T-18 | 数据引擎离线抽样评测 | Codex | [?] | scripts/eval_engine.py、docs/eval-results.md | pytest 31 passed；web build 通过；每来源 50 题离线抽样已记录 |

@@ -11,7 +11,7 @@ interface Props {
   selectedGuid?: string | null
   onSelectGuid?: (guid: string) => void
   onPlacementsChange?: (placements: PlacedProduct[]) => void
-  onScreenshot?: (dataUrl: string) => void
+  onScreenshot?: (dataUrl: string, roomName: string) => void
 }
 
 export interface PlacedProduct {
@@ -380,7 +380,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     if (!renderer) return
     renderer.three.render(engine.current!.world.scene.three, engine.current!.world.camera.three)
     const dataUrl = renderer.three.domElement.toDataURL('image/png')
-    onScreenshot?.(dataUrl)
+    const roomName = rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'Selected room'
+    onScreenshot?.(dataUrl, roomName)
     const link = document.createElement('a')
     link.href = dataUrl
     link.download = 'trace-room-layout.png'
