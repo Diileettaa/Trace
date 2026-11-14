@@ -37,6 +37,6 @@ export default function WorkTimeline({ collab, onChange }: { collab: CollabState
         {invalidOrder && <div className="order-warning">⚠ Wall work should finish before toilet installation.</div>}
       </article>
     })}</div></div>)}
-    {!bookings.length && <p className="dim small">No bookings yet. New entries are shown in the Demo schedule.</p>}
+    {!bookings.length && <p className="dim small">No work booked yet. Pick a room, time and trade above to reserve the first slot.</p>}
   </section>
 }

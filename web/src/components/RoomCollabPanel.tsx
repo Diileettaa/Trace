@@ -54,7 +54,7 @@ export default function RoomCollabPanel({ spaceId, spaceName, role, collab, onCh
             {m.notify && m.notify.length > 0 && <span className="notify"> → {m.notify.join(', ')}</span>}
           </li>
         ))}
-        {msgs.length === 0 && <li className="dim">No messages for this room yet.</li>}
+        {msgs.length === 0 && <li className="dim">No room updates yet. Write a note below to start the conversation.</li>}
       </ul>
       <div className="row small">
         {TRADES.map((t) => (
