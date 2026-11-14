@@ -1,6 +1,6 @@
 // Gigi's Detailed3DViewer frame (dark toolbar, Whole Building | Interior, fixture strip, clearance cards)
 // around our real 3D: the IFC model (IfcViewer) or, for 2D vector plans, rooms extruded from /api/plan/rooms.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Building2, Eye, Info, MessageSquare, Minus } from 'lucide-react';
 import { roomEnglish } from '../roomNames';
 import IfcViewer from '../IfcViewer';
@@ -35,6 +35,7 @@ export const Real3D: React.FC<Props> = ({
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [roomCardOpen, setRoomCardOpen] = useState(true);
+  useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
   const guids = (scenario?.targetIds || []).filter(isGuid);
   const selectedGuid = mode === 'room' && fixture && isGuid(fixture.id) ? fixture.id : null;
   const roomLabel = scenario?.roomCode || 'Room';
@@ -105,7 +106,7 @@ export const Real3D: React.FC<Props> = ({
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
               onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }}
               isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}
-              elementTags={mode !== 'room' ? [] : siblingFixtures.filter((f) => isGuid(f.id)).slice(0, 60).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
+              elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
               clearances={mode === 'room' && fixture && isGuid(fixture.id) && fixture.clearanceMm ? { guid: fixture.id, ...fixture.clearanceMm } : undefined}
               roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
               hideRoomLabels={mode === 'room'} />

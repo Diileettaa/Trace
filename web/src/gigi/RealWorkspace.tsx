@@ -64,7 +64,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [quickPrompts, setQuickPrompts] = useState<string[]>(FALLBACK_PROMPTS);
 
   const chatKey = `trace.gigi.chats.${project.id}`;
-  const [chats, setChats] = useState<ChatSession[]>(() => load(chatKey, [] as ChatSession[]));
+  const [chats, setChats] = useState<ChatSession[]>(() => load(chatKey, [] as ChatSession[]).map((c) => ({ ...c, messages: c.messages.map((m) => m.pending ? { ...m, pending: false, error: true, text: 'Interrupted (page reloaded) — ask again.' } : m) })));
   const [activeChatId, setActiveChatId] = useState<string>(() => chats[0]?.id || '');
   const [scale, setScale] = useState<ScaleOption>('1:200');
   const [activeLayers, setActiveLayers] = useState<Record<LayerId, boolean>>({ architecture: true, sanitary: true, hvac: true, electrical: true, dimensions: true });
@@ -139,7 +139,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
         next[id] = v ? {
           ...f,
           verified: !!v.verified,
-          status: v.status || (v.verified ? 'Installed' : 'Not checked'),
+          status: (v.verified || v.author || v.ts || v.photos) ? (v.status || 'Installed') : 'Not checked',
           author: v.latest?.author || v.author || f.author,
           capturedAt: v.latest?.ts || v.ts || f.capturedAt,
           note: v.note || f.note,

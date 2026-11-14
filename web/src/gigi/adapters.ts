@@ -133,7 +133,8 @@ export function toScenario(
     const src = it.source_index != null ? sources[it.source_index] : sources[i];
     const v = verify?.[id];
     // nobody has looked at most elements yet: that is "Not checked", not a problem (red = Issue Reported only)
-    const status: VerificationStatus = v?.status || (v?.verified ? 'Installed' : 'Not checked');
+    const recorded = !!(v && (v.verified || v.author || v.ts || v.photos));
+    const status: VerificationStatus = recorded ? (v!.status || 'Installed') : 'Not checked';
     fixtures[id] = {
       id,
       code: it.label || `${(it.category || 'ITEM').slice(0, 3).toUpperCase()}-${i + 1}`,
