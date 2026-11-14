@@ -1074,20 +1074,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const camera = e.world.camera.three
     savedWalkCameraRef.current = { position: camera.position.clone(), target: e.world.camera.controls.getTarget(new THREE.Vector3()), up: camera.up.clone() }
     const center = room.box.getCenter(new THREE.Vector3())
-    walkFloorZRef.current = room.box.min.z + 1.6
-    walkPositionRef.current.set(center.x, center.y, walkFloorZRef.current)
+    walkFloorZRef.current = room.box.min.y + 1.6
+    walkPositionRef.current.set(center.x, walkFloorZRef.current, center.z)
     walkAvatarRef.current?.removeFromParent()
     const avatar = new THREE.Group()
     avatar.name = 'trace-walk-avatar'
     const body = new THREE.Mesh(new THREE.CylinderGeometry(.16, .19, .72, 14), new THREE.MeshStandardMaterial({ color: '#E9B949', roughness: .62 }))
-    body.rotation.x = Math.PI / 2
-    body.position.z = .42
+    body.position.y = .42
     const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 14, 10), new THREE.MeshStandardMaterial({ color: '#f6d4b4', roughness: .8 }))
-    head.position.z = .92
+    head.position.y = .92
     const ring = new THREE.Mesh(new THREE.TorusGeometry(.28, .025, 8, 24), new THREE.MeshBasicMaterial({ color: '#E9B949' }))
-    ring.position.z = .04
+    ring.rotation.x = Math.PI / 2
+    ring.position.y = .04
     avatar.add(body, head, ring)
-    avatar.position.set(center.x, center.y, room.box.min.z + .02)
+    avatar.position.set(center.x, room.box.min.y + .02, center.z)
     e.world.scene.three.add(avatar)
     walkAvatarRef.current = avatar
     walkYawRef.current = 0
@@ -1130,9 +1130,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const bounds = room?.box ?? walkFloorBounds
     const step = 1
     walkPositionRef.current.x += (Math.sin(walkYawRef.current) * forward + Math.cos(walkYawRef.current) * strafe) * step
-    walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * step
+    walkPositionRef.current.z += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * step
     walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, bounds.min.x + .3, bounds.max.x - .3)
-    walkPositionRef.current.y = THREE.MathUtils.clamp(walkPositionRef.current.y, bounds.min.y + .3, bounds.max.y - .3)
+    walkPositionRef.current.z = THREE.MathUtils.clamp(walkPositionRef.current.z, bounds.min.z + .3, bounds.max.z - .3)
   }
 
   useEffect(() => {
@@ -1144,16 +1144,15 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     let frame = 0
     let mapTick = 0
     const camera = e.world.camera.three
-    camera.up.set(0, 0, 1)
     const updateCamera = () => {
       const direction = new THREE.Vector3(
         Math.sin(walkYawRef.current) * Math.cos(walkPitchRef.current),
-        Math.cos(walkYawRef.current) * Math.cos(walkPitchRef.current),
         Math.sin(walkPitchRef.current),
+        Math.cos(walkYawRef.current) * Math.cos(walkPitchRef.current),
       )
       // Third-person follow: keep the yellow walker in front of the camera.
-      camera.position.copy(walkPositionRef.current).addScaledVector(direction, -3).add(new THREE.Vector3(0, 0, 2))
-      camera.lookAt(walkPositionRef.current.clone().add(new THREE.Vector3(0, 0, .85)))
+      camera.position.copy(walkPositionRef.current).addScaledVector(direction, -3).add(new THREE.Vector3(0, 2.2, 0))
+      camera.lookAt(walkPositionRef.current.clone().add(new THREE.Vector3(0, .85, 0)))
       camera.updateMatrixWorld()
     }
     const onPointerDown = (event: PointerEvent) => {
@@ -1169,29 +1168,29 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       const raycaster = new THREE.Raycaster()
       raycaster.setFromCamera(pointer, camera)
       const destination = new THREE.Vector3()
-      if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -(activeRoom.box.min.z + .02)), destination)) return
+      if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -(activeRoom.box.min.y + .02)), destination)) return
       const inside = destination.x >= activeRoom.box.min.x + .3 && destination.x <= activeRoom.box.max.x - .3
-        && destination.y >= activeRoom.box.min.y + .3 && destination.y <= activeRoom.box.max.y - .3
+        && destination.z >= activeRoom.box.min.z + .3 && destination.z <= activeRoom.box.max.z - .3
       if (!inside) {
         setStatus('Stay inside this room')
         window.setTimeout(() => setStatus(''), 1600)
         return
       }
-      walkPositionRef.current.set(destination.x, destination.y, walkFloorZRef.current)
+      walkPositionRef.current.set(destination.x, walkFloorZRef.current, destination.z)
       updateCamera()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Escape') { stopWalk(); return }
     }
     const tick = () => {
-      walkPositionRef.current.z = walkFloorZRef.current
+      walkPositionRef.current.y = walkFloorZRef.current
       const activeRoom = rooms.find(room => room.key === selectedRoomKey)
       const movementBounds = activeRoom?.box ?? walkFloorBounds
       walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, movementBounds.min.x + .3, movementBounds.max.x - .3)
-      walkPositionRef.current.y = THREE.MathUtils.clamp(walkPositionRef.current.y, movementBounds.min.y + .3, movementBounds.max.y - .3)
+      walkPositionRef.current.z = THREE.MathUtils.clamp(walkPositionRef.current.z, movementBounds.min.z + .3, movementBounds.max.z - .3)
       if (walkAvatarRef.current) {
-        walkAvatarRef.current.position.set(walkPositionRef.current.x, walkPositionRef.current.y, movementBounds.min.z + .02)
-        walkAvatarRef.current.rotation.z = -walkYawRef.current
+        walkAvatarRef.current.position.set(walkPositionRef.current.x, movementBounds.min.y + .02, walkPositionRef.current.z)
+        walkAvatarRef.current.rotation.y = -walkYawRef.current
       }
       updateCamera()
       if (++mapTick % 6 === 0) setWalkMap({ x: walkPositionRef.current.x, y: walkPositionRef.current.y, yaw: walkYawRef.current })
