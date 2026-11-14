@@ -150,6 +150,19 @@ def _upload_answer(path: str, question: str) -> dict:
             "warnings": warn,
         }
 
+    # raster scans and PDF sheets: Xinran's engine (vector sheet geometry, schedule QA, tiled full-resolution
+    # scan reading with a box per counted item). Falls back to the agent's vision tools only if it has nothing.
+    try:
+        import engine.answer as ea
+
+        full = drawings.resolve(path)
+        r = ea.answer_sheet(str(full), question)
+        if r.get("value") is not None or str(r.get("method", "")).startswith(("sheet:", "docqa:", "scan:")):
+            r["sources"] = [{"file": path, "page": 1}]
+            if r.get("value") is not None:
+                return r
+    except Exception:
+        pass
     return {"value": None, "unit": None, "items": [], "sources": [], "method": "upload:no_vector_data",
             "warnings": ["Uploaded plan has no vector data for the engine; use count_in_drawing or scan_drawing_inventory"]}
 
@@ -157,12 +170,19 @@ def _upload_answer(path: str, question: str) -> dict:
 # Where an engine answer comes from (Xinran's full eval, docs/04 section 2): geometry (DXF/IFC, exact),
 # detector (YOLO on raster plans), prior (most common value, only where it beats vision: kitchens),
 # vision (a vision LLM read the plan; rooms), needs_vision (engine has nothing: agent calls count_in_drawing).
-SOURCE_LABEL = {"geometry": "exact from geometry", "detector": "trained detector (YOLO)", "prior": "statistical prior",
+SOURCE_LABEL = {"sheet": "measured from the vector drawing", "schedule": "read from the schedule table",
+                "scan": "vision model, one box per counted item", "geometry": "exact from geometry", "detector": "trained detector (YOLO)", "prior": "statistical prior",
                 "vision": "vision LLM", "needs_vision": "no engine answer"}
 
 
 def route(method: str, warnings=()) -> str:
     m = str(method or "")
+    if m.startswith(("sheet:count_", "sheet:rooms", "sheet:expr", "sheet:lookup")) and "vision" not in m:
+        return "sheet"
+    if m.startswith(("docqa:", "sheet:schedule")) and "vision" not in m:
+        return "schedule"
+    if m.startswith(("scan:", "sheet:scanned", "sheet:vision", "docqa:vision")):
+        return "scan"
     if m.startswith(("swiss_dxf:", "ifc:", "ifc_")):
         return "geometry"
     if m.startswith(("cubicasa:detector[", "cubicasa:rooms[", "cubicasa:vlm[yolo")):
@@ -389,6 +409,23 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
 def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict:
     is_pdf = path.lower().endswith(".pdf")
     raw_items = r.get("items") or []
+    # Xinran's sheet/scan items: box (PDF points) or box_norm1000 (0-1000 of the image) -> our bbox fields
+    if any(("box" in i or "box_norm1000" in i) for i in raw_items):
+        img_wh = None
+        for i in raw_items:
+            if "box_norm1000" in i and "png_bbox" not in i:
+                if img_wh is None:
+                    try:
+                        from PIL import Image
+                        img_wh = Image.open(drawings.page_png(path, 1)).size
+                    except Exception:
+                        img_wh = (1000, 1000)
+                x0, y0, x1, y1 = i["box_norm1000"]
+                i["png_bbox"] = [x0 * img_wh[0] / 1000, y0 * img_wh[1] / 1000, x1 * img_wh[0] / 1000, y1 * img_wh[1] / 1000]
+                i.setdefault("category", "item")
+            elif "box" in i and is_pdf and "pdf_bbox_pt" not in i:
+                i["pdf_bbox_pt"] = list(i["box"])
+                i.setdefault("category", "item")
     enriched_items = _enrich_and_stabilize_items(path, raw_items, source)
     items, sources = [], []
     for n, it in enumerate(enriched_items, 1):
