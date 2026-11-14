@@ -70,8 +70,8 @@ Tested across the full benchmark (Xinran full test split):
 
 | Dataset Source | Questions | Accuracy | Methodology |
 | --- | ---: | :---: | --- |
-| **swiss_dwellings** | 37,584 | **98.6%** | Exact geometry calculated from DXF layers (0 tokens) |
-| **ifc_models** | 3,062 | **98.0%** | Exact geometry & quantity sets from IFC models (0 tokens) |
+| **swiss_dwellings** | 37,584 | **99.2%** | Exact geometry calculated from DXF layers (0 tokens) |
+| **ifc_models** | 3,062 | **99.1%** | Exact geometry & quantity sets from IFC models (0 tokens) |
 | **cubicasa5k (with Gemini VLM)** | 16,694 | **83.57%** | YOLO detector for fixtures/doors/windows + Gemini for rooms + prior for kitchens |
 | **cubicasa5k (Zero-API Mode)** | 16,694 | **79.90%** | Local YOLO models + room detector + statistical priors only (**0 tokens**, $0 API cost) |
 
