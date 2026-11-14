@@ -134,6 +134,11 @@ def route(method: str, warnings=()) -> str:
     if m.startswith("cubicasa:prior:"):
         # the engine picks the prior on purpose where it beats the models (kitchen, bathroom without VLM);
         # "low confidence" means it had nothing better: let the agent try vision
+        from engine import cubicasa
+
+        cat = m.rsplit(":", 1)[-1]
+        if "prior" in (cubicasa.SOURCE_WITH_VLM.get(cat), cubicasa.SOURCE_NO_VLM.get(cat)):
+            return "prior"
         return "needs_vision" if any("low confidence" in str(w) for w in warnings or ()) else "prior"
     return "needs_vision"
 

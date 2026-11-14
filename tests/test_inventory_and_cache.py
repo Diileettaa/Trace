@@ -244,7 +244,7 @@ def test_route_by_engine_method():
     assert route("cubicasa:vlm[yolo-cubicasa]:door") == "detector"
     assert route("cubicasa:detector[yolo-cubicasa]:door") == "detector"
     assert route("cubicasa:rooms[yolo-cubicasa-rooms]:bedroom") == "detector"
-    assert route("cubicasa:prior:bathroom", ["zero-API mode"]) == "prior"
+    assert route("cubicasa:prior:bathroom", ["low confidence: zero-API mode"]) == "prior"
     assert route("cubicasa:prior:kitchen") == "prior" and route("cubicasa:vlm+prior:shower_tub") == "prior"
     assert route("cubicasa:vlm[gemini:gemini-3.8-flash]:bedroom") == "vision"
     assert route("cubicasa:prior:bedroom", ["low confidence: answered the most common value"]) == "needs_vision" and route("upload:no_vector_data") == "needs_vision"

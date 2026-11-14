@@ -44,7 +44,7 @@ from . import (
     vision,
 )
 
-app = FastAPI(title="Trace API")
+app = FastAPI(title="Trace API", docs_url="/swagger", redoc_url=None)  # /docs is the project document store
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
@@ -572,3 +572,19 @@ def render(body: RenderIn):
     except render_service.RenderGenerationError as exc:
         raise HTTPException(502, str(exc))
     return FileResponse(output, media_type="image/png", filename="trace-mood-render.png")
+
+
+# Project document store + e-mail intake (Xinran, agent/docs_api.py): /docs, /docs/file, /docs/versions, ...
+@app.api_route("/docs", methods=["GET", "POST"], include_in_schema=False)
+@app.api_route("/docs/{rest:path}", methods=["GET", "POST"], include_in_schema=False)
+async def docs_store(request: Request, rest: str = ""):
+    from fastapi import Response
+    from starlette.concurrency import run_in_threadpool
+
+    from . import docs_api
+
+    body = await request.body()
+    path = "/docs" + (f"/{rest}" if rest else "")
+    status, headers, data = await run_in_threadpool(docs_api.handle, request.method, path, request.url.query,
+                                                    dict(request.headers), body)
+    return Response(content=data, status_code=status, headers=headers)
