@@ -297,4 +297,37 @@ def test_element_info_clinic_ifc_and_swiss(monkeypatch):
     assert info_s["clearances"]["left_wall"] is not None
 
 
+def test_ask_source_index_and_summary_room(monkeypatch):
+    from agent import agent
+
+    raw_result = {
+        "value": 1,
+        "unit": "count",
+        "method": "swiss_dxf:wc",
+        "warnings": [],
+        "sources": [],
+        "items": [
+            {
+                "category": "wc",
+                "space_id": "2.16",
+                "room_name": "Korridor",
+                "bbox_m": [5.5, -4.9, 6.0, -4.4],
+                "pdf_bbox_pt": [10, 10, 20, 20],
+            },
+        ],
+    }
+    monkeypatch.setattr("engine.answer.answer", lambda p, q: raw_result)
+
+    res = agent.ask("How many toilets?", "data/demo/plan.pdf")
+    items = res["evidence"][0]["items"]
+    assert len(items) == 1
+    assert items[0]["source_index"] == 0
+
+    summary = res["summary"]
+    assert "room" in summary
+    assert summary["room"]["space_id"] == "2.16"
+    assert summary["room"]["room_name"] == "Korridor"
+
+
+
 

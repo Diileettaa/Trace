@@ -1,4 +1,6 @@
 import { useState, type CSSProperties } from 'react'
+import './gigi.css'
+import { ArrowLeft, Monitor, Smartphone, Tablet } from 'lucide-react'
 import { api, layerOf, toScenario, type FixtureVerification, type LayerId, type QueryScenario } from './adapters'
 import IfcViewer from '../IfcViewer'
 
@@ -110,8 +112,8 @@ export default function GigiWorkspace() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save verification.') } finally { setSavingVerification(false) }
   }
 
-  return <main className="gigi-shell">
-    <header className="gigi-topbar"><b>TRACE DESKTOP APP</b><span>· TALLINN · LEVEL 02 ▾</span><nav><button>Desktop</button><button>Tablet</button><button>Mobile</button></nav></header>
+  return <main className="gigi-shell font-sans text-[#202427]">
+    <header className="gigi-topbar"><button className="gigi-home" onClick={() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }}><ArrowLeft size={14} /> Home</button><b>TRACE DESKTOP APP</b><span>· TALLINN · LEVEL 02 ▾</span><nav><button><Monitor size={13} /> Desktop</button><button><Tablet size={13} /> Tablet</button><button><Smartphone size={13} /> Mobile</button></nav></header>
     <div className="gigi-columns">
       <aside><b>HISTORY</b><button>＋ New inspection chat</button><b>SCALE (AI LoD)</b><div>{Object.keys(ZOOM).map(option => <button key={option} className={scale === option ? 'active' : ''} onClick={() => setScale(option)}>{option}</button>)}</div><b>LAYER GUIDE</b>{LAYERS.map(layer => <label key={layer.id}><input type="checkbox" checked={layers[layer.id]} onChange={event => setLayers(current => ({ ...current, [layer.id]: event.target.checked }))} />{layer.label}</label>)}</aside>
       <section><header>{view === '2D' ? 'Floor plan' : '3D building'} <span><button onClick={() => setView('2D')}>2D</button><button onClick={() => setView('3D')}>3D</button></span></header><div className="gigi-keynotes"><article>ROOM<strong>{scenario?.roomCode || 'LEVEL 02'}</strong><b>{scenario?.roomArea || '— m²'}</b></article><article>OBJECTS FOUND<strong>{scenario?.foundCount ?? '—'}</strong></article><article>STATUS<strong>{scenario?.overallStatus || 'In Progress'}</strong><small>{scenario ? `${scenario.targetIds.length} targets` : '0/0 verified'}</small></article></div>{view === '2D' ? <PlanEvidence path={TALLINN_PLAN} scenario={scenario} fixtures={fixtures} scale={scale} layers={layers} onVerify={openVerification} /> : <div className="gigi-3d-stage"><div className="gigi-3d-toolbar"><button onClick={() => setView('2D')}>← Back to 2D</button><button className={threeMode === 'building' ? 'active' : ''} onClick={() => setThreeMode('building')}>Building</button><button className={threeMode === 'room' ? 'active' : ''} onClick={() => setThreeMode('room')}>Room</button><span>Schematic fallback available</span></div><IfcViewer path={TALLINN_MODEL} guids={scenario?.targetIds || []} selectedGuid={threeMode === 'room' ? scenario?.targetIds[0] : null} /></div>}</section>

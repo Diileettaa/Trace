@@ -96,7 +96,7 @@ def _client():
 
 # Engine answers that need no LLM at all: the number is exact (geometry), from our trained detectors, or a prior that
 # beats every model. For these the answer sentence is a template: 0 tokens, ~1 s. Set TRACE_ALWAYS_LLM=1 to disable.
-DIRECT_SOURCES = {"geometry", "detector", "prior", "sheet", "schedule", "scan"}  # engine already did the work
+DIRECT_SOURCES = {"geometry", "detector", "prior", "sheet", "schedule"}  # engine already did the work
 _UNIT = {"count": "", "m2": " m²", "m3": " m³", "m": " m"}
 _CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
 
@@ -289,6 +289,7 @@ def summarize(evidence: list[dict], timing: dict, usage: dict) -> dict:
         "llm_tokens": usage.get("input", 0) + usage.get("output", 0) + usage.get("thinking", 0),
         "cost_usd": usage.get("cost_usd"),
         "badge": main.get("badge"),
+        "room": main.get("room"),
         "warnings": warnings,
     }
 

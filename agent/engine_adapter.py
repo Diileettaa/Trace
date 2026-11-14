@@ -432,7 +432,6 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
         label = it.get("label") or _label(it, n)
         item = {k: v for k, v in it.items() if k not in ("png_bbox", "pdf_bbox_pt")}
         item["name"] = _label(it, n)  # display name ("Door 1 (D01)"); `label` is the short plan tag ("DR-208.1")
-        items.append(item)
         box = None
         if is_pdf and it.get("pdf_bbox_pt"):
             box = [round(v * PT_TO_PX) for v in it["pdf_bbox_pt"]]
@@ -442,6 +441,10 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
             x0, y0, x1, y1 = box
             sources.append({"file": path, "page": 1, "bbox": [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)],
                             "label": label})
+            item["source_index"] = len(sources) - 1
+        else:
+            item["source_index"] = None
+        items.append(item)
     if source == "needs_vision" and "prior" in str(r.get("method")):
         # cubicasa without a vision result: the engine falls back to typical-plan statistics, not a detection
         out_warn = "Engine has no detection for this raster plan (statistical prior only); use count_in_drawing"
@@ -454,6 +457,9 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
         for i in guid_items:
             if i["guid"] in boxes:
                 sources.append({"file": path, "page": 1, "bbox": boxes[i["guid"]], "label": i.get("label") or i.get("name")})
+                i["source_index"] = len(sources) - 1
+            else:
+                i["source_index"] = None
         if guid_items and len(boxes) < len(guid_items):
             n = len(guid_items) - len(boxes)
             r.setdefault("warnings", [])
@@ -480,6 +486,33 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
     model = next((s["file"] for s in r.get("sources") or [] if str(s.get("file", "")).endswith(".ifc")), None)
     if not model and r.get("model_file"):
         model = r.get("model_file")
+
+    from collections import Counter
+    room_obj = None
+    space_counts = Counter(it.get("space_id") for it in items if it.get("space_id"))
+    if space_counts:
+        top_space_id, _ = space_counts.most_common(1)[0]
+        top_room_name = next((it.get("room_name") for it in items if it.get("space_id") == top_space_id), None)
+        area_m2 = None
+        dims_m = None
+        try:
+            from . import plan_rooms
+
+            pr = plan_rooms.get_plan_rooms(path)
+            for rm in pr.get("rooms", []):
+                if rm.get("space_id") == top_space_id or rm.get("number") == top_space_id:
+                    area_m2 = rm.get("area_m2")
+                    dims_m = rm.get("dims_m")
+                    break
+        except Exception:
+            pass
+        room_obj = {
+            "space_id": top_space_id,
+            "room_name": top_room_name,
+            "area_m2": area_m2,
+            "dims_m": dims_m,
+        }
+
     out = {
         "value": r.get("value"),
         "unit": r.get("unit"),
@@ -488,6 +521,7 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
         "method": f"engine:{r.get('method')}",
         "warnings": list(r.get("warnings") or []),
         "engine_sources": r.get("sources") or [],
+        "room": room_obj,
     }
     if r.get("verified_by"):
         out["verified_by"] = r["verified_by"]

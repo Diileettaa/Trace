@@ -371,7 +371,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <nav className="top-nav" aria-label="Main navigation">
+      {!(activePage === 'ask' && !legacyAsk) && <nav className="top-nav" aria-label="Main navigation">
         <button className="nav-brand" onClick={() => setActivePage('home')}>{activePage === 'ask' ? 'TRACE DESKTOP APP' : '[ ] TRACE.'}</button>
         <div className="nav-links">
           <button className={activePage === 'home' ? 'active' : ''} onClick={() => setActivePage('home')}>Home</button>
@@ -379,7 +379,7 @@ export default function App() {
         <button className={activePage === 'community' ? 'active' : ''} onClick={() => setActivePage('community')}>Project</button>
         </div>
         <div className="nav-actions">{activePage === 'ask' && <><span className="desktop-project">PROJECT 01</span><button className="desktop-level" onClick={() => setViewMode(viewMode === '2d' ? '3d' : '2d')}>LEVEL 02 ▾</button></>}<button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
-      </nav>
+      </nav>}
       {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'ask' && !legacyAsk ? <GigiWorkspace /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || ''); setProjectPlanPath(next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProjectPlanPath(item.kind === 'plan' ? item.path : ''); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === 'plan' ? null : item.path, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
         collab={collab} onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
