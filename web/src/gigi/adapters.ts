@@ -142,8 +142,8 @@ export function toScenario(
       note: v?.note || (v?.verified ? '' : 'Unverified: no site photo yet.'),
       photoDataUrl: v?.latest?.url ? `/api${v.latest.url.startsWith('/') ? '' : '/'}${v.latest.url}` : '',
       photoLabel: v?.latest ? `Site photo · ${v.latest.author || 'team'}` : 'No site photo yet',
-      manufacturer: '—',
-      modelSpec: '—',
+      manufacturer: 'Loading…',
+      modelSpec: 'Loading…',
       dimensions3D: {},
       position: boxFrom(src, imgW, imgH) || boxFrom(it, imgW, imgH),
       reviewId: it.review_id,
@@ -227,7 +227,11 @@ export function toScenario(
 
 /** Merge /api/element/info into a fixture (manufacturer, model, clearance rows for the 3D card). */
 export function withElementInfo(f: FixtureVerification, info: any): FixtureVerification {
-  if (!info) return f;
+  const isIfc = /\.ifc$/i.test(f.id) || /^[0-9A-Za-z_$]{22}$/.test(f.id);
+  if (!info) {
+    const why = isIfc ? 'Not recorded in the IFC model' : 'Not in this drawing (2D plans carry no product data)';
+    return { ...f, manufacturer: why, modelSpec: why };
+  }
   const c = info.clearances || {};
   const mm = (v: any) => (v == null ? null : `${Math.round(Number(v))} mm`);
   const rows: Record<string, string> = {};
@@ -238,9 +242,13 @@ export function withElementInfo(f: FixtureVerification, info: any): FixtureVerif
   if (c.height_aff != null) rows.seatHeight = `${mm(c.height_aff)} AFF`;
   return {
     ...f,
-    manufacturer: info.manufacturer || f.manufacturer,
-    modelSpec: info.model || info.type || f.modelSpec,
-    dimensions3D: rows,
+    manufacturer: info.manufacturer
+      || (isIfc ? 'Not recorded in the IFC model (no Pset_ManufacturerTypeInformation)' : 'Not in this drawing (2D plans carry no product data)'),
+    modelSpec: info.model || info.type
+      || (isIfc ? 'No model/type name in the IFC model' : 'Not in this drawing'),
+    dimensions3D: Object.keys(rows).length ? rows
+      : { note: isIfc ? 'Clearances need the room (IfcSpace) around this element; none found in the model'
+                      : 'Clearances need wall geometry; this drawing has none we can measure' },
   };
 }
 
