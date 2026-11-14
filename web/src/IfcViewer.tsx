@@ -301,8 +301,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
   const [showcase, setShowcase] = useState(false)
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
+  const [touring, setTouring] = useState(false)
+  const [tourStage, setTourStage] = useState(0)
   const showcaseLightsRef = useRef<THREE.Group | null>(null)
   const explodeAnimationRef = useRef<number | null>(null)
+  const tourAnimationRef = useRef<number | null>(null)
+  const tourDoneRef = useRef<(() => void) | null>(null)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -524,6 +528,74 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     }
     explodeAnimationRef.current = requestAnimationFrame(tick)
   }
+
+  const tourCaptions = ['Whole building', 'Exploded construction', 'A floor at a glance', 'A room in context', 'Walk through', 'Back to the whole building']
+
+  function stopTour() {
+    if (tourAnimationRef.current !== null) cancelAnimationFrame(tourAnimationRef.current)
+    tourAnimationRef.current = null
+    const e = engine.current
+    if (e) e.world.camera.controls.enabled = true
+    setTouring(false)
+    setTourStage(0)
+    const done = tourDoneRef.current
+    tourDoneRef.current = null
+    done?.()
+  }
+
+  function startTour(onDone?: () => void) {
+    const e = engine.current
+    const model = modelRef.current
+    if (!e || !model || !modelReady) return
+    stopTour()
+    tourDoneRef.current = onDone ?? null
+    setShowcase(true)
+    setTouring(true)
+    const camera = e.world.camera.three
+    const controls = e.world.camera.controls
+    const bounds = new THREE.Box3().setFromObject(model.object)
+    const center = bounds.getCenter(new THREE.Vector3())
+    const size = bounds.getSize(new THREE.Vector3())
+    const distance = Math.max(size.x, size.y, size.z, 8) * 1.25
+    const curve = new THREE.CatmullRomCurve3([
+      center.clone().add(new THREE.Vector3(distance, -distance, distance * .65)),
+      center.clone().add(new THREE.Vector3(-distance * .9, -distance * .72, distance * .42)),
+      center.clone().add(new THREE.Vector3(-distance * .66, distance, distance * .5)),
+      center.clone().add(new THREE.Vector3(distance * .82, distance * .78, distance * .62)),
+    ], true, 'catmullrom', .35)
+    const featuredRoom = rooms.find(room => room.key === selectedRoomKey) ?? rooms[0]
+    controls.stop(); controls.enabled = false
+    const started = performance.now()
+    const duration = 40000
+    let lastStage = -1
+    const tick = (now: number) => {
+      const ratio = Math.min(1, (now - started) / duration)
+      const stage = Math.min(5, Math.floor(ratio * 6))
+      if (stage !== lastStage) {
+        lastStage = stage; setTourStage(stage)
+        if (stage === 1) void applyExplodedView(model, storeys, 1, 6, placementsRef.current)
+        if (stage === 2) { void applyExplodedView(model, storeys, 0, 6, placementsRef.current); if (featuredRoom?.storeyId) setSelectedStoreyId(featuredRoom.storeyId) }
+        if (stage === 3 && featuredRoom) { selectRoom(featuredRoom.key); if (featuredRoom.storeyId) setSelectedStoreyId(featuredRoom.storeyId) }
+        if (stage === 5) { setSelectedStoreyId(null); void applyExplodedView(model, storeys, 0, 6, placementsRef.current) }
+      }
+      const point = curve.getPointAt((ratio * 1.14) % 1)
+      const target = stage >= 3 && featuredRoom ? featuredRoom.box.getCenter(new THREE.Vector3()) : center
+      const roomScale = featuredRoom ? Math.max(...featuredRoom.box.getSize(new THREE.Vector3()).toArray(), 1) : 1
+      if (stage === 3 || stage === 4) point.lerp(target.clone().add(new THREE.Vector3(roomScale * 1.15, -roomScale * 1.15, roomScale * .8)), .72)
+      camera.position.copy(point)
+      camera.lookAt(target)
+      camera.updateMatrixWorld()
+      if (ratio < 1) tourAnimationRef.current = requestAnimationFrame(tick)
+      else stopTour()
+    }
+    tourAnimationRef.current = requestAnimationFrame(tick)
+  }
+
+  useEffect(() => {
+    const cancelTour = (event: KeyboardEvent) => { if (event.key === 'Escape' && touring) { event.preventDefault(); stopTour() } }
+    window.addEventListener('keydown', cancelTour)
+    return () => window.removeEventListener('keydown', cancelTour)
+  }, [touring])
 
   function advancePeel() {
     const next = (peelStep + 1) % 4
@@ -1314,6 +1386,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       {walkMode
         ? <button className="walk-active" onClick={stopWalk}>Exit Walk · Esc</button>
         : <button title="Enter first-person room view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
+      <button className={touring ? 'tour-active' : ''} title="Play a 40 second guided model tour" disabled={!modelReady || walkMode} onClick={() => touring ? stopTour() : startTour()}>{touring ? 'Stop tour · Esc' : 'Tour · 40s'}</button>
       <button title="Center the camera on the selected element or room" disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
       <label className="furniture-room-select">Room
         <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
@@ -1356,6 +1429,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         <button type="button" disabled={!modelReady} onClick={advancePeel}>Peel · {peelStep}/3</button>
         {peelStep > 0 && <span>Step {peelStep}: {['', 'Lift slabs', 'Fade envelope', 'Reveal systems'][peelStep]}</span>}
       </div>
+      {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
         {!walkMode && rooms.map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
