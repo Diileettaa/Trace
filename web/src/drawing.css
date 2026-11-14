@@ -97,7 +97,7 @@
 .rects-layer rect.box {
   pointer-events: all;
   cursor: pointer;
-  fill: rgba(228, 87, 46, 0.08);
+  fill: rgba(233, 185, 73, 0.12);
   stroke: var(--accent, #e4572e);
   stroke-width: 1.5;
   transition: fill 0.15s ease, stroke-width 0.15s ease;
@@ -105,21 +105,21 @@
 
 .rects-layer rect.box:hover,
 .rects-layer rect.box.hover {
-  fill: rgba(228, 87, 46, 0.18);
+  fill: rgba(233, 185, 73, 0.24);
   stroke-width: 2.5;
 }
 
 /* Selected box gets a thick outline */
 .rects-layer rect.box.on {
-  fill: rgba(228, 87, 46, 0.25);
+  fill: rgba(233, 185, 73, 0.34);
   stroke: var(--accent, #e4572e);
   stroke-width: 4;
 }
 
 /* Flash animation for room board updates */
 .rects-layer rect.box.flash {
-  fill: rgba(26, 86, 219, 0.25);
-  stroke: #1a56db;
+  fill: rgba(233, 185, 73, 0.42);
+  stroke: #202427;
   stroke-width: 4;
   animation: pulse 0.8s ease-in-out 5;
 }
@@ -147,18 +147,18 @@
 }
 
 .badges-layer .badge-group.on .badge-bg {
-  fill: #1d1d1f;
+  fill: #202427;
   stroke: #ffffff;
   stroke-width: 1.5;
 }
 
 .badges-layer .badge-group:hover .badge-bg,
 .badges-layer .badge-group.hover .badge-bg {
-  fill: #c03c15;
+  fill: #c29422;
 }
 
 .badges-layer .badge-group.flash .badge-bg {
-  fill: #1a56db;
+  fill: #e9b949;
 }
 
 /* Full label tooltip */

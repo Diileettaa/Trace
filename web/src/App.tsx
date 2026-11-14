@@ -4,6 +4,7 @@ import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer, { type PlacedProduct } from './IfcViewer'
 import CommunityPage from './components/CommunityPage'
+import LandingPage from './components/LandingPage'
 import SpaceTree, { type TreeEntry } from './components/SpaceTree'
 import VerifyBadge from './components/VerifyBadge'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
@@ -32,7 +33,7 @@ export default function App() {
   const [selectedGuid, setSelectedGuid] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [collab, setCollab] = useState<CollabState>({ status: {}, messages: [] })
-  const [activePage, setActivePage] = useState<'ask' | 'community'>('ask')
+  const [activePage, setActivePage] = useState<'home' | 'ask' | 'community'>('home')
   const [space, setSpace] = useState<{ id: string; name: string } | null>(null)
   const [flashSpace, setFlashSpace] = useState<string | null>(null)
   const [placedProducts, setPlacedProducts] = useState<PlacedProduct[]>([])
@@ -242,14 +243,23 @@ export default function App() {
   }
   const scan = () => path && run(() => inventory(path, page), setInv)
 
+  function showHowItWorks() {
+    setActivePage('home')
+    window.setTimeout(() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' }), 0)
+  }
+
   return (
     <div className="app-shell">
       <nav className="top-nav" aria-label="Main navigation">
-        <strong className="nav-brand">Trace</strong>
+        <button className="nav-brand" onClick={() => setActivePage('home')}>[ ] TRACE.</button>
+        <div className="nav-links">
+          <button className={activePage === 'home' ? 'active' : ''} onClick={() => setActivePage('home')}>Home</button>
         <button className={activePage === 'ask' ? 'active' : ''} onClick={() => setActivePage('ask')}>Ask</button>
         <button className={activePage === 'community' ? 'active' : ''} onClick={() => setActivePage('community')}>Community</button>
+        </div>
+        <div className="nav-actions"><button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
       </nav>
-      {activePage === 'community' ? <CommunityPage
+      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'community' ? <CommunityPage
         collab={collab}
         onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
