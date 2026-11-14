@@ -19,6 +19,15 @@ const ROLES: { v: Role; label: string }[] = [
   { v: 'owner', label: 'Owner' },
 ]
 
+function renderBoldMarkdown(text: string) {
+  return text.split(/(\*\*[^*]+?\*\*|__[^_]+?__)/g).map((part, index) => {
+    if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
+}
+
 export default function App() {
   const [question, setQuestion] = useState('')
   const [path, setPath] = useState('')
@@ -350,7 +359,7 @@ export default function App() {
 
         {res && (
           <section className="answer">
-            <p className="answer-text">{res.answer_text}</p>
+            <p className="answer-text">{renderBoldMarkdown(res.answer_text)}</p>
             {res.evidence.map((e, i) => (
               <div key={i}>
                 <VerifyBadge ev={e} />
@@ -399,8 +408,7 @@ export default function App() {
             {warnings.length > 0 && (
               <ul className="warnings">{warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}</ul>
             )}
-            <details className="tool-chain">
-              <summary>
+            {res.tool_calls.length > 0 && <div className="tool-chain">
                 <span className="tool-chain-label">Gemini</span>
                 {res.tool_calls.map((t, i) => (
                   <span key={i}>
@@ -409,9 +417,7 @@ export default function App() {
                   </span>
                 ))}
                 <span className="dim"> ({res.tool_calls.length} call{res.tool_calls.length === 1 ? '' : 's'})</span>
-              </summary>
-              <pre>{JSON.stringify(res.tool_calls, null, 2)}</pre>
-            </details>
+            </div>}
             {res.from_cache ? (
               <p className="dim small">Answered from cache (asked before)</p>
             ) : res.timing ? (

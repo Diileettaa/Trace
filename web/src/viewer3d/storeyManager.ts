@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import * as OBC from '@thatopen/components'
 import type { FragmentsModel, SpatialTreeItem } from '@thatopen/fragments'
 import type { StoreyInfo } from './types'
+import type { IfcClassItems } from './tradeClassifier'
 
 function collectSpatialDescendants(node: SpatialTreeItem | null, targetId: number | null, collecting: boolean, out: Set<number>) {
   if (!node) return
@@ -31,7 +32,7 @@ function findStoreyIdsInTree(node: SpatialTreeItem | null, out: number[]) {
   }
 }
 
-export async function loadStoreys(model: FragmentsModel): Promise<StoreyInfo[]> {
+export async function loadStoreys(model: FragmentsModel, byClass?: IfcClassItems): Promise<StoreyInfo[]> {
   const storeys: StoreyInfo[] = []
 
   const [byCat, spatialTree] = await Promise.all([
@@ -39,7 +40,10 @@ export async function loadStoreys(model: FragmentsModel): Promise<StoreyInfo[]> 
     model.getSpatialStructure().catch(() => null),
   ])
 
-  const storeyIdsFromCat = Object.values(byCat).flat()
+  const storeyIdsFromCat = [
+    ...Object.values(byCat).flat(),
+    ...Object.entries(byClass ?? {}).filter(([category]) => /IFCBUILDINGSTOREY/i.test(category)).flatMap(([, ids]) => ids),
+  ]
   const storeyIdsFromTree: number[] = []
   findStoreyIdsInTree(spatialTree, storeyIdsFromTree)
 

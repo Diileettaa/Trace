@@ -1,6 +1,8 @@
 import type { FragmentsModel } from '@thatopen/fragments'
 import type { TradesState, TradeKey } from './types'
 
+export type IfcClassItems = Record<string, number[]>
+
 export const TRADE_DEFINITIONS: Record<TradeKey, { label: string; regex: RegExp; categories: string[] }> = {
   architecture: {
     label: 'Architecture',
@@ -44,14 +46,36 @@ export function createInitialTrades(): TradesState {
   }
 }
 
-export async function classifyModelTrades(model: FragmentsModel): Promise<TradesState> {
+export async function loadIfcClassItems(model: FragmentsModel): Promise<IfcClassItems> {
+  const byClass = await model.getItemsOfCategories([/.+/]).catch(() => ({}))
+  const hasItems = Object.values(byClass).some((ids) => ids.length > 0)
+  if (hasItems) return byClass
+
+  // Some fragment versions do not expand a catch-all category regex. Retry the known IFC classes explicitly.
+  const classNames = [...new Set(Object.values(TRADE_DEFINITIONS).flatMap((trade) => trade.categories))]
+  const exact = await Promise.all(classNames.map((name) =>
+    model.getItemsOfCategories([new RegExp(`^${name}$`, 'i')]).catch(() => ({})),
+  ))
+  return exact.reduce<IfcClassItems>((merged, result) => Object.assign(merged, result), {})
+}
+
+export function classifyModelTrades(_model: FragmentsModel, byClass: IfcClassItems): TradesState {
   const state = createInitialTrades()
   const keys = Object.keys(TRADE_DEFINITIONS) as TradeKey[]
-  const results = await Promise.all(keys.map((key) => model.getItemsOfCategories([TRADE_DEFINITIONS[key].regex]).catch(() => ({}))))
-  keys.forEach((key, index) => {
-    const ids = [...new Set(Object.values(results[index]).flat())]
+  const classes = Object.entries(byClass).map(([name, ids]) => [name, [...new Set(ids)]] as const)
+  console.groupCollapsed(`[IFC explorer] ${classes.length} IFC classes after model load`)
+  for (const [name, ids] of classes) console.info(`${name}: ${ids.length}`)
+  console.groupEnd()
+
+  keys.forEach((key) => {
+    const ids = [...new Set(classes.filter(([name]) => TRADE_DEFINITIONS[key].regex.test(name)).flatMap(([, localIds]) => localIds))]
+    console.info(`[IFC explorer] ${TRADE_DEFINITIONS[key].label}: ${ids.length} elements`)
     state[key].itemIds = ids
     state[key].count = ids.length
   })
   return state
+}
+
+export function allModelLocalIds(byClass: IfcClassItems): number[] {
+  return [...new Set(Object.values(byClass).flat())]
 }

@@ -9,8 +9,10 @@ import {
   applyBuildingVisibility,
   applyStoreyCut,
   classifyModelTrades,
+  allModelLocalIds,
   createInitialTrades,
   loadStoreys,
+  loadIfcClassItems,
   type StoreyInfo,
   type TradeKey,
   type TradesState,
@@ -253,51 +255,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           model.useCamera(world.camera.three)
           world.scene.three.add(model.object)
           fragments.core.update(true)
-          void (async () => {
-            try {
-              const [nextStoreys, nextTrades, allByCategory] = await Promise.all([
-                loadStoreys(model),
-                classifyModelTrades(model),
-                model.getItemsOfCategories([/.+/]).catch(() => ({})),
-              ])
-              if (cancelled) return
-              const ids = new Set<number>(Object.values(allByCategory).flat())
-              for (const trade of Object.values(nextTrades)) for (const id of trade.itemIds) ids.add(id)
-              for (const storey of nextStoreys) {
-                ids.add(storey.localId)
-                for (const id of storey.itemIds) ids.add(id)
-              }
-              setStoreys(nextStoreys)
-              setSelectedStoreyId(null)
-              setTrades(nextTrades)
-              setAllLocalIds([...ids])
-              setExplorerReady(true)
-            } catch (error) {
-              console.warn('Could not initialize the building explorer:', error)
-              if (!cancelled) setExplorerReady(true)
-            }
-          })()
-          void (async () => {
-            try {
-              const byCategory = await model.getItemsOfCategories([/IFCSPACE/i])
-              const ids = [...new Set(Object.values(byCategory).flat())]
-              if (!ids.length) return
-              const [data, boxes, guidsById] = await Promise.all([
-                model.getItemsData(ids), model.getBoxes(ids), model.getGuidsByLocalIds(ids),
-              ])
-              if (cancelled) return
-              const next = ids.flatMap((localId, index) => {
-                const attributes = data[index] ?? {}
-                const name = String((attributes.Name as { value?: unknown } | undefined)?.value ?? `Room ${localId}`)
-                const roomBox = boxes[index]
-                if (!roomBox || roomBox.isEmpty()) return []
-                return [{ key: `${model.modelId}:${localId}`, modelId: model.modelId, localId, name,
-                  guid: guidsById[index] ?? '', box: roomBox }]
-              })
-              setRooms((current) => [...current.filter((room) => room.modelId !== model.modelId), ...next])
-              if (!selectedRoomKey && next.length) setSelectedRoomKey(next[0].key)
-            } catch (error) { console.warn('Could not list IFC spaces:', error) }
-          })()
         })
 
         const loader = components.get(OBC.IfcLoader)
@@ -318,9 +275,51 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         const bytes = new Uint8Array(await res.arrayBuffer())
         if (cancelled) return
         setStatus('Converting IFC (may take tens of seconds for large models)…')
-        await loader.load(bytes, true, path)
+        const loadedModel = await loader.load(bytes, true, path)
         if (cancelled) return
+        modelRef.current = loadedModel
+        const [allByClass, nextStoreys] = await Promise.all([
+          loadIfcClassItems(loadedModel),
+          loadStoreys(loadedModel),
+        ])
+        if (cancelled) return
+        const nextTrades = classifyModelTrades(loadedModel, allByClass)
+        const ids = new Set(allModelLocalIds(allByClass))
+        for (const id of await loadedModel.getLocalIds()) ids.add(id)
+        for (const storey of nextStoreys) {
+          ids.add(storey.localId)
+          for (const id of storey.itemIds) ids.add(id)
+        }
+        setStoreys(nextStoreys)
+        setSelectedStoreyId(null)
+        setTrades(nextTrades)
+        setAllLocalIds([...ids])
+        setExplorerReady(true)
+
+        try {
+          const byCategory = await loadedModel.getItemsOfCategories([/IFCSPACE/i])
+          const spaceIds = [...new Set(Object.values(byCategory).flat())]
+          if (spaceIds.length) {
+            const [data, boxes, guidsById] = await Promise.all([
+              loadedModel.getItemsData(spaceIds), loadedModel.getBoxes(spaceIds), loadedModel.getGuidsByLocalIds(spaceIds),
+            ])
+            if (cancelled) return
+            const nextRooms = spaceIds.flatMap((localId, index) => {
+              const attributes = data[index] ?? {}
+              const name = String((attributes.Name as { value?: unknown } | undefined)?.value ?? `Room ${localId}`)
+              const roomBox = boxes[index]
+              if (!roomBox || roomBox.isEmpty()) return []
+              return [{ key: `${loadedModel.modelId}:${localId}`, modelId: loadedModel.modelId, localId, name,
+                guid: guidsById[index] ?? '', box: roomBox }]
+            })
+            setRooms(nextRooms)
+            if (nextRooms.length) setSelectedRoomKey(nextRooms[0].key)
+          }
+        } catch (error) { console.warn('Could not list IFC spaces:', error) }
+
         await world.camera.fitToItems()
+        world.camera.enabled = true
+        world.camera.controls.enabled = true
         setStatus('')
         setModelReady(true)
       } catch (error: unknown) {
@@ -366,13 +365,19 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           if (Object.keys(selected).length) {
             await e.fragments.highlight(FOCUS_HIGHLIGHT, selected)
             await e.world.camera.fitToItems(selected)
+            e.world.camera.enabled = true
+            e.world.camera.controls.enabled = true
             await e.fragments.core.update(true)
             return
           }
         }
         if (guids.length) {
           const items = await e.fragments.guidsToModelIdMap(guids)
-          if (Object.keys(items).length) await e.world.camera.fitToItems(items)
+          if (Object.keys(items).length) {
+            await e.world.camera.fitToItems(items)
+            e.world.camera.enabled = true
+            e.world.camera.controls.enabled = true
+          }
         }
         await e.fragments.core.update(true)
       } catch (error) { console.warn('Failed to update 3D highlights:', error) }
