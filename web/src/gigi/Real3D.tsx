@@ -36,6 +36,14 @@ export const Real3D: React.FC<Props> = ({
   const roomLabel = scenario?.roomCode || 'Room';
   const dims = fixture?.dimensions3D || {};
   const rows = ROWS.filter((r) => dims[r.key]);
+  // Gigi's strip shows the elements of one room: keep the selected element's room, at most 8 chips
+  const strip = (() => {
+    const same = fixture?.roomCode ? siblingFixtures.filter((f) => f.roomCode === fixture.roomCode) : [];
+    const list = same.length > 1 ? same : siblingFixtures;
+    const head = fixture ? [fixture, ...list.filter((f) => f.id !== fixture.id)] : list;
+    return head.slice(0, 8);
+  })();
+  const more = Math.max(0, (fixture?.roomCode ? siblingFixtures.filter((f) => f.roomCode === fixture.roomCode).length : siblingFixtures.length) - strip.length);
 
   return (
     <div className="bg-[#202427] text-[#F7F6F2] flex flex-col">
@@ -56,7 +64,7 @@ export const Real3D: React.FC<Props> = ({
             <button type="button" onClick={() => onSwitchMode('room')}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${mode === 'room' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#A9AFB0] hover:text-[#F7F6F2]'}`}>
               <Eye className="w-3 h-3" />
-              <span>{roomLabel} Interior 3D</span>
+              <span>{(fixture?.roomCode || (roomLabel !== 'Whole sheet' ? roomLabel : 'Room'))} Interior 3D</span>
             </button>
           </div>
         </div>
@@ -67,10 +75,10 @@ export const Real3D: React.FC<Props> = ({
 
       <div className="p-4 blueprint-grid-dark flex flex-col">
         {/* Fixture Selector Strip */}
-        {mode === 'room' && siblingFixtures.length > 0 && (
+        {mode === 'room' && strip.length > 0 && (
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 flex-wrap">
-              {siblingFixtures.map((sib) => {
+              {strip.map((sib) => {
                 const isUnverified = !sib.verified;
                 const isSelected = sib.id === fixture?.id;
                 return (
@@ -82,8 +90,9 @@ export const Real3D: React.FC<Props> = ({
                   </button>
                 );
               })}
+              {more > 0 && <span className="text-[11px] font-mono text-[#A9AFB0]">+{more} more</span>}
             </div>
-            <span className="text-[11px] font-mono text-[#A9AFB0]">{roomLabel} · {scenario?.roomDimensions}</span>
+            <span className="text-[11px] font-mono text-[#A9AFB0]">{fixture?.roomCode || roomLabel}</span>
           </div>
         )}
 
