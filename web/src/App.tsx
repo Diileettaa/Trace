@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ask, getCollab, getPlanRooms, inventory, renderMoodImage, sampleQuestions, type PlanRoom, type PlanRoomsResult } from './api'
+import { ask, fileUrl, getCollab, getPlanRooms, inventory, listProjectDocs, renderMoodImage, sampleQuestions, type PlanRoom, type PlanRoomsResult, type ProjectDocument } from './api'
 import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer, { type PlacedProduct } from './IfcViewer'
@@ -30,6 +30,18 @@ function renderBoldMarkdown(text: string) {
   })
 }
 
+function renderAnswerWithDocuments(text: string, documents: ProjectDocument[], onOpen: (document: ProjectDocument) => void) {
+  const names = documents.flatMap(doc => [doc.filename, doc.title || ''].filter(Boolean).map(name => ({ name, doc })))
+    .sort((a, b) => b.name.length - a.name.length)
+  if (!names.length) return renderBoldMarkdown(text)
+  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const matcher = new RegExp(`(${names.map(item => escapeRegExp(item.name)).join('|')})`, 'ig')
+  return text.split(matcher).map((part, index) => {
+    const match = names.find(item => item.name.toLowerCase() === part.toLowerCase())
+    return match ? <button type="button" className="answer-document-link" key={index} onClick={() => onOpen(match.doc)}>{part}</button> : <span key={index}>{renderBoldMarkdown(part)}</span>
+  })
+}
+
 export default function App() {
   const [question, setQuestion] = useState('')
   const [path, setPath] = useState('')
@@ -42,6 +54,8 @@ export default function App() {
   const questionRef = useRef<HTMLTextAreaElement>(null)
   const [expected, setExpected] = useState<DatasetQuestion | null>(null)
   const [res, setRes] = useState<AskResponse | null>(null)
+  const [answerDocuments, setAnswerDocuments] = useState<ProjectDocument[]>([])
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
   const [inv, setInv] = useState<Evidence | null>(null)
   const [busy, setBusy] = useState(false)
   const [busyAction, setBusyAction] = useState<'ask' | 'scan' | null>(null)
@@ -160,6 +174,39 @@ export default function App() {
   }, [evidence])
   const activeIfcPath = isIfc ? path : (modelFile ?? '')
   const areaEvidence = res?.evidence.find((item) => item.tool === 'answer_from_engine')?.evidence || null
+
+  async function findDatasetPath(document: ProjectDocument) {
+    const categories = ['swiss_dwellings', 'ifc_models', 'cubicasa5k', 'ifc_bench', 'opening_design']
+    const source = document.source?.toLowerCase()
+    const candidates = [...new Set([...(categories.includes(source || '') ? [source!] : []), ...categories])]
+    for (const category of candidates) {
+      const candidate = `data/${category}/${document.filename}`
+      const controller = new AbortController()
+      try {
+        const response = await fetch(fileUrl(candidate), { headers: { Range: 'bytes=0-0' }, signal: controller.signal })
+        const exists = response.ok
+        controller.abort()
+        if (exists) return candidate
+      } catch { controller.abort() }
+    }
+    return ''
+  }
+
+  async function askAboutDocument(document: ProjectDocument) {
+    const datasetPath = await findDatasetPath(document)
+    setSelectedDocumentId(document.id)
+    setActivePage('ask')
+    setPath(datasetPath)
+    setQuestion(`About ${document.filename} (project document ID ${document.id}): `)
+    setRole('')
+    setRes(null); setAnswerDocuments([]); setInv(null); setSelected(null); setSelectedGuid(null); setExpected(null)
+    setViewMode(datasetPath.toLowerCase().endsWith('.ifc') ? '3d' : '2d')
+  }
+
+  function openAnswerDocument(document: ProjectDocument) {
+    setSelectedDocumentId(document.id)
+    setActivePage('community')
+  }
 
   useEffect(() => {
     let active = true
@@ -295,9 +342,16 @@ export default function App() {
     if (!question.trim()) return
     const q = space ? `In room ${space.name} (space_id ${space.id}): ${question}` : question
     setRes(null)
+    setAnswerDocuments([])
     setSelectedGuid(null)
     setSelectedAreaRoom(null)
-    run(() => ask(q, path, role), setRes, 'ask')
+    run(async () => {
+      const answer = await ask(q, path, role)
+      if (/\b[\w.-]+\.(?:pdf|dwg|dxf|ifc|png|jpe?g|docx|xlsx)\b/i.test(answer.answer_text)) {
+        void listProjectDocs(answer.answer_text).then(matches => setAnswerDocuments(matches.filter(doc => answer.answer_text.toLowerCase().includes((doc.title || doc.filename).toLowerCase()) || answer.answer_text.toLowerCase().includes(doc.filename.toLowerCase())))).catch(() => setAnswerDocuments([]))
+      }
+      return answer
+    }, setRes, 'ask')
   }
   const scan = () => path && run(() => inventory(path, page), setInv, 'scan')
 
@@ -322,6 +376,8 @@ export default function App() {
         onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
         onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }}
+        selectedDocumentId={selectedDocumentId}
+        onAskDocument={askAboutDocument}
         modelPath={path}
         drawingPath={path.toLowerCase().endsWith('.ifc') ? '' : path}
         onModelPathChange={(nextPath) => { setPath(nextPath); setViewMode('3d') }}
@@ -414,7 +470,7 @@ export default function App() {
 
         {res && (
           <section className="answer">
-            <p className="answer-text">{renderBoldMarkdown(res.answer_text)}</p>
+            <p className="answer-text">{renderAnswerWithDocuments(res.answer_text, answerDocuments, openAnswerDocument)}</p>
             {res.evidence.map((e, i) => (
               <div key={i}>
                 <VerifyBadge ev={e} />

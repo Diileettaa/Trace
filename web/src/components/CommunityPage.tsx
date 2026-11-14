@@ -9,6 +9,7 @@ import RoomMediaPanel from './RoomMediaPanel'
 import SharedPlanPanel from './SharedPlanPanel'
 import DocsLibrary from './DocsLibrary'
 import type { CollabState } from '../types'
+import type { ProjectDocument } from '../api'
 
 interface Props {
   collab: CollabState
@@ -18,9 +19,11 @@ interface Props {
   modelPath: string
   drawingPath: string
   onModelPathChange: (path: string) => void
+  selectedDocumentId: number | null
+  onAskDocument: (document: ProjectDocument) => void
 }
 
-export default function CommunityPage({ collab, onChange, screenshot, onScreenshot, modelPath, drawingPath, onModelPathChange }: Props) {
+export default function CommunityPage({ collab, onChange, screenshot, onScreenshot, modelPath, drawingPath, onModelPathChange, selectedDocumentId, onAskDocument }: Props) {
   const [roomId, setRoomId] = useState('')
   const [roomName, setRoomName] = useState('')
   const [recipient, setRecipient] = useState('')
@@ -104,7 +107,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
     </div>
     <section className="project-section project-files-section">
       <div className="project-section-heading"><div><h2>Shared files</h2><p className="sub">Project drawings, permits and reports</p></div></div>
-      <DocsLibrary />
+      <DocsLibrary selectedDocumentId={selectedDocumentId} onAskDocument={onAskDocument} />
     </section>
   </main>
 }

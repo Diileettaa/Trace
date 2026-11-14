@@ -379,6 +379,9 @@ button.doc-status-pill { cursor: pointer; }
 .docs-file-card > .doc-status-pill { align-self: start; }
 .docs-status-explanation { padding: 8px; border-radius: 6px; background: #fff1c2; font-size: 12px; }
 .detail-actions { margin: 6px 0 10px; }
+.docs-ask-link { align-self: start; padding: 5px 0; border: 0; background: transparent; color: #526d8b; text-align: left; font-size: 11px; font-weight: 600; cursor: pointer; }
+.docs-ask-link:hover, .answer-document-link:hover { text-decoration: underline; }
+.answer-document-link { display: inline; padding: 0; border: 0; background: transparent; color: #526d8b; font: inherit; text-decoration: underline; cursor: pointer; }
 @media (max-width: 1050px) { .docs-drive-layout { grid-template-columns: 150px 1fr; } .docs-preview-panel { grid-column: 1 / -1; } }
 @media (max-width: 700px) { .docs-drive-layout { grid-template-columns: 1fr; } .docs-folders { position: static; grid-template-columns: repeat(2, 1fr); } .docs-folders h3 { grid-column: 1 / -1; } .docs-list-row { grid-template-columns: 34px 1fr auto; } .docs-list-row > :nth-child(n+4) { display: none; } }
 @media (max-width: 900px) { .room-plan-details-grid { grid-template-columns: 1fr; } }

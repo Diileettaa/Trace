@@ -54,7 +54,7 @@ function matchesFolder(doc: ProjectDocument, folder: FolderKey) {
   return doc.discipline === folder
 }
 
-export default function DocsLibrary() {
+export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }: { selectedDocumentId?: number | null; onAskDocument?: (document: ProjectDocument) => void }) {
   const [allDocuments, setAllDocuments] = useState<ProjectDocument[]>([])
   const [documents, setDocuments] = useState<ProjectDocument[]>([])
   const [selected, setSelected] = useState<ProjectDocument | null>(null)
@@ -95,6 +95,15 @@ export default function DocsLibrary() {
     } catch (error) { setFeedback(error instanceof Error ? error.message : String(error)) }
   }
   useEffect(() => { void refresh('') }, [activeFolder])
+  useEffect(() => {
+    if (selectedDocumentId == null) return
+    setActiveFolder('all'); setQuery(''); setSearchText('')
+  }, [selectedDocumentId])
+  useEffect(() => {
+    if (selectedDocumentId == null) return
+    const target = allDocuments.find(doc => doc.id === selectedDocumentId)
+    if (target) setSelected(target)
+  }, [allDocuments, selectedDocumentId])
   useEffect(() => {
     if (!selected) { setVersions([]); setEvents([]); return }
     let alive = true
@@ -155,12 +164,14 @@ export default function DocsLibrary() {
             <span className="docs-card-meta">{doc.uploaded_by || 'Unknown uploader'} · {timeAgo(doc.uploaded_at)}</span>
             <button className={`doc-status-pill ${doc.status}`} title={statusHint(doc.status)} onClick={event => { event.stopPropagation(); if (replacement) setSelected(replacement) }}>{statusText(doc, allDocuments)}</button>
             {['pending', 'conflict'].includes(doc.status) && <div className="docs-card-actions"><button onClick={event => { event.stopPropagation(); void resolve(doc.status === 'pending' ? 'approve' : 'make_latest', doc) }}>{doc.status === 'pending' ? 'Approve' : 'Keep this one'}</button><button onClick={event => { event.stopPropagation(); void resolve('reject', doc) }}>Reject</button></div>}
+            {onAskDocument && <button className="docs-ask-link" onClick={event => { event.stopPropagation(); onAskDocument(doc) }}>Ask about this drawing</button>}
           </article>
         })}</div> : <div className="docs-list-view">{documents.map(doc => <button key={doc.id} className={`docs-list-row${selected?.id === doc.id ? ' selected' : ''}`} onClick={() => setSelected(doc)}><span className="docs-file-icon">{fileIcon(doc.filename)}</span><strong>{doc.title || doc.filename}</strong><span>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'}</span><span title={statusHint(doc.status)} className={`doc-status-pill ${doc.status}`} onClick={event => { event.stopPropagation(); const newer = allDocuments.find(item => item.doc_key === doc.doc_key && item.status === 'latest'); if (newer) setSelected(newer) }}>{statusText(doc, allDocuments)}</span><span>{doc.uploaded_by || '—'}</span><span>{timeAgo(doc.uploaded_at)}</span></button>)}</div>}
         {!documents.length && <p className="dim docs-empty">No files in this folder.</p>}
       </section>
       <aside className="docs-preview-panel">{selected ? <>
         <header><div><span className="docs-file-icon large">{fileIcon(selected.filename)}</span><button title={statusHint(selected.status)} className={`doc-status-pill ${selected.status}`} onClick={() => { const newer = allDocuments.find(item => item.doc_key === selected.doc_key && item.status === 'latest'); if (newer) setSelected(newer) }}>{statusText(selected, allDocuments)}</button></div><h3>{selected.title || selected.filename}</h3><p className="dim small">{selected.filename} · {selected.rev_label ? `Rev ${selected.rev_label}` : 'Revision unknown'}</p><a className="button-link" href={previewUrl} target="_blank" rel="noreferrer">Open / download</a></header>
+        {onAskDocument && <button className="docs-ask-link" onClick={() => onAskDocument(selected)}>Ask about this drawing</button>}
         {selected.status === 'conflict' && <p className="docs-status-explanation">Needs a decision: two different files claim the same revision.</p>}
         {selected.status === 'pending' && <p className="docs-status-explanation">Waiting for approval.</p>}
         {['pending', 'conflict'].includes(selected.status) && <div className="docs-card-actions detail-actions">{selected.status === 'pending' ? <button disabled={busy} onClick={() => void resolve('approve')}>Approve</button> : <button disabled={busy} onClick={() => void resolve('make_latest')}>Keep this one</button>}<button disabled={busy} onClick={() => void resolve('reject')}>Reject</button></div>}
