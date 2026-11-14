@@ -29,3 +29,4 @@
 | T-25 | 团队协作：联系人、房间/私聊、施工时间线冲突、3D 截图备注 | Codex | [?] | agent/collab.py、agent/app.py、web/src/**（不含 DrawingViewer.tsx）、tests/** | 四块分别提交；pytest 41 passed，web build 通过；a0f8ac5、13f51ae、74c531c、c4da309 |
 | T-27 | Gigi 视觉系统、落地页和 Home/Ask/Community 导航 | Codex | [?] | web/src/**（样式及新增页面；viewer 仅颜色） | Gigi palette、landing page、Home/Ask/Community 导航完成；npm run build 通过 |
 | T-26 | IFC 3D 楼层裁切与施工专业图层筛选 | Codex | [?] | web/src/viewer3d/**、web/src/IfcViewer.tsx | npm run build 通过；pytest 41 passed；默认全楼显示；缺少 MEP 时显示说明 |
+| T-28 | 上传自己的图纸（PDF/PNG/JPG/IFC，≤50MB）：后端 /upload + 前端按钮 | Claude | [?] | agent/uploads.py、/upload、drawings.resolve 支持 upload/ 路径；上传 IFC 走 Xinran 的 IFC 求解器，图片/PDF 走视觉工具；web/src/components/UploadButton.tsx；pytest 53 passed，web build 通过 |

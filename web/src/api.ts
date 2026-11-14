@@ -98,3 +98,20 @@ export async function renderMoodImage(body: MoodRenderRequest): Promise<Blob> {
   }
   return response.blob()
 }
+
+export interface UploadResult { path: string; kind: string; pages: number; name: string; bytes: number }
+
+/** Upload the user's own drawing (PDF/PNG/JPG/IFC, max 50 MB). Body is the raw file. */
+export async function uploadDrawing(file: File): Promise<UploadResult> {
+  const r = await fetch(`${BASE}/upload?${new URLSearchParams({ filename: file.name })}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file,
+  })
+  if (!r.ok) {
+    let msg = `Upload failed (${r.status})`
+    try { msg = (await r.json()).detail || msg } catch { /* keep default */ }
+    throw new Error(msg)
+  }
+  return r.json()
+}

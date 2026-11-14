@@ -6,6 +6,7 @@ import IfcViewer, { type PlacedProduct } from './IfcViewer'
 import CommunityPage from './components/CommunityPage'
 import LandingPage from './components/LandingPage'
 import SpaceTree, { type TreeEntry } from './components/SpaceTree'
+import UploadButton from './components/UploadButton'
 import VerifyBadge from './components/VerifyBadge'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
 
@@ -316,6 +317,12 @@ export default function App() {
           }}
             placeholder="data/cubicasa5k/high_quality-108.png" />
         </label>
+        <UploadButton onUploaded={(u) => {
+          setPath(u.path)
+          setInv(null)
+          setSelectedGuid(null)
+          setViewMode(u.kind === 'ifc' ? '3d' : '2d')
+        }} />
 
         <label>
           Question{space && <span className="scope"> · Room scope: {space.name} <a onClick={() => setSpace(null)}>×</a></span>}

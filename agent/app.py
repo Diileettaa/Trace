@@ -1,6 +1,7 @@
 """HTTP API for the web app.
 
 POST /ask      {question, path?, role?} -> {answer_text, evidence, tool_calls}
+POST /upload   ?filename=x.pdf, raw file bytes as body -> {path, kind, pages}
 GET  /drawing  ?path=...&page=1         -> PNG of that drawing page (bbox pixel space)
 GET  /questions?source=...&limit=...    -> sample questions from questions.jsonl, for the demo picker
 GET  /inventory?path=...&page=1         -> every element on a drawing, numbered per category (module 1)
@@ -12,12 +13,12 @@ from __future__ import annotations
 
 import json
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import agent, collab, config, drawings, render as render_service, vision
+from . import agent, collab, config, drawings, render as render_service, uploads, vision
 
 app = FastAPI(title="Trace API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -61,6 +62,19 @@ def ask(body: AskIn, fresh: bool = False):
 
         traceback.print_exc()
         raise HTTPException(500, f"{type(e).__name__}: {e}")
+
+
+@app.post("/upload")
+async def upload(request: Request, filename: str):
+    """Upload your own drawing (PDF/PNG/JPG/IFC, max 50 MB). Body = raw file bytes (no multipart needed)."""
+    size = int(request.headers.get("content-length") or 0)
+    if size > config.MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "file too large (max 50 MB)")
+    data = await request.body()
+    try:
+        return uploads.save(filename, data)
+    except uploads.UploadError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/drawing")

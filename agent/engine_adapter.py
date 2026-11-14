@@ -35,6 +35,19 @@ def _label(item: dict, n: int) -> str:
     return f"{base} {n}" + (f" ({name})" if name and str(name) != base else "")
 
 
+def _upload_answer(path: str, question: str) -> dict:
+    """User uploads: IFC goes through Xinran's IFC solver directly; plans have no vector data -> vision tools."""
+    if not path.lower().endswith(".ifc"):
+        return {"value": None, "unit": None, "items": [], "sources": [], "method": "upload:no_vector_data",
+                "warnings": ["Uploaded plan has no vector data for the engine; use count_in_drawing or scan_drawing_inventory"]}
+    from engine import ifc, ifc_answer
+
+    full = drawings.resolve(path)
+    v, unit, items, method, warn = ifc_answer.answer(path, question, ifc.load(str(full)))
+    return {"value": v, "unit": unit, "items": items, "sources": [{"file": path}], "method": method,
+            "warnings": warn, "model_file": path}
+
+
 def answer(path: str, question: str) -> dict:
     """Tool: ask the exact data engine. Pass the user's question unchanged."""
     import engine.answer as ea
@@ -44,7 +57,7 @@ def answer(path: str, question: str) -> dict:
     if "cubicasa5k" in path and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
         # the Nemotron second count does not depend on the engine result: run both at the same time
         early = _POOL.submit(nemotron_check, path, question)
-    r = ea.answer(path, question)
+    r = _upload_answer(path, question) if path.startswith(config.UPLOAD_PREFIX) else ea.answer(path, question)
     is_pdf = path.lower().endswith(".pdf")
     counters: dict[str, int] = {}
     items, sources = [], []

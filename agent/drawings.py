@@ -20,7 +20,16 @@ class DrawingError(ValueError):
 
 
 def resolve(path: str) -> Path:
-    """Map a dataset path like 'data/cubicasa5k/x.png' to a real file, refusing anything outside DATA_DIR."""
+    """Map a dataset path like 'data/cubicasa5k/x.png' (or an uploaded 'upload/<sha>.pdf') to a real file,
+    refusing anything outside DATA_DIR / the upload folder."""
+    if path.startswith(config.UPLOAD_PREFIX):
+        root = (config.CACHE_DIR / "uploads").resolve()
+        full = (root / path[len(config.UPLOAD_PREFIX):]).resolve()
+        if root not in full.parents:
+            raise DrawingError(f"path outside uploads: {path}")
+        if not full.is_file():
+            raise DrawingError(f"upload not found: {path}")
+        return full
     full = (config.DATA_DIR / path).resolve()
     if config.DATA_DIR not in full.parents:
         raise DrawingError(f"path outside dataset: {path}")

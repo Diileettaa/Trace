@@ -202,3 +202,11 @@ pre { white-space: pre-wrap; font-size: 11px; background: #f5f5f3; padding: 8px;
   .top-nav .nav-launch { padding: 8px; }
   .steps-grid { grid-template-columns: 1fr; }
 }
+
+/* T-28 upload your own drawing */
+.upload-drawing { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px 0 12px; }
+.upload-drawing button { padding: 6px 12px; border: 1px dashed #A9AFB0; background: #F7F6F2; color: #202427; border-radius: 6px; cursor: pointer; font: inherit; }
+.upload-drawing button:hover { border-color: #E9B949; background: #fff; }
+.upload-drawing button:disabled { opacity: .6; cursor: wait; }
+.upload-hint { font-size: 12px; color: #6b7174; }
+.upload-error { color: #b42318; }
