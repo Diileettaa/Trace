@@ -2,6 +2,12 @@
 
 每项浏览器验证后单独 commit，不 push。只改 web/。
 
+## 0. 最高优先：页面抖动（Diletta 视频 21:00）
+- 静止不动时整页来回抖/重影（Whole Building、Explode、房间标签都出现双影），3D 模型有时消失
+- 疑似：3D 画布按容器尺寸 resize → 页面出现/消失滚动条 → 容器宽度变 → 再 resize，死循环。或 ResizeObserver 里 setState 引起重排
+- 修：3D 容器固定高度（calc(100vh - 顶栏)）、overflow:hidden；body 设 `scrollbar-gutter: stable`；resize 回调用 requestAnimationFrame 去抖，尺寸变化 <2px 忽略；renderer.setSize(w,h,false)
+- 验证：Tallinn 3D 静止 30 秒录屏无抖动，控制台无 ResizeObserver loop 警告
+
 ## 1. 语言统一
 - 界面文字全部英文（按钮、提示、空状态）。不做多语言 UI 切换（时间不够）；问答回答保持用户提问的语言
 - 模型里的爱沙尼亚语/德语房间名是数据，不翻原文，但显示为「英文 · 原文」：如 `Living room + kitchen · ELUTUBA+KÖÖK`
