@@ -27,8 +27,13 @@
 .source-badge { background: rgba(233,185,73,.3); }
 .evidence-count { background: #E8EAEB; }
 .cache-badge { color: #202427; background: #E9B949; }
+.answer-method-badge { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; }
+.answer-method-badge.grey { color: #40474A; background: #E8EAEB; }
+.answer-method-badge.green { color: #1E6B33; background: #DFF3E4; }
+.answer-method-badge.yellow { color: #775400; background: #FFF2CC; }
 .how-got-body { padding: 12px; }
 .method-line { margin: 0 0 10px; color: var(--ink, #202427); font-size: 12px; }
+.interpreted-line { margin: -5px 0 10px; color: #51595B; font-size: 12px; }
 .trace-timing {
   display: flex;
   flex-wrap: wrap;

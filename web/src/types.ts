@@ -25,6 +25,10 @@ export interface Evidence {
   sources: Source[]
   method?: string
   source?: string | { kind?: string; label?: string }
+  source_label?: string
+  engine_ms?: number
+  evidence_count?: number
+  badge?: AnswerBadge
   warnings?: string[]
   by_category?: Record<string, number>
   cached?: boolean
@@ -37,9 +41,33 @@ export interface AskResponse {
   evidence: Evidence[]
   tool_calls: { name: string; args: Record<string, unknown> }[]
   timing?: { total_s: number; gemini_calls_s: number[]; tools_s: number[] }
-  usage?: { input?: number; output?: number; thinking?: number; gemini_calls?: number; vision_calls?: number; nemotron_calls?: number }
+  usage?: { input?: number; output?: number; thinking?: number; gemini_calls?: number; vision_calls?: number; nemotron_calls?: number; cost_usd?: number }
   trace?: AnswerTraceStep[]
+  summary?: AnswerSummary
   from_cache?: boolean
+}
+
+export interface AnswerBadge {
+  color: 'grey' | 'green' | 'yellow' | string
+  text: string
+  other_count?: number | string
+}
+
+export interface AnswerSummary {
+  source?: string | null
+  source_label?: string | null
+  method?: string | null
+  interpreted?: string | null
+  evidence_count?: number
+  boxes?: number
+  engine_ms?: number | null
+  llm_s?: number | null
+  total_s?: number | null
+  engine_tokens?: number
+  llm_tokens?: number
+  cost_usd?: number | null
+  badge?: AnswerBadge | null
+  warnings?: string[]
 }
 
 export interface AnswerTraceStep {
@@ -53,6 +81,12 @@ export interface AnswerTraceStep {
   cached?: boolean
   warnings?: string[]
   ok?: boolean
+  source?: string | null
+  source_label?: string | null
+  engine_ms?: number | null
+  evidence_count?: number
+  badge?: AnswerBadge
+  tokens?: number
 }
 
 export interface DatasetQuestion {
