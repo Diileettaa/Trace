@@ -6,6 +6,7 @@ import DirectMessages from './DirectMessages'
 import RoomCollabPanel from './RoomCollabPanel'
 import WorkTimeline from './WorkTimeline'
 import RoomMediaPanel from './RoomMediaPanel'
+import SharedPlanPanel from './SharedPlanPanel'
 import type { CollabState } from '../types'
 
 interface Props {
@@ -14,10 +15,11 @@ interface Props {
   screenshot: { dataUrl: string; roomName: string; note: string } | null
   onScreenshot: (dataUrl: string, roomName: string, note: string) => void
   modelPath: string
+  drawingPath: string
   onModelPathChange: (path: string) => void
 }
 
-export default function CommunityPage({ collab, onChange, screenshot, onScreenshot, modelPath, onModelPathChange }: Props) {
+export default function CommunityPage({ collab, onChange, screenshot, onScreenshot, modelPath, drawingPath, onModelPathChange }: Props) {
   const [roomId, setRoomId] = useState('')
   const [roomName, setRoomName] = useState('')
   const [recipient, setRecipient] = useState('')
@@ -56,6 +58,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   return <main className="project-page">
     <header className="community-heading"><div><h1>Project</h1><p className="sub">A shared place for the model, team conversations and project files.</p></div><span className="demo-schedule">Demo project</span></header>
     <div className="project-grid">
+      <SharedPlanPanel drawingPath={drawingPath} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} />
       <section className="project-section shared-model-section">
         <div className="project-section-heading"><div><h2>Shared 3D model</h2><p className="sub">Select a room in the model to start its conversation.</p></div></div>
         <div className="row project-model-picker">

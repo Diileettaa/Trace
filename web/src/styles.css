@@ -281,3 +281,25 @@ pre { white-space: pre-wrap; font-size: 11px; background: #f5f5f3; padding: 8px;
 .upload-drawing button:disabled { opacity: .6; cursor: wait; }
 .upload-hint { font-size: 12px; color: #6b7174; }
 .upload-error { color: #b42318; }
+
+/* Shared project plan and room card */
+.shared-plan-section { grid-column: 1 / -1; }
+.shared-plan-canvas { position: relative; width: 100%; overflow: hidden; background: #fff; border: 1px solid #A9AFB0; border-radius: 10px; }
+.shared-plan-canvas img, .shared-plan-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.shared-plan-canvas img { object-fit: fill; }
+.shared-plan-room { cursor: pointer; }
+.shared-plan-room polygon { stroke-width: 3; vector-effect: non-scaling-stroke; }
+.shared-plan-room text { font: 18px system-ui, sans-serif; fill: #202427; paint-order: stroke; stroke: #F7F6F2; stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.shared-plan-room .plan-icon { pointer-events: auto; cursor: pointer; }
+.room-plan-card { margin-top: 18px; padding: 18px; background: #fff; border: 1px solid #A9AFB0; border-radius: 12px; scroll-margin-top: 20px; }
+.room-plan-card-heading { display: flex; justify-content: space-between; align-items: center; }
+.room-plan-card-heading h3 { margin: 2px 0 14px; }
+.room-plan-card-preview { height: min(52vh, 480px); min-height: 280px; overflow: hidden; border-radius: 8px; }
+.room-plan-details-grid { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(280px, 1.2fr) minmax(220px, .9fr); gap: 16px; margin-top: 16px; align-items: start; }
+.room-plan-details-grid dl { display: grid; grid-template-columns: 90px 1fr; }
+.room-plan-details-grid dt { color: #6b7174; }
+.room-plan-details-grid dd { margin: 0 0 8px; }
+.room-plan-preview { position: relative; height: 360px; background: #F7F6F2; border-radius: 8px; overflow: hidden; }
+.room-plan-preview-canvas, .room-plan-preview-canvas canvas { width: 100%; height: 100%; display: block; }
+.room-plan-preview > span { position: absolute; left: 12px; bottom: 12px; padding: 5px 8px; background: #202427; color: #fff; border-radius: 5px; font-size: 12px; }
+@media (max-width: 900px) { .room-plan-details-grid { grid-template-columns: 1fr; } }

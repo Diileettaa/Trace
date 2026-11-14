@@ -26,6 +26,24 @@ export const drawingUrl = (path: string, page = 1) =>
 // raw dataset file (e.g. an .ifc model for the 3D viewer)
 export const fileUrl = (path: string) => `${BASE}/file?${new URLSearchParams({ path })}`
 
+export interface PlanRoom {
+  space_id: string
+  name: string | null
+  number: string | null
+  area_m2: number | null
+  bbox_px: [number, number, number, number]
+  polygon_px: [number, number][] | null
+  status?: RoomStatus | null
+  media_count?: number
+}
+export interface PlanRoomsResult { path: string; image_size: [number, number] | null; rooms: PlanRoom[]; warnings?: string[] }
+export async function getPlanRooms(path: string, page = 1): Promise<PlanRoomsResult> {
+  const query = new URLSearchParams({ path, page: String(page) })
+  const response = await fetch(`${BASE}/plan/rooms?${query}`)
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+
 export interface ScenePlacement {
   instanceId: string
   catalogId: string

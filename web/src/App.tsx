@@ -278,6 +278,7 @@ export default function App() {
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
         onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }}
         modelPath={path}
+        drawingPath={path.toLowerCase().endsWith('.ifc') ? '' : path}
         onModelPathChange={(nextPath) => { setPath(nextPath); setViewMode('3d') }}
       /> : <div className="app">
       <aside className="panel">

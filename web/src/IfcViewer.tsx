@@ -20,6 +20,7 @@ import {
   type TradesState,
 } from './viewer3d'
 import type { FragmentsModel } from '@thatopen/fragments'
+import type { RoomStatus } from './types'
 
 interface Props {
   path: string
@@ -29,6 +30,8 @@ interface Props {
   onPlacementsChange?: (placements: PlacedProduct[]) => void
   onScreenshot?: (dataUrl: string, roomName: string, note: string) => void
   onSelectRoom?: (room: { id: string; name: string } | null) => void
+  previewRoomGuid?: string
+  previewRoomStatus?: RoomStatus | null
 }
 
 export interface PlacedProduct {
@@ -206,7 +209,7 @@ function makeCatalogThumbnailModel(product: FurnitureProduct) {
   return makePlaceholder(product, `catalog-${product.id}`)
 }
 
-function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom }: Props) {
+function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, previewRoomGuid, previewRoomStatus }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
@@ -388,9 +391,24 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     applyStoreyCut(current.components, current.world, model, selectedStorey)
     void (async () => {
       await applyTradeColors(model, trades)
-      await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, allLocalIds)
+      let visibleIds = allLocalIds
+      if (previewRoomGuid) {
+        const room = rooms.find(candidate => candidate.guid === previewRoomGuid)
+        if (room) {
+          const boxes = await model.getBoxes(allLocalIds)
+          visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(room.box))
+          const hidden = allLocalIds.filter(id => !visibleIds.includes(id))
+          if (hidden.length) await model.setVisible(hidden, false)
+          const walls = visibleIds.filter(id => /IFCWALL/i.test(classByLocalIdRef.current.get(id) || ''))
+          if (previewRoomStatus === 'missing_wall' && walls.length) {
+            await model.setColor(walls, new THREE.Color('#D84B45'))
+            await model.setOpacity(walls, 0.58)
+          }
+        }
+      }
+      await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, visibleIds)
     })()
-  }, [allLocalIds, explorerReady, selectedStoreyId, storeys, trades])
+  }, [allLocalIds, explorerReady, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
