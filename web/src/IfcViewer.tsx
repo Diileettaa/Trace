@@ -251,6 +251,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true })
         world.camera = new OBC.SimpleCamera(components)
         components.init()
+        world.camera.controls.minDistance = 0.02
+        world.camera.controls.mouseButtons.wheel = world.camera.controls.mouseButtons.middle
         const grid = components.get(OBC.Grids).create(world)
         grid.visible = false
 
@@ -331,6 +333,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         } catch (error) { console.warn('Could not list IFC spaces:', error) }
 
         await world.camera.fitToItems()
+        const modelBounds = new THREE.Box3().setFromObject(loadedModel.object)
+        const modelDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 0.1)
+        world.camera.controls.maxDistance = modelDiameter * 3
         world.camera.enabled = true
         world.camera.controls.enabled = true
         setStatus('')
@@ -543,6 +548,38 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     if (product) void persistPlacement(product, group)
   }
 
+  function fitModel() {
+    const e = engine.current
+    if (!e) return
+    const bounds = new THREE.Box3().setFromObject(e.world.scene.three)
+    const diameter = Math.max(bounds.getSize(new THREE.Vector3()).length(), 0.1)
+    e.world.camera.controls.maxDistance = diameter * 3
+    void e.world.camera.fitToItems()
+  }
+
+  async function zoomToSelection() {
+    const e = engine.current
+    if (!e) return
+    if (selectedGuid) {
+      const items = await e.fragments.guidsToModelIdMap([selectedGuid])
+      if (Object.keys(items).length) { await e.world.camera.fitToItems(items); return }
+    }
+    const selectedGroup = placementsRef.current.get(selectedPlacementId)
+    const room = rooms.find((candidate) => candidate.key === selectedRoomKey)
+    const bounds = selectedGroup
+      ? new THREE.Box3().setFromObject(selectedGroup)
+      : room?.box
+    if (!bounds || bounds.isEmpty()) return
+    const center = bounds.getCenter(new THREE.Vector3())
+    const size = bounds.getSize(new THREE.Vector3())
+    const distance = Math.max(size.length() * 1.8, 0.12)
+    const direction = new THREE.Vector3(1, -1, 0.8).normalize().multiplyScalar(distance)
+    await e.world.camera.controls.setLookAt(
+      center.x + direction.x, center.y + direction.y, center.z + direction.z,
+      center.x, center.y, center.z, true,
+    )
+  }
+
   function screenshot() {
     const renderer = engine.current?.world.renderer
     if (!renderer) return
@@ -665,6 +702,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <span className="catalog-label">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
+      <button disabled={!modelReady} onClick={fitModel}>Fit</button>
+      <button disabled={!modelReady || (!selectedGuid && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
       <select aria-label="IFC space" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
         <option value="">Select an IfcSpace…</option>
         {rooms.map((room) => <option key={room.key} value={room.key}>{room.name}</option>)}
