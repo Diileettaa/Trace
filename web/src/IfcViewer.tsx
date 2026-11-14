@@ -1743,7 +1743,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
   const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
   const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
-  const measuredRoom = rooms.find(room => room.guid === isolateSpaceGuid) ?? rooms.find(room => room.key === selectedRoomKey)
+  const measuredRoom = isolateSpaceGuid || planView || buildingView === 'interior'
+    ? rooms.find(room => room.guid === isolateSpaceGuid) ?? rooms.find(room => room.key === selectedRoomKey)
+    : undefined
 
   return <div className={`viewer ${showcase ? 'showcase-mode' : ''} ${recording ? 'showcase-recording' : ''} ${toolsOpen ? 'tools-open' : ''}`}>
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
