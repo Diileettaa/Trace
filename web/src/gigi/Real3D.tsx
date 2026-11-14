@@ -68,12 +68,12 @@ export const Real3D: React.FC<Props> = ({
             <button type="button" onClick={() => onSwitchMode('building')}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${mode === 'building' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#A9AFB0] hover:text-[#F7F6F2]'}`}>
               <Building2 className="w-3 h-3" />
-              <span>Whole Building 3D</span>
+              <span>3D Building</span>
             </button>
             <button type="button" onClick={() => onSwitchMode('room')}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${mode === 'room' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#A9AFB0] hover:text-[#F7F6F2]'}`}>
               <Eye className="w-3 h-3" />
-              <span>{(fixture?.roomCode || (roomLabel !== 'Whole sheet' ? roomLabel : 'Room'))} Interior 3D</span>
+              <span>3D Floor</span>
             </button>
           </div>
         </div>

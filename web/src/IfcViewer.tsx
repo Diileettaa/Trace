@@ -316,7 +316,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
   const [walkHelpVisible, setWalkHelpVisible] = useState(false)
   const [elementTagPositions, setElementTagPositions] = useState<Record<string, { x: number; y: number }>>({})
-  const [clearanceLines, setClearanceLines] = useState<ScreenClearanceLine[]>([])
+  const [, setClearanceLines] = useState<ScreenClearanceLine[]>([])
   const walkHelpTimerRef = useRef<number | null>(null)
   const [showcase, setShowcase] = useState(false)
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
@@ -739,6 +739,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     setRecording(true)
     startTour(stopRecording)
   }
+  void recordTour
 
   function saveHiResScreenshot() {
     const e = engine.current
@@ -965,6 +966,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const size = room.box.getSize(new THREE.Vector3())
     return { L: size.x, B: size.z }
   })()
+  void selectedRoomDimensions
 
   function selectStorey(id: string | null) {
     setSelectedStoreyId(id)
@@ -1756,9 +1758,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       {showcase && <span className="showcase-quality">{showcaseDegraded ? 'Performance lighting' : 'Soft-shadow lighting'}</span>}
       <button title="Fit the whole model in view" disabled={!modelReady} onClick={fitModel}>Fit</button>
       <button title="Restore the model, camera and filters to their initial state" disabled={!modelReady} onClick={resetView}>Reset view</button>
-      {!walkMode && <button title="Enter room walk view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
-      <button className={touring ? 'tour-active' : ''} title="Play a 40 second guided model tour" disabled={!modelReady || walkMode} onClick={() => touring ? stopTour() : startTour()}>{touring ? 'Stop tour · Esc' : 'Tour · 40s'}</button>
-      <button className={recording ? 'recording-active' : ''} title="Record the 40 second tour as 1920 × 1080 WebM" disabled={!modelReady || (touring && !recording)} onClick={() => recording ? stopRecording() : recordTour()}>{recording ? 'Stop recording' : 'Record tour'}</button>
       <button title="Download the current 3D view as a 2× PNG" disabled={!modelReady} onClick={saveHiResScreenshot}>Hi-res PNG</button>
       <label className="transparent-shot"><input type="checkbox" checked={transparentCapture} onChange={event => setTransparentCapture(event.target.checked)} /> Transparent</label>
       <button title="Center the camera on the selected element or room" disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
@@ -1805,19 +1804,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         <button type="button" onClick={fitModel}>Fit</button>
         <button type="button" onClick={resetView}>Reset</button>
       </div>
-      <div className="showcase-motion-controls" aria-label="Showcase motion controls">
-        <button type="button" disabled={!modelReady || exploding} onClick={() => animateExplode(!exploded)}>{exploding ? 'Exploding…' : exploded ? 'Assemble' : 'Explode'}</button>
-        <button type="button" disabled={!modelReady} onClick={advancePeel}>Peel · {peelStep}/3</button>
-        {peelStep > 0 && <span>Step {peelStep}: {['', 'Lift slabs', 'Fade envelope', 'Reveal systems'][peelStep]}</span>}
-      </div>
       {hideRoomLabels && !isolateSpaceGuid && !walkMode && rooms.length > 0 && <aside className="room-picker" aria-label="Choose a room">
         <strong>Choose a room</strong>
         <div>{rooms.slice(0, 12).map(room => <button type="button" key={room.key} onClick={() => focusRoom(room.key)}>{englishRoomName(room.name)}{room.areaM2 ? ` · ${room.areaM2.toFixed(1)} m²` : ''}</button>)}</div>
       </aside>}
       {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
-        {isolateSpaceGuid && clearanceLines.length > 0 && <svg className="interior-clearances" aria-label="Fixture clearances">{clearanceLines.map(line => <g key={line.side}><line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} /><text x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2}>≈ {line.value} mm</text></g>)}</svg>}
-        {isolateSpaceGuid && selectedRoomDimensions && <div className="room-floor-dimensions"><span className="room-dim-l">↔ {selectedRoomDimensions.L.toFixed(2)} m</span><span className="room-dim-b">↕ {selectedRoomDimensions.B.toFixed(2)} m</span></div>}
         {interiorElementTags.slice(0, 12).map((tag) => {
           const position = elementTagPositions[tag.guid]
           if (!position) return null
