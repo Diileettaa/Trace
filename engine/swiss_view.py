@@ -29,3 +29,40 @@ def to_png(dxf_path, bb):
 def to_pdf(dxf_path, bb):
     p = to_png(dxf_path, bb)
     return [round(v * 72.0 / PNG_DPI, 1) for v in p] if p else None
+
+def to_png_poly(dxf_path, poly):
+    """DXF polygon (metres) -> PNG pixel polygon, same calibration as to_png."""
+    c = calibration(dxf_path)
+    if not c or not poly: return None
+    s, (x0, ytop), (px0, py0) = c["scale_px_per_m"], c["dxf_min"], c["png_min"]
+    return [[round(px0 + (x - x0) * s), round(py0 + (ytop - y) * s)] for x, y in poly]
+
+def to_pdf_poly(dxf_path, poly):
+    p = to_png_poly(dxf_path, poly)
+    return [[round(x * 72.0 / PNG_DPI, 1), round(y * 72.0 / PNG_DPI, 1)] for x, y in p] if p else None
+
+# The renderer fills outdoor spaces mid-grey (~228) and common areas outside any unit light grey (~243);
+# rooms inside apartments stay white (255). Some outdoor strips carry no name, so the fill is the only signal.
+OUTDOOR_FILL_MAX = 235
+COMMON_FILL_MAX = 247
+
+@lru_cache(maxsize=64)
+def room_fills(dxf_path):
+    """{room number: median interior grey level on the PNG}, or {} if the PNG / OpenCV is unavailable."""
+    try:
+        import cv2, numpy as np
+        from .swiss import parse
+    except Exception:
+        return {}
+    c = calibration(dxf_path)
+    im = cv2.imread(os.path.splitext(dxf_path)[0] + ".png", 0)
+    if not c or im is None: return {}
+    out = {}
+    for r in parse(dxf_path)["rooms"]:
+        P = to_png_poly(dxf_path, r["poly"])
+        if not P: continue
+        m = np.zeros(im.shape, np.uint8); cv2.fillPoly(m, [np.array(P, np.int32)], 1)
+        m = cv2.erode(m, np.ones((5, 5), np.uint8))
+        v = im[m > 0]; v = v[v > 150]          # drop linework and text
+        if len(v): out[r["number"]] = float(np.median(v))
+    return out

@@ -1,0 +1,36 @@
+From: Anna Arkkitehti <anna@arkkitehti.example>
+To: Risto Rakenne <risto@rakenne.example>
+Cc: trace-docs@example.org
+Subject: [project:demo] A-101 rev C (corrected)
+Date: Sun, 15 Nov 2026 09:00:00 +0000
+Message-ID: <03be311bf096.15@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============6471555956727833493=="
+
+--===============6471555956727833493==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Sorry, corrected rev C.
+
+--===============6471555956727833493==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="A-101_revC.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUg
+ODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4g
+Pj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxNjkgPj4Kc3RyZWFtCkJUIC9GMSAxMiBU
+ZiA1MCA3NTAgVGQgKFBvaGphcGlpcnVzdHVzIDEuIGtlcnJvcykgVGogMCAtMTYgVGQgKEEtMTAx
+IHJldmlzaW9uIEMgKGFsdGVybmF0aXZlIGlzc3VlKSkgVGogMCAtMTYgVGQgKERpZmZlcmVudCBj
+b250ZW50LCBzYW1lIHJldmlzaW9uIGxldHRlcikgVGogMCAtMTYgVGQgRVQKZW5kc3RyZWFtCmVu
+ZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hl
+bHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5
+IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAw
+MjQxIDAwMDAwIG4gCjAwMDAwMDA0NjEgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290
+IDEgMCBSID4+CnN0YXJ0eHJlZgo1MzEKJSVFT0YK
+
+--===============6471555956727833493==--

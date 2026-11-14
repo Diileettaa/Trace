@@ -1,0 +1,49 @@
+From: Anna Arkkitehti <anna@arkkitehti.example>
+To: Risto Rakenne <risto@rakenne.example>
+Cc: trace-docs@example.org
+Subject: [project:demo] A-101 pohjapiirustus rev B
+Date: Tue, 10 Nov 2026 09:00:00 +0000
+Message-ID: <a6f1a75593fb.10@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============2459885165888734796=="
+
+--===============2459885165888734796==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+Hei Risto,
+
+liitteenä 1. kerroksen pohjapiirustus rev B.
+
+Terveisin, Anna
+
+--===============2459885165888734796==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="A-101_revB.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUg
+ODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4g
+Pj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxNTkgPj4Kc3RyZWFtCkJUIC9GMSAxMiBU
+ZiA1MCA3NTAgVGQgKFBvaGphcGlpcnVzdHVzIDEuIGtlcnJvcyAvIGZsb29yIHBsYW4gbGV2ZWwg
+MSkgVGogMCAtMTYgVGQgKEEtMTAxIHJldmlzaW9uIEIpIFRqIDAgLTE2IFRkIChBcmtraXRlaHRp
+dG9pbWlzdG8gRXNpbWVya2tpKSBUaiAwIC0xNiBUZCBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBv
+YmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+
+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAK
+MDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAg
+biAKMDAwMDAwMDQ1MSAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4K
+c3RhcnR4cmVmCjUyMQolJUVPRgo=
+
+--===============2459885165888734796==
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="logo.png"
+MIME-Version: 1.0
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgAAACAAFUok9dAAAA
+AElFTkSuQmCC
+
+--===============2459885165888734796==--

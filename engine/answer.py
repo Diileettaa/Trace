@@ -7,6 +7,34 @@ DATA = os.environ.get("JUNCTION_DATA", os.path.expanduser("~/work/junction-datas
 def _item(kind, bbox, **kw):
     return dict(category=kind, bbox_m=[round(v, 3) for v in bbox], **kw)
 
+import re
+STAIR = re.compile(r"treppe|lift|aufzug|ascens|escalier|scala|elevator|stair", re.I)
+AREA_RULE = {
+    "room_area": "net area of the ROOM_OUTLINE polygon that contains the room number",
+    "label_area": "sum of ROOM_OUTLINE polygons whose room name equals the label",
+    "indoor_area": "sum of numbered rooms, minus outdoor spaces (by name or grey fill) and shafts/voids",
+    "apt_area": "sum of rooms whose number lies inside the apartment outline, minus outdoor spaces, shafts/voids, "
+                "common areas and stair/lift cores",
+}
+
+def _formula(terms, total, u):
+    """'12.30 (1.01 Zimmer) + 8.10 (1.02 Bad) = 20.40 m²' - lets a reviewer re-add the numbers by hand."""
+    if not terms: return f"0 {u} (nothing selected)"
+    body = " + ".join(f"{v:.2f} ({lab})" if lab else f"{v:.2f}" for v, lab in terms)
+    return f"{body} = {total:.2f} {u}"
+
+def _room_ev(dxf, r, **kw):
+    d = {"number": r["number"], "name": r["name"], "area_m2": r["area"]}
+    if r.get("holes"):   # net = gross outline minus cut-outs, each shown so the subtraction can be checked
+        d["gross_area_m2"] = r["gross_area"]; d["holes"] = r["holes"]
+        d["net_formula"] = f'{r["gross_area"]:.2f} - ' + " - ".join(f'{h["area_m2"]:.2f}' for h in r["holes"]) + f' = {r["area"]:.2f} m²'
+
+    try:
+        d["png_polygon"] = swiss_view.to_png_poly(dxf, r["poly"]); d["pdf_polygon_pt"] = swiss_view.to_pdf_poly(dxf, r["poly"])
+    except Exception:
+        pass
+    d.update(kw); return d
+
 def answer_swiss(path, question):
     stem = os.path.splitext(os.path.basename(path))[0]
     dxf = os.path.join(DATA, "data", "swiss_dwellings", stem + ".dxf")
@@ -26,15 +54,31 @@ def answer_swiss(path, question):
         items = [_item("room", r["bbox"], number=r["number"], name=r["name"], area_m2=r["area"]) for r in sel if r["bbox"]]
         value = len(sel)
     elif it in ("room_area", "apt_area", "indoor_area", "label_area"):
-        unit = "m2"
+        unit = "m2"; excluded = []
         if it == "room_area": sel = [r for r in rooms if r["number"] == q["room"] or r["number"].endswith(q["room"])]
-        elif it == "apt_area": sel = [r for r in rooms if r["unit"] == q["apt"] and not r["outdoor"] and not r["shaft_void"]]
-        elif it == "indoor_area": sel = [r for r in rooms if not r["outdoor"] and not r["shaft_void"]]
-        else: sel = [r for r in rooms if r["name"] == q["label"]]
+        elif it == "label_area": sel = [r for r in rooms if r["name"] == q["label"]]
+        else:
+            fills = swiss_view.room_fills(dxf)
+            if not fills: warn.append("PNG fill unavailable: outdoor/common spaces judged by name only")
+            cand = [r for r in rooms if it == "indoor_area" or r["unit"] == q["apt"]]
+            sel = []
+            for r in cand:
+                fl = fills.get(r["number"])
+                why = ("outdoor (name)" if r["outdoor"] else "shaft/void (name)" if r["shaft_void"] else
+                       "outdoor (grey fill on drawing)" if fl is not None and fl < swiss_view.OUTDOOR_FILL_MAX else None)
+                if not why and it == "apt_area":
+                    why = ("common area outside units (fill)" if fl is not None and fl < swiss_view.COMMON_FILL_MAX else
+                           "stair/lift core" if STAIR.search(r["name"]) else None)
+                if why: excluded.append(_room_ev(dxf, r, reason=why))
+                else: sel.append(r)
         miss = [r for r in sel if r["area"] is None]
         if miss: warn.append(f"{len(miss)} rooms had no outline")
         value = round(sum(r["area"] for r in sel if r["area"] is not None), 2)
         items = [_item("room", r["bbox"], number=r["number"], name=r["name"], area_m2=r["area"]) for r in sel if r["bbox"]]
+        breakdown = [_room_ev(dxf, r) for r in sel if r["area"] is not None]
+        evidence = {"breakdown": breakdown, "excluded": excluded,
+                    "formula": _formula([(b["area_m2"], f'{b["number"]} {b["name"]}'.strip()) for b in breakdown], value, "m²"),
+                    "rule": AREA_RULE[it]}
     else:
         warn.append("question not recognised")
     for x in items:   # where to draw the box on the PNG / PDF the user is looking at
@@ -46,8 +90,10 @@ def answer_swiss(path, question):
     sources = [{"file": rel("dxf"), "role": "computed from layers ROOM_OUTLINE/ROOM_TEXT/DOOR/WINDOW/FIXTURE/UNIT_OUTLINE"},
                {"file": rel("png"), "boxes": [x.get("png_bbox") for x in items if x.get("png_bbox")]},
                {"file": rel("pdf"), "page": 1, "boxes_pt": [x.get("pdf_bbox_pt") for x in items if x.get("pdf_bbox_pt")]}]
-    return {"value": value, "unit": unit, "items": items, "sources": sources,
-            "method": f"swiss_dxf:{it}", "warnings": warn}
+    out = {"value": value, "unit": unit, "items": items, "sources": sources,
+           "method": f"swiss_dxf:{it}", "warnings": warn}
+    if it in AREA_RULE: out["evidence"] = evidence
+    return out
 
 _MODELS = {}
 def _model_path(path, source):
@@ -63,9 +109,19 @@ def answer_ifc(path, question, source):
         return {"value": None, "unit": None, "items": [], "sources": [], "method": "ifc:no_model", "warnings": ["model not found"]}
     M = ifc.load(mp)
     v, unit, items, method, warn = ifc_answer.answer(path, question, M)
-    return {"value": v, "unit": unit, "items": items,
+    ev = None
+    if unit in ("m2", "m3", "m") and v is not None:
+        key = next((k for k in ("area_m2", "area", "volume", "length") if any(k in x for x in items)), None)
+        terms = [(x[key], x.get("name") or x.get("guid")) for x in items if key and isinstance(x.get(key), (int, float))]
+        src = method[method.find("[") + 1:-1] if "[" in method else "IFC quantity sets (Qto_*BaseQuantities)"
+        ev = {"breakdown": items, "excluded": [],
+              "formula": _formula(terms, v, {"m2": "m²", "m3": "m³", "m": "m"}[unit]),
+              "rule": f"summed from {src}; each term is one IFC element, identified by GlobalId"}
+    out = {"value": v, "unit": unit, "items": items,
             "sources": [{"file": os.path.relpath(mp, DATA).replace(os.sep, "/")}] + ([{"file": path}] if path.endswith(".pdf") else []),
             "method": method, "warnings": warn}
+    if ev: out["evidence"] = ev
+    return out
 
 from functools import lru_cache
 @lru_cache(maxsize=4096)

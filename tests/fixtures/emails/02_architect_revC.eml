@@ -1,0 +1,51 @@
+From: Anna Arkkitehti <anna@arkkitehti.example>
+To: Risto Rakenne <risto@rakenne.example>
+Cc: trace-docs@example.org
+Subject: [project:demo] A-101 pohjapiirustus rev C
+Date: Thu, 12 Nov 2026 09:00:00 +0000
+Message-ID: <aa5f843bf428.12@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============1314890215182469497=="
+
+--===============1314890215182469497==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hi Risto,
+
+rev C attached: WC moved next to the stair.
+The full IFC model is too big for mail: https://share.example.org/model/A-101=
+.ifc
+
+Anna
+
+--===============1314890215182469497==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="A-101_revC.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUg
+ODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4g
+Pj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxOTYgPj4Kc3RyZWFtCkJUIC9GMSAxMiBU
+ZiA1MCA3NTAgVGQgKFBvaGphcGlpcnVzdHVzIDEuIGtlcnJvcyAvIGZsb29yIHBsYW4gbGV2ZWwg
+MSkgVGogMCAtMTYgVGQgKEEtMTAxIHJldmlzaW9uIEMpIFRqIDAgLTE2IFRkIChXQyBtb3ZlZCBu
+ZXh0IHRvIHN0YWlyKSBUaiAwIC0xNiBUZCAoQXJra2l0ZWh0aXRvaW1pc3RvIEVzaW1lcmtraSkg
+VGogMCAtMTYgVGQgRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9T
+dWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAw
+MDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAK
+MDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDA0ODggMDAwMDAg
+biAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo1NTgKJSVFT0YK
+
+--===============1314890215182469497==
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="logo.png"
+MIME-Version: 1.0
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgAAACAAFUok9dAAAA
+AElFTkSuQmCC
+
+--===============1314890215182469497==--

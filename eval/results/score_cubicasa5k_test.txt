@@ -1,0 +1,13 @@
+overall 13952/16694 = 83.57%  (98s)
+cubicasa5k       cubicasa:detector[yolo-cubicasa]:window    850/1866    45.55%
+cubicasa5k       cubicasa:detector[yolo-cubicasa]:toilet   1754/1866    94.00%
+cubicasa5k       cubicasa:vlm[gemini:gemini-3.6-flash]:floors   1826/1866    97.86%
+cubicasa5k       cubicasa:detector[yolo-cubicasa]:sink   1526/1846    82.67%
+cubicasa5k       cubicasa:detector[yolo-cubicasa]:shower_tub   1316/1712    76.87%
+cubicasa5k       cubicasa:detector[yolo-cubicasa]:door   1002/1376    72.82%
+cubicasa5k       cubicasa:vlm[gemini:gemini-3.6-flash]:sauna   1162/1284    90.50%
+cubicasa5k       cubicasa:prior:kitchen         1220/1276    95.61%
+cubicasa5k       cubicasa:rooms[yolo-cubicasa-rooms]:bedroom    990/1132    87.46%
+cubicasa5k       cubicasa:vlm[gemini:gemini-3.6-flash]:bathroom    904/972     93.00%
+cubicasa5k       cubicasa:vlm[gemini:gemini-3.6-flash]:wc_room    892/924     96.54%
+cubicasa5k       cubicasa:vlm[gemini:gemini-3.6-flash]:balcony    510/574     88.85%

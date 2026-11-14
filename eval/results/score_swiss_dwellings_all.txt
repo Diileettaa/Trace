@@ -1,0 +1,13 @@
+overall 37294/37584 = 99.23%  (135s)
+swiss_dwellings  swiss_dxf:label_count         12536/12730   98.48%
+swiss_dwellings  swiss_dxf:room_area            4152/4152   100.00%
+swiss_dwellings  swiss_dxf:apt_area             3720/3750    99.20%
+swiss_dwellings  swiss_dxf:apartments           2068/2080    99.42%
+swiss_dwellings  swiss_dxf:doors                2080/2080   100.00%
+swiss_dwellings  swiss_dxf:windows              2080/2080   100.00%
+swiss_dwellings  swiss_dxf:wc                   2060/2080    99.04%
+swiss_dwellings  swiss_dxf:washbasin            2064/2080    99.23%
+swiss_dwellings  swiss_dxf:indoor_area          2072/2080    99.62%
+swiss_dwellings  swiss_dxf:label_area           2034/2034   100.00%
+swiss_dwellings  swiss_dxf:bathtub              1784/1794    99.44%
+swiss_dwellings  swiss_dxf:shower                644/644    100.00%

@@ -1,0 +1,64 @@
+From: Risto Rakenne <risto@rakenne.example>
+To: Sanna =?utf-8?q?S=C3=A4hk=C3=B6?= <sanna@sahko.example>
+Cc: trace-docs@example.org
+Subject: Fwd: [project:demo] A-101 pohjapiirustus rev C + S-201 v2
+Date: Sat, 14 Nov 2026 09:00:00 +0000
+Message-ID: <9d343185b8f4.14@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============1645560228063818579=="
+
+--===============1645560228063818579==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Forwarding Anna's plan and my structural types v2.
+
+--===============1645560228063818579==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="A-101_revC.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUg
+ODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4g
+Pj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxOTYgPj4Kc3RyZWFtCkJUIC9GMSAxMiBU
+ZiA1MCA3NTAgVGQgKFBvaGphcGlpcnVzdHVzIDEuIGtlcnJvcyAvIGZsb29yIHBsYW4gbGV2ZWwg
+MSkgVGogMCAtMTYgVGQgKEEtMTAxIHJldmlzaW9uIEMpIFRqIDAgLTE2IFRkIChXQyBtb3ZlZCBu
+ZXh0IHRvIHN0YWlyKSBUaiAwIC0xNiBUZCAoQXJra2l0ZWh0aXRvaW1pc3RvIEVzaW1lcmtraSkg
+VGogMCAtMTYgVGQgRVQKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9T
+dWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAw
+MDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAK
+MDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDA0ODggMDAwMDAg
+biAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo1NTgKJSVFT0YK
+
+--===============1645560228063818579==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="RAK_S-201_rakennetyypit_v2.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUg
+ODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4g
+Pj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxNTAgPj4Kc3RyZWFtCkJUIC9GMSAxMiBU
+ZiA1MCA3NTAgVGQgKFJha2VubmV0eXlwaXQgLyBzdHJ1Y3R1cmFsIHR5cGVzKSBUaiAwIC0xNiBU
+ZCAoUy0yMDEgdmVyc2lvbiAyKSBUaiAwIC0xNiBUZCAoVVMxIGV4dGVyaW9yIHdhbGwsIFlQMSBi
+YXNlIGZsb29yKSBUaiAwIC0xNiBUZCBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5
+cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4
+cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1
+OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAw
+MDQ0MiAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVm
+CjUxMgolJUVPRgo=
+
+--===============1645560228063818579==
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="installer.exe"
+MIME-Version: 1.0
+
+TVogZmFrZQ==
+
+--===============1645560228063818579==--

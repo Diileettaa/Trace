@@ -44,6 +44,16 @@ def parse(path):
         name = min(cand, key=lambda o: (o["pos"][0] - t["pos"][0]) ** 2 + (o["pos"][1] - t["pos"][1]) ** 2)["text"] if cand else ""
         rooms.append({"number": t["text"].strip(), "name": name.strip(), "area": round(area(poly), 2) if poly else None,
                       "poly": poly, "bbox": bbox(poly) if poly else None, "text_pos": t["pos"]})
+    # ---- holes: ROOM_OUTLINE polygons drawn inside a room (lift core, shaft, column) are cut out of its net area.
+    # Even-odd semantics: only top-level inner polygons count; a polygon inside a hole is not subtracted again.
+    for r in rooms:
+        if not r["poly"]: continue
+        inner = [o for o in outlines if o is not r["poly"] and all(inside(p, r["poly"]) for p in o)]
+        top = [o for o in inner if not any(o2 is not o and area(o2) > area(o) and all(inside(p, o2) for p in o) for o2 in inner)]
+        if top:
+            r["gross_area"] = r["area"]
+            r["holes"] = [{"area_m2": round(area(o), 2), "number": next((x["number"] for x in rooms if x["poly"] is o), None)} for o in top]
+            r["area"] = round(r["area"] - sum(area(o) for o in top), 2)
     # ---- apartments: UNIT_OUTLINE polylines + the unit label text inside them
     units = []
     for e in by["UNIT_OUTLINE"]:

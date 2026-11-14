@@ -25,7 +25,8 @@ def _num(v):
 AREA_Q = ["NetFloorArea", "Net Floor Area", "NetArea", "SpaceNetFloorAreaBOMA", "GrossFloorArea"]
 AREA_P = re.compile(r"^(?:\d+_)?(Pindala|Area|Fläche|Nettofläche|Superficie|Areal|Oppervlakte|Measured Net Area)$", re.I)
 
-def space_area(s):
+def space_area(s, prefer_qto=False):
+    if prefer_qto and "NetFloorArea" in s["q"]: return s["q"]["NetFloorArea"], "Qto:NetFloorArea"
     if s.get("geom_area"): return s["geom_area"], "geometry:footprint"
     for k in AREA_Q:
         if k in s["q"]: return s["q"][k], f"Qto:{k}"
@@ -71,11 +72,13 @@ def answer(path, question, M):
         room = quoted[0] if quoted else ""
         c = _find_space(M, room, storey)
         if not c: return None, "count", [], "ifc:space_area", ["space not found: " + room]
-        v, src = space_area(c[0])
+        v, src = space_area(c[0], True)
         return (round(v, 3) if v is not None else None), "m2", [{"guid": c[0]["guid"], "category": "IFCSPACE", "name": room, "storey": c[0]["storey"], "area_m2": v}], f"ifc:space_area[{src}]", warn
     if qtype == "area" and concept == "space":
         sp = [s for s in M["spaces"] if s["storey"] == storey]
-        vals = [(s, space_area(s)[0]) for s in sp]
+        # storey totals: the model's own NetFloorArea when every space carries it (matches the authoring tool's schedule)
+        pq = bool(sp) and all("NetFloorArea" in s["q"] for s in sp)
+        vals = [(s, space_area(s, pq)[0]) for s in sp]
         miss = [s for s, v in vals if v is None]
         if miss: warn.append(f"{len(miss)} spaces without area")
         return round(sum(v for _, v in vals if v), 3), "m2", [{"guid": s["guid"], "category": "IFCSPACE", "name": s["long"] or s["name"], "area_m2": v} for s, v in vals], "ifc:storey_space_area", warn

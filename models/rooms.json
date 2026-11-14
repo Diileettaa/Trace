@@ -1,0 +1,8 @@
+{
+ "weights": "cubicasa_rooms_yolo11m.pt",
+ "imgsz": 1280,
+ "classes": ["bedroom", "kitchen", "balcony", "sauna", "label_wc", "label_ss", "floor"],
+ "category_of": {"bedroom": "bedroom", "kitchen": "kitchen", "balcony": "balcony", "sauna": "sauna", "label_wc": "wc_room", "label_ss": "sauna_label", "floor": "floors"},
+ "thresholds": {"bedroom": 0.5, "kitchen": 0.35, "balcony": 0.3, "sauna": 0.9, "label_wc": 0.2, "label_ss": 0.3, "floor": 0.45},
+ "note": "YOLO11m, 40 epochs at 1280 on CubiCasa5k room polygons + WC/SS text labels (Verda A100). Thresholds tuned on Junction answers, val plans only. Held-out test exact-count: bedroom 87.5, balcony 88.5, floors 92.8, wc_room 82.0, kitchen 89.7; sauna unusable (8 training-val instances)."
+}

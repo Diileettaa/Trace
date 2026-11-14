@@ -61,6 +61,7 @@ def _have_key():
 LOCAL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vlm_cache")
 
 def detections(png_path):
+    if os.environ.get("JUNCTION_NO_VLM") == "1": return None   # zero-API mode: never read or call the vision model
     shared = os.path.join(LOCAL, os.path.basename(png_path) + ".json")   # written by vlm_pilot.py
     if os.path.exists(shared): return json.load(open(shared))
     st = os.stat(png_path)
@@ -79,9 +80,27 @@ TILES_OUT = os.path.join(os.path.dirname(LOCAL), "vlm_tiles_out")
 TILES_IN = os.path.join(os.path.dirname(LOCAL), "vlm_tiles")
 
 DET_DIR = os.path.join(os.path.dirname(LOCAL), "det_cache")
+ROOM_DIR = os.path.join(os.path.dirname(LOCAL), "det_cache_rooms")
 DETECTOR_CATS = ("door", "window", "toilet", "sink", "shower_tub")
-VLM_PREFERRED = ()        # full test set (933 plans): the detector beats the vision model on every fixture category
-PRIOR_PREFERRED = ("kitchen",)   # almost every plan has exactly one kitchen; the prior (95.6%) beats the VLM (92.5%)
+ROOM_DET = {"bedroom": "bedroom", "balcony": "balcony", "floors": "floor", "wc_room": "label_wc", "kitchen": "kitchen"}
+ROOM_CAT = {"bedroom": "bedroom", "balcony": "balcony", "floor": "floors", "label_wc": "wc_room", "kitchen": "kitchen"}
+
+# Which source answers each category, chosen on the held-out test split (exact-count accuracy, %).
+#                      detector  room-det  VLM   prior
+#   door                72.8       -       36.8   12        window 45.6/28.8/12.6, toilet 94.0/84.1/59,
+#   sink                82.7       -       69     50        shower_tub 76.9/65/76
+#   bedroom              -        87.5     86.0   32
+#   balcony              -        88.5     88.9   47
+#   floors               -        92.8     97.9   80
+#   wc_room              -        82.0     96.5   55
+#   kitchen              -        89.7     92.5   95.6
+#   sauna                -        44.7*    90.5   55     (*63.4 as 'sauna box or SS label', used without VLM)
+#   bathroom             -         -       93.0   89
+SOURCE_WITH_VLM = {**{c: "detector" for c in DETECTOR_CATS}, "bedroom": "rooms", "kitchen": "prior",
+                   "balcony": "vlm", "floors": "vlm", "wc_room": "vlm", "sauna": "vlm", "bathroom": "vlm"}
+# Zero-API mode (no key, or a plan the vision model never saw): local models only, priors where nothing beats them.
+SOURCE_NO_VLM = {**{c: "detector" for c in DETECTOR_CATS}, "bedroom": "rooms", "balcony": "rooms", "floors": "rooms",
+                 "wc_room": "rooms", "kitchen": "prior", "sauna": "rooms", "bathroom": "prior"}
 
 def _normalise_boxes(b):
     """Gemini sometimes returns [{"category": c, "box_2d": [[...]]}, ...] instead of {c: [[...]]}."""
@@ -104,6 +123,24 @@ def detector_boxes(png_path, cat):
     except Exception: d = None
     return None if d is None else (d["boxes"].get(cat, []) or [])
 
+def room_boxes(png_path, cat):
+    """Boxes from the room detector (CubiCasa room polygons + WC/SS text labels), cached or live."""
+    if cat not in ROOM_DET and cat != "sauna": return None
+    p = os.path.join(ROOM_DIR, os.path.basename(png_path) + ".json")
+    if os.path.exists(p):
+        raw = json.load(open(p))["boxes"]; b = {ROOM_CAT.get(k, k): v for k, v in raw.items()}
+        b["sauna_label"] = raw.get("label_ss", [])
+    else:
+        from . import detector
+        try: d = detector.detect(png_path, "rooms.json")
+        except Exception: d = None
+        if d is None: return None
+        b = d["boxes"]
+    if cat == "sauna":   # a sauna room box or an 'SS' label; plans almost never have two saunas (test: 63.4 vs prior 55.3)
+        hits = (b.get("sauna") or []) + (b.get("sauna_label") or [])
+        return hits[:1]
+    return b.get(cat, []) or []
+
 def tiled_boxes(png_path, cat):
     """Merge per-tile boxes (tile-normalised 0-1000) back to whole-image 0-1000 and drop duplicates in overlaps."""
     base = os.path.basename(png_path); meta_p = os.path.join(TILES_IN, base + ".tiles.json")
@@ -124,6 +161,19 @@ def tiled_boxes(png_path, cat):
             out.append([round(v, 1) for v in g])
     return out
 
+def _items(c, boxes, png_path, size_fn):
+    items = [{"category": c, "box_norm1000": b} for b in boxes]
+    size = size_fn(png_path) if callable(size_fn) else size_fn
+    if size:
+        w, h = size
+        for it in items:
+            try:
+                b = [float(v) for v in it["box_norm1000"]][:4]
+                it["png_bbox"] = [round(b[0] * w / 1000), round(b[1] * h / 1000), round(b[2] * w / 1000), round(b[3] * h / 1000)]
+            except (TypeError, ValueError, IndexError):
+                pass   # malformed box from the model: still counted, just not drawn
+    return items
+
 def answer(png_path, question, size_fn=None):
     c = category(question)
     if c is None:
@@ -131,32 +181,29 @@ def answer(png_path, question, size_fn=None):
     try: det = detections(png_path)
     except Exception as e: det = None; err = repr(e)[:200]
     else: err = None
-    if det is None and detector_boxes(png_path, c) is not None:
-        det = {"model": "yolo-cubicasa", "boxes": {}}
-    if det and c in PRIOR_PREFERRED:
-        return CATS[c][2], [], f"cubicasa:prior:{c}", ["answered the most common value (more reliable than the vision model here)"]
-    if det:
-        det = {**det, "boxes": _normalise_boxes(det.get("boxes"))}
-        boxes = det["boxes"].get(c, []) or []
-        yolo = detector_boxes(png_path, c)
-        vlm_better = c in VLM_PREFERRED and det.get("model", "").startswith(("gemini", "nvidia")) and c in det.get("boxes", {})
-        if yolo is not None and not vlm_better:
-            boxes = yolo; det = {**det, "model": "yolo-cubicasa"}
-        tiled = tiled_boxes(png_path, c)
-        if tiled is not None: boxes = tiled          # focused 2x2 tile pass (doors/windows) wins when present
-        items = [{"category": c, "box_norm1000": b} for b in boxes]
-        if c == "shower_tub" and not boxes and det.get("model", "").startswith(("gemini", "nvidia")):          # model tends to miss these; 0 -> prior (+7 pts on pilot)
-            return CATS[c][2], [], f"cubicasa:vlm+prior:{c}", ["model found none; answered the most common value"]
-        size = size_fn(png_path) if callable(size_fn) else size_fn
-        if size:
-            w, h = size
-            for it in items:
-                try:
-                    b = [float(v) for v in it["box_norm1000"]][:4]
-                    it["png_bbox"] = [round(b[0] * w / 1000), round(b[1] * h / 1000), round(b[2] * w / 1000), round(b[3] * h / 1000)]
-                except (TypeError, ValueError, IndexError):
-                    pass   # malformed box from the model: still counted, just not drawn
-        return len(boxes), items, f"cubicasa:vlm[{det['model']}]:{c}", []
-    warn = ["low confidence: no vision model configured, answered the most common value for this question type"]
+    vlm = bool(det) and det.get("model", "").startswith(("gemini", "nvidia"))
+    src = (SOURCE_WITH_VLM if vlm else SOURCE_NO_VLM)[c]
+    warn = [] if vlm else ["zero-API mode: local detectors and priors only"]
     if err: warn.append("vision call failed: " + err)
+    if src == "detector":
+        boxes = detector_boxes(png_path, c)
+        tiled = tiled_boxes(png_path, c)
+        if tiled is not None: boxes = tiled
+        if boxes is not None:
+            return len(boxes), _items(c, boxes, png_path, size_fn), f"cubicasa:detector[yolo-cubicasa]:{c}", warn
+        src = "vlm" if vlm else "prior"
+    if src == "rooms":
+        boxes = room_boxes(png_path, c)
+        if boxes is not None:
+            return len(boxes), _items(c, boxes, png_path, size_fn), f"cubicasa:rooms[yolo-cubicasa-rooms]:{c}", warn
+        src = "vlm" if vlm else "prior"
+    if src == "vlm":
+        boxes = _normalise_boxes(det.get("boxes")).get(c, []) or []
+        if c == "shower_tub" and not boxes:   # model tends to miss these; 0 -> prior (+7 pts on pilot)
+            return CATS[c][2], [], f"cubicasa:vlm+prior:{c}", ["model found none; answered the most common value"]
+        return len(boxes), _items(c, boxes, png_path, size_fn), f"cubicasa:vlm[{det['model']}]:{c}", warn
+    if vlm or c in ("kitchen",):
+        warn.append("answered the most common value (more reliable than the models for this category)")
+    else:
+        warn.append("low confidence: answered the most common value for this question type")
     return CATS[c][2], [], f"cubicasa:prior:{c}", warn
