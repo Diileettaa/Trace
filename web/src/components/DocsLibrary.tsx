@@ -73,6 +73,7 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
   const [dragging, setDragging] = useState(false)
   const [mailboxStatus, setMailboxStatus] = useState<'checking' | 'connected' | 'offline' | 'error'>('checking')
   const [mailboxReceiptCount, setMailboxReceiptCount] = useState(0)
+  const [previewFile, setPreviewFile] = useState<{ id: number; url: string; error?: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   async function refresh(q = query, folder = activeFolder) {
@@ -122,6 +123,21 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
     void Promise.all([getDocVersions(selected.doc_key), getDocEvents(selected.id)]).then(([v, e]) => { if (alive) { setVersions(v); setEvents(e) } }).catch(error => { if (alive) setFeedback(error instanceof Error ? error.message : String(error)) })
     return () => { alive = false }
   }, [selected?.id, selected?.doc_key])
+  useEffect(() => {
+    if (!selected) { setPreviewFile(null); return }
+    const controller = new AbortController()
+    let objectUrl = ''
+    const id = selected.id
+    setPreviewFile(null)
+    void fetch(projectDocFileUrl(id), { signal: controller.signal }).then(response => {
+      if (!response.ok) throw new Error(`Preview request failed (${response.status})`)
+      return response.blob()
+    }).then(blob => {
+      objectUrl = URL.createObjectURL(blob)
+      setPreviewFile({ id, url: objectUrl })
+    }).catch(error => { if (!controller.signal.aborted) setPreviewFile({ id, url: '', error: error instanceof Error ? error.message : String(error) }) })
+    return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [selected?.id])
   const folderCounts = useMemo(() => Object.fromEntries(FOLDERS.map(folder => [folder.key, folder.key === 'attention'
     ? allDocuments.filter(doc => doc.status === 'pending' || doc.status === 'conflict').length
     : folder.key === 'permits' ? allDocuments.filter(doc => Boolean(doc.permit)).length
@@ -154,7 +170,7 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
     catch (error) { setFeedback(error instanceof Error ? error.message : String(error)) } finally { setBusy(false) }
   }
   const ext = selected?.filename.split('.').pop()?.toLowerCase()
-  const previewUrl = selected ? projectDocFileUrl(selected.id) : ''
+  const previewUrl = selected && previewFile?.id === selected.id ? previewFile.url : ''
 
   return <div className="docs-library">
     <div className="docs-mailbox-banner"><span>Send or CC files to the project mailbox and they are filed here automatically, with revision tracking.</span><small className={`docs-mailbox-status ${mailboxStatus}`}>{mailboxStatus === 'offline' ? 'Mailbox not connected yet (demo uses sample e-mails)' : mailboxStatus === 'checking' ? 'Checking mailbox connection…' : mailboxStatus === 'connected' ? `Mailbox connected${mailboxReceiptCount ? ` · ${mailboxReceiptCount} receipt${mailboxReceiptCount === 1 ? '' : 's'} filed` : ''}` : 'Mailbox status unavailable'}</small></div>
@@ -183,12 +199,12 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
         {!documents.length && <p className="dim docs-empty">No files in this folder.</p>}
       </section>
       <aside className="docs-preview-panel">{selected ? <>
-        <header><div><span className="docs-file-icon large">{fileIcon(selected.filename)}</span><button title={statusHint(selected.status)} className={`doc-status-pill ${selected.status}`} onClick={() => { const newer = allDocuments.find(item => item.doc_key === selected.doc_key && item.status === 'latest'); if (newer) setSelected(newer) }}>{statusText(selected, allDocuments)}</button></div><h3>{selected.title || selected.filename}</h3><p className="dim small">{selected.filename} · {selected.rev_label ? `Rev ${selected.rev_label}` : 'Revision unknown'}</p><a className="button-link" href={previewUrl} target="_blank" rel="noreferrer">Open / download</a></header>
+        <header><div><span className="docs-file-icon large">{fileIcon(selected.filename)}</span><button title={statusHint(selected.status)} className={`doc-status-pill ${selected.status}`} onClick={() => { const newer = allDocuments.find(item => item.doc_key === selected.doc_key && item.status === 'latest'); if (newer) setSelected(newer) }}>{statusText(selected, allDocuments)}</button></div><h3>{selected.title || selected.filename}</h3><p className="dim small">{selected.filename} · {selected.rev_label ? `Rev ${selected.rev_label}` : 'Revision unknown'}</p><a className="button-link" href={projectDocFileUrl(selected.id)} target="_blank" rel="noreferrer">Open / download</a></header>
         {onAskDocument && <button className="docs-ask-link" onClick={() => onAskDocument(selected)}>Ask about this drawing</button>}
         {selected.status === 'conflict' && <p className="docs-status-explanation">Needs a decision: two different files claim the same revision.</p>}
         {selected.status === 'pending' && <p className="docs-status-explanation">Waiting for approval.</p>}
         {['pending', 'conflict'].includes(selected.status) && <div className="docs-card-actions detail-actions">{selected.status === 'pending' ? <button disabled={busy} onClick={() => void resolve('approve')}>Approve</button> : <button disabled={busy} onClick={() => void resolve('make_latest')}>Keep this one</button>}<button disabled={busy} onClick={() => void resolve('reject')}>Reject</button></div>}
-        {ext === 'pdf' ? <iframe className="docs-preview-frame" src={previewUrl} title={`Preview of ${selected.filename}`} /> : ['png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext || '') ? <img className="docs-preview-image" src={previewUrl} alt={selected.filename} /> : <div className="docs-preview-placeholder">Preview is not available for this file type.</div>}
+        {ext === 'pdf' && previewUrl ? <iframe className="docs-preview-frame" src={previewUrl} title={`Preview of ${selected.filename}`} /> : ['png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext || '') && previewUrl ? <img className="docs-preview-image" src={previewUrl} alt={selected.filename} /> : ['pdf', 'png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext || '') ? <div className="docs-preview-placeholder">{previewFile?.error || 'Loading preview…'}</div> : <div className="docs-preview-placeholder">Preview is not available for this file type.</div>}
         <h4>Version timeline</h4><ol className="docs-history">{versions.map(doc => <li key={doc.id} className={doc.id === selected.id ? 'current' : ''}><button onClick={() => setSelected(doc)}>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'} · {statusText(doc, versions)}</button><small>{doc.filename} · {doc.uploaded_by || '—'} · {timeAgo(doc.uploaded_at)}</small></li>)}</ol>
         <h4>Activity</h4><ul className="docs-history">{events.map((item, index) => <li key={`${item.ts}-${index}`}><span>{String(item.action || item.event || 'Document event')} · {item.actor || 'system'}</span><small>{item.detail || ''} {item.ts ? `· ${timeAgo(item.ts)}` : ''}</small></li>)}</ul>
       </> : <p className="dim">Select a file to preview its contents and history.</p>}</aside>
