@@ -42,5 +42,16 @@ Gigi 在 Google AI Studio 里做了一个设计稿式的 App（**她的代码不
 - 着陆页底部写「Built for Stoa – Make Blueprints Talk · Junction 2026」（Gigi 要求提到 Stoa）
 - 演示数据一律标 Demo；价格页的价格来自经济学同学的方案（490 / 1,190 / 2,790 € 基础价），没有就保留 Gigi 的
 
+## 更新（19:50）
+- **先做完 26 号（3D 稳定性）再做本任务**；本任务里「3D 必须修的」一节已并入 26 号，跳过
+- Gigi 已定稿、可以直接照抄的：**Workspace** 和 **How it works** 页。Education 她还在改，Plans/商业部分以后整页搬，**第 5 步先只做 How it works，Education 和 Plans 留占位链接**
+- 我们有而 Gigi 没有的功能，放进她的布局而不是另开页面：
+  - How I got this（来源/方法/token/成本）→ 回答卡片下方可折叠一行「How I got this」
+  - 面积算式和绿/灰多边形 → 图纸叠加层 + 回答卡片里的算式
+  - 文件夹浏览器/项目卡片 → 顶部「PROJECT 01」点开
+  - 房间聊天、排期、增项、订货、日历、通知、预算、资料库 → 顶栏右侧图标（铃铛、日历、文件、预算胶囊）点开为右侧抽屉；房间相关的放进点房间后的房间卡
+  - 家具目录、展示模式、Tour、Walk → 3D 视图内的工具按钮
+  - 角色（建筑师/电工/水管工/业主）→ 顶栏头像
+
 ## 顺序
 1 工作台三栏 + keynote 卡 + 聊天（含 follow_ups）→ 2 图纸上的高亮、编号、红色未核实、悬停照片、Verify 按钮 → 3 3D 修穿模和缩放 → 4 History / Scale / Layer / Mobile → 5 着陆页、价格、教育版
