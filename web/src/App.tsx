@@ -234,13 +234,25 @@ export default function App() {
         </div>
         {!isIfc && path && <button onClick={scan} disabled={busy}>Scan &amp; number all elements</button>}
 
-        {err && <div className="error">{err}</div>}
+        {err && <div className="error" title={err}><strong>Error:</strong> {err.length > 200 ? err.slice(0, 200) + '…' : err}</div>}
         {mock && <div className="mock">MOCK DATA — engine not connected, numbers are placeholders</div>}
+
+        {busy && (
+          <div className="loading">
+            <div className="spinner" />
+            <span>Gemini is analyzing the drawing…</span>
+          </div>
+        )}
 
         {res && (
           <section className="answer">
             <p className="answer-text">{res.answer_text}</p>
-            {res.evidence.map((e, i) => <VerifyBadge key={i} ev={e} />)}
+            {res.evidence.map((e, i) => (
+              <div key={i}>
+                <VerifyBadge ev={e} />
+                {e.cached && <span className="badge grey">⚡ Cached result</span>}
+              </div>
+            ))}
             {expected && (
               <p className="expected">Ground truth answer: {String(expected.answer)} {expected.unit ?? ''}</p>
             )}
@@ -283,8 +295,17 @@ export default function App() {
             {warnings.length > 0 && (
               <ul className="warnings">{warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}</ul>
             )}
-            <details>
-              <summary>Tool calls ({res.tool_calls.length}): {res.tool_calls.map((t) => t.name).join(' → ')}</summary>
+            <details className="tool-chain">
+              <summary>
+                <span className="tool-chain-label">Gemini</span>
+                {res.tool_calls.map((t, i) => (
+                  <span key={i}>
+                    <span className="tool-arrow"> → </span>
+                    <span className="tool-name">{t.name}</span>
+                  </span>
+                ))}
+                <span className="dim"> ({res.tool_calls.length} call{res.tool_calls.length === 1 ? '' : 's'})</span>
+              </summary>
               <pre>{JSON.stringify(res.tool_calls, null, 2)}</pre>
             </details>
           </section>
