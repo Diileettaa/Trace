@@ -339,6 +339,17 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     setTrades(createInitialTrades())
     setAllLocalIds([])
     setExplorerReady(false)
+    setExploded(false)
+    setExploding(false)
+    setPeelStep(0)
+    setShowcase(false)
+    setTouring(false)
+    setTourStage(0)
+    setRecording(false)
+    if (explodeAnimationRef.current !== null) cancelAnimationFrame(explodeAnimationRef.current)
+    if (tourAnimationRef.current !== null) cancelAnimationFrame(tourAnimationRef.current)
+    explodeAnimationRef.current = null
+    tourAnimationRef.current = null
     modelRef.current = null
     placementsRef.current.clear()
     placedRef.current = []
@@ -476,6 +487,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
 
     return () => {
       cancelled = true
+      if (explodeAnimationRef.current !== null) cancelAnimationFrame(explodeAnimationRef.current)
+      if (tourAnimationRef.current !== null) cancelAnimationFrame(tourAnimationRef.current)
+      stopRecording()
+      showcaseLightsRef.current?.removeFromParent()
+      showcaseLightsRef.current = null
       engine.current = null
       if (components) { try { components.dispose() } catch { /* best effort */ } }
     }
@@ -1178,6 +1194,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     void e.world.camera.fitToItems()
   }
 
+  function resetView() {
+    if (explodeAnimationRef.current !== null) cancelAnimationFrame(explodeAnimationRef.current)
+    if (tourAnimationRef.current !== null) cancelAnimationFrame(tourAnimationRef.current)
+    explodeAnimationRef.current = null
+    tourAnimationRef.current = null
+    stopRecording()
+    setExploded(false); setExploding(false); setPeelStep(0); setShowcase(false)
+    setTouring(false); setTourStage(0); setPlanView(false); setSelectedStoreyId(null)
+    setTrades(createInitialTrades())
+    const model = modelRef.current
+    if (model) void applyExplodedView(model, storeys, 0, 6, placementsRef.current)
+    requestAnimationFrame(() => fitModel())
+  }
+
   async function zoomToSelection() {
     const e = engine.current
     if (!e) return
@@ -1441,6 +1471,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <button className={`showcase-toggle ${showcase ? 'on' : ''}`} title="Dark presentation lighting and soft shadows" disabled={!modelReady} onClick={() => setShowcase(value => !value)}>{showcase ? '✦ Showcase on' : '✦ Showcase'}</button>
       {showcase && <span className="showcase-quality">{showcaseDegraded ? 'Performance lighting' : 'Soft-shadow lighting'}</span>}
       <button title="Fit the whole model in view" disabled={!modelReady} onClick={fitModel}>Fit</button>
+      <button title="Restore the model, camera and filters to their initial state" disabled={!modelReady} onClick={resetView}>Reset view</button>
       {walkMode
         ? <button className="walk-active" onClick={stopWalk}>Exit Walk · Esc</button>
         : <button title="Enter first-person room view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
