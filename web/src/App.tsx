@@ -112,6 +112,7 @@ export default function App() {
     const timer = window.setInterval(tick, 250)
     return () => window.clearInterval(timer)
   }, [busyAction])
+  useEffect(() => { if (activePage === 'ask') setViewMode('2d') }, [activePage, path])
 
   const evidence: Evidence[] = useMemo(() => [...(inv ? [inv] : []), ...(res?.evidence ?? [])], [inv, res])
   const visibleSamples = useMemo(() => samples.filter(q => !path || q.path === path), [samples, path])
