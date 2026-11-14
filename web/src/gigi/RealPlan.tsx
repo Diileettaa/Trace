@@ -7,6 +7,7 @@ import { api, layerOf, type FixtureVerification, type LayerId, type QueryScenari
 
 interface Props {
   path: string;
+  page?: number;          // ours: sheet page inside a multi-page PDF set
   scenario: QueryScenario | null;
   activeLayers: Record<LayerId, boolean>;
   scale: ScaleOption;
@@ -28,7 +29,7 @@ interface Props {
 const ZOOM: Record<ScaleOption, number> = { '1:200': 1, '1:100': 2, '1:50': 4, '1:20': 8 };
 
 export const RealPlan: React.FC<Props> = ({
-  path, scenario, activeLayers, scale, activeFloor, fixtures, selectedFixtureId, onSelectFixtureFor3D, onImageSize,
+  path, page = 1, scenario, activeLayers, scale, activeFloor, fixtures, selectedFixtureId, onSelectFixtureFor3D, onImageSize,
   tool = 'view', removed, added = [], measurePts = [], onToggleRemove, onAddBox, onMeasurePoint,
 }) => {
   const [draft, setDraft] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
@@ -37,7 +38,7 @@ export const RealPlan: React.FC<Props> = ({
   const [hoveredFixtureId, setHoveredFixtureId] = useState<string | null>(null);
   const [dwellReadyId, setDwellReadyId] = useState<string | null>(null);
   const dwellTimerRef = useRef<number | null>(null);
-  const url = api.drawingUrl(path);
+  const url = api.drawingUrl(path, page);
   // ours: drag to pan, wheel / pinch to zoom (on top of the LoD scale, reset when the scale or answer changes)
   const [userView, setUserView] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);

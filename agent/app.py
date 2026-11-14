@@ -659,6 +659,20 @@ def drawing_catalog(kind: str | None = None):
     return catalog.catalog(kind)
 
 
+@app.get("/sheetset")
+def sheetset_catalogue(project: str):
+    """Every drawing of a project grouped by discipline and level (engine.sheetset, rules only)."""
+    from . import sheetset_api
+    return sheetset_api.catalogue(project)
+
+
+@app.get("/sheetset/pick")
+def sheetset_pick(project: str, q: str, current: str | None = None):
+    """Best sheet(s) for a question, with the reasons."""
+    from . import sheetset_api
+    return sheetset_api.pick(project, q, current)
+
+
 @app.get("/catalog/projects")
 def catalog_projects(q: str = "", offset: int = 0, limit: int = 20):
     """Search and paginate across all project cards (featured, auto, and uploaded)."""

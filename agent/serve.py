@@ -35,6 +35,16 @@ def _prewarm_ifc():
 
         threading.Thread(target=prewarm_ifc_indexes, daemon=True).start()
 
+        def _sheetsets():
+            try:
+                from . import catalog, sheetset_api
+                for p in catalog.tree().get("projects", []):
+                    sheetset_api.catalogue(p["id"])
+            except Exception as e:  # never block startup
+                print("sheetset prewarm failed:", e)
+
+        threading.Thread(target=_sheetsets, daemon=True).start()
+
 
 @app.on_event("startup")
 def _seed_on_startup():

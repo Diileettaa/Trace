@@ -22,7 +22,13 @@ interface ChatMessage {
   followUps?: { id: string; question: string }[];
   pending?: boolean;
   error?: boolean;
+  source?: { label: string; path: string; page: number; why: string[] };  // ours: which sheet answered (engine.sheetset pick)
 }
+// ours: Xinran's sheet set — every drawing of the project by discipline and level
+interface Sheet { path: string; page: number; kind?: string | null; discipline: string; level?: string | null; title?: string | null; sheet_no?: string | null; why: string[]; score?: number }
+interface SheetGroup { discipline: string; label: string; sheets: Sheet[] }
+const sheetName = (s: Sheet) => [s.sheet_no, s.level, s.kind === 'model' ? '3D model' : s.kind && s.kind !== 'doc' ? s.kind : null].filter(Boolean).join(' · ') || (s.path.split('/').pop() || s.path);
+const sheetFile = (s: Sheet) => `${s.path.split('/').pop()}${s.page > 1 ? ` · p.${s.page}` : ''}`;
 interface ChatSession { id: string; title: string; timestamp: string; messages: ChatMessage[] }
 interface Project { id: string; title: string; subtitle?: string; model: string | null; plan: string | null; demo_data?: boolean }
 
@@ -60,6 +66,9 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [projects, setProjects] = useState<Project[]>(DEFAULT_PROJECTS);
   const [project, setProject] = useState<Project>(() => load('trace.gigi.project', DEFAULT_PROJECTS[0]));
   const [askPath, setAskPath] = useState<string>(() => project.plan || project.model || '');
+  const [sheetPage, setSheetPage] = useState<number>(1);
+  const [sheetGroups, setSheetGroups] = useState<SheetGroup[]>([]);
+  const sheetCount = sheetGroups.reduce((n, g) => n + g.sheets.length, 0);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [quickPrompts, setQuickPrompts] = useState<string[]>(FALLBACK_PROMPTS);
 
@@ -73,7 +82,10 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [storeys, setStoreys] = useState<{ id: string; name: string; elevation: number }[]>([]);
   const [storeyId, setStoreyId] = useState<string | null>(null);
   const chosenStorey = storeys.find((s) => s.id === storeyId);
-  const activeFloor = chosenStorey ? chosenStorey.name.toUpperCase() : sheetLabel(project, askPath);
+  const currentSheet = sheetGroups.flatMap((g) => g.sheets).find((sh) => sh.path === askPath && (sh.page === sheetPage || /\.ifc$/i.test(askPath)));
+  const activeFloor = chosenStorey ? chosenStorey.name.toUpperCase()
+    : currentSheet && sheetCount > 2 && !/\.ifc$/i.test(askPath) ? (currentSheet.sheet_no || currentSheet.level || sheetLabel(project, askPath)).toUpperCase()
+    : sheetLabel(project, askPath);
   const [floorMenuOpen, setFloorMenuOpen] = useState<boolean>(false);
   const floorHoverTimer = useRef<number | null>(null);
 
@@ -118,6 +130,11 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
     }).catch(() => undefined);
   }, []);
   useEffect(() => { save('trace.gigi.project', project); }, [project]);
+  useEffect(() => {
+    setSheetGroups([]);
+    fetch(`/api/sheetset?project=${encodeURIComponent(project.id)}`).then((r) => r.json())
+      .then((d) => setSheetGroups(Array.isArray(d?.groups) ? d.groups : [])).catch(() => setSheetGroups([]));
+  }, [project.id]);
   useEffect(() => { save(chatKey, chats); }, [chats, chatKey]);
   useEffect(() => {
     if (!askPath) return;
@@ -200,6 +217,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const switchProject = (p: Project) => {
     setProject(p);
     setAskPath(p.plan || p.model || '');
+    setSheetPage(1);
     setChats(load(`trace.gigi.chats.${p.id}`, [] as ChatSession[]));
     setActiveChatId('');
     setFixtures({});
@@ -255,23 +273,37 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
       });
     });
     try {
-      const ask = await api.ask(askPath, promptText);
+      // ours: if the project has several sheets, let the sheet set pick the one that answers this question
+      let usePath = askPath;
+      let usePage = sheetPage;
+      let source: ChatMessage['source'];
+      if (sheetCount > 1) {
+        const r = await fetch(`/api/sheetset/pick?project=${encodeURIComponent(project.id)}&q=${encodeURIComponent(promptText)}&current=${encodeURIComponent(askPath)}`)
+          .then((x) => x.json()).catch(() => null);
+        const top: Sheet | undefined = r?.picks?.[0];
+        if (top && !(top.why || []).includes('no specific match')) {
+          usePath = top.path; usePage = top.page;
+          source = { label: [top.title, sheetName(top)].filter(Boolean).join(' — '), path: top.path, page: top.page, why: top.why || [] };
+          if (usePath !== askPath || usePage !== sheetPage) { setAskPath(usePath); setSheetPage(usePage); }
+        }
+      }
+      const ask = await api.ask(usePath, promptText);
       const items: any[] = ask?.evidence?.[0]?.items || [];
       const ids = items.map((it: any) => String(it.id)).filter(Boolean);
       const [plan, verify] = await Promise.all([
-        api.planRooms(askPath).catch(() => null),
-        ids.length ? api.verifyStatus(askPath, ids).catch(() => null) : Promise.resolve(null),
+        api.planRooms(usePath).catch(() => null),
+        ids.length ? api.verifyStatus(usePath, ids).catch(() => null) : Promise.resolve(null),
       ]);
-      const { scenario: sc, fixtures: fx } = toScenario(ask, promptText, askPath, plan, verify, imageSize);
+      const { scenario: sc, fixtures: fx } = toScenario(ask, promptText, usePath, plan, verify, imageSize);
       (sc as any).__fixtures = fx;
       setFixtures(fx);
       setSelectedFixtureId(null);
-      setViewMode('2d');
+      setViewMode(/\.ifc$/i.test(usePath) && !project.plan ? '3d-building' : '2d');
       setScale(sc.recommendedScale);
       setActiveLayers((prev) => { const u = { ...prev }; sc.requiredLayers.forEach((l) => { u[l] = true; }); return u; });
       patchChat(chatId, (c) => ({ ...c, messages: c.messages.map((m) => m.id !== pendingId ? m : {
         id: pendingId, role: 'assistant', text: sc.aiSummary || 'No answer.', bigMetric: sc.bigMetric, scenario: sc,
-        followUps: sc.followUpQuestions.map((f) => ({ id: f.id, question: f.question })),
+        followUps: sc.followUpQuestions.map((f) => ({ id: f.id, question: f.question })), source,
       }) }));
     } catch (e) {
       patchChat(chatId, (c) => ({ ...c, messages: c.messages.map((m) => m.id !== pendingId ? m : {
@@ -584,8 +616,8 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
 
         <div className="border border-[#A9AFB0]/40 rounded-xl overflow-hidden">
           {viewMode === '2d' ? (
-            project.plan || !project.model ? (
-              <RealPlan path={askPath} scenario={scenario} activeLayers={activeLayers} scale={scale} activeFloor={activeFloor}
+            project.plan || !project.model || !/\.ifc$/i.test(askPath) ? (
+              <RealPlan path={askPath} page={sheetPage} scenario={scenario} activeLayers={activeLayers} scale={scale} activeFloor={activeFloor}
                 fixtures={fixtures} selectedFixtureId={selectedFixtureId} onImageSize={setImageSize}
                 tool={tool} removed={removed} added={added} measurePts={measurePts}
                 onToggleRemove={(id) => setRemoved((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
@@ -645,6 +677,14 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                 {msg.pending && <Loader2 className="w-4 h-4 animate-spin text-[#9A7218] mb-1" />}
                 {msg.bigMetric && <div className="text-2xl font-display font-semibold text-[#202427] tabular-nums mb-1">{msg.bigMetric}</div>}
                 <p className="whitespace-pre-line">{msg.text}</p>
+                {msg.source && (
+                  <button type="button" onClick={() => { setAskPath(msg.source!.path); setSheetPage(msg.source!.page); setViewMode(/\.ifc$/i.test(msg.source!.path) ? '3d-building' : '2d'); }}
+                    title={`Why this sheet: ${msg.source.why.join(' · ')}`}
+                    className="mt-2 w-full text-left px-2 py-1.5 rounded bg-[#F7F6F2] border border-[#A9AFB0]/45 text-[10.5px] text-[#202427]/80 hover:border-[#E9B949] cursor-pointer">
+                    <span className="font-semibold text-[#202427]">Answer from sheet:</span> {msg.source.label}
+                    <span className="block font-mono text-[10px] text-[#202427]/55 truncate">{msg.source.path.split('/').pop()}{msg.source.page > 1 ? ` · page ${msg.source.page}` : ''} · picked because: {msg.source.why.join(', ')}</span>
+                  </button>
+                )}
 
                 {/* ours: uncertain readings / alternatives from the engine */}
                 {sc?.uncertain && (
@@ -779,7 +819,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               <span>{activeFloor}</span><ChevronDown className="w-3 h-3" />
             </button>
             {floorMenuOpen && (
-              <div onMouseLeave={() => setFloorMenuOpen(false)} className="absolute left-0 top-full mt-1.5 w-72 rounded-xl bg-[#202427] border border-[#E9B949]/60 shadow-xl py-1.5 z-50">
+              <div onMouseLeave={() => setFloorMenuOpen(false)} className="absolute left-0 top-full mt-1.5 w-80 rounded-xl bg-[#202427] border border-[#E9B949]/60 shadow-xl py-1.5 z-50">
                 {project.model && (
                   <>
                     <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-b border-white/10">Building Floors (3D)</div>
@@ -796,6 +836,30 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                     ))}
                   </>
                 )}
+                {sheetCount > 0 ? (
+                  <div className="max-h-[50vh] overflow-y-auto">
+                    <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-y border-white/10">Sheet Set · {sheetCount} drawing{sheetCount === 1 ? '' : 's'} by discipline</div>
+                    {sheetGroups.map((g) => (
+                      <div key={g.discipline}>
+                        <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[#E9B949]/90">{g.label} · {g.sheets.length}</div>
+                        {g.sheets.map((sh) => {
+                          const on = askPath === sh.path && (sheetPage === sh.page || /\.ifc$/i.test(sh.path));
+                          return (
+                            <button key={`${sh.path}#${sh.page}`} type="button" title={`Sorted here because: ${sh.why.join(' · ')}`}
+                              onClick={() => { setAskPath(sh.path); setSheetPage(sh.page); setStoreyId(null); setFloorMenuOpen(false); setViewMode(/\.ifc$/i.test(sh.path) ? '3d-building' : '2d'); }}
+                              className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${on ? 'bg-[#E9B949]/20 text-[#E9B949]' : 'text-[#F7F6F2] hover:bg-white/10'}`}>
+                              <div className="min-w-0">
+                                <div className="font-mono font-semibold truncate">{sheetName(sh)}</div>
+                                <div className="text-[10px] text-[#A9AFB0] font-sans truncate">{sh.title ? `${sh.title} · ` : ''}{sheetFile(sh)}</div>
+                              </div>
+                              {on && <Check className="w-3.5 h-3.5 text-[#E9B949] shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ) : (<>
                 <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-y border-white/10">Switch Sheet (2D)</div>
                 {[project.plan, project.model].filter(Boolean).map((p) => (
                   <button key={p!} type="button" onClick={() => { setAskPath(p!); setStoreyId(null); setFloorMenuOpen(false); setViewMode(p!.toLowerCase().endsWith('.ifc') ? '3d-building' : '2d'); }}
@@ -807,6 +871,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                     {askPath === p && <Check className="w-3.5 h-3.5 text-[#E9B949]" />}
                   </button>
                 ))}
+                </>)}
               </div>
             )}
           </div>
