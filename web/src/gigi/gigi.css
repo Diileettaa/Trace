@@ -34,3 +34,14 @@
 
 /* our viewer's light popup clashes with Gigi's frame: replaced by the dark room card in Real3D */
 .gigi-3d .ifc-action-popup { display: none !important; }
+
+/* Compact, elegant camera control inside Gigi's 3D frame (overrides our viewer's big control) */
+.gigi-3d .camera-nav { position:absolute !important; right:10px !important; bottom:10px !important; top:auto !important; left:auto !important; width:auto !important; height:auto !important; display:flex !important; flex-direction:row !important; align-items:center !important; gap:1px !important; padding:3px !important; border-radius:999px !important; background:rgba(32,36,39,.85) !important; border:1px solid rgba(233,185,73,.45) !important; box-shadow:0 2px 8px rgba(0,0,0,.25) !important; z-index:5; }
+.gigi-3d .camera-nav input { display:none !important; }
+.gigi-3d .camera-nav button { width:26px !important; height:26px !important; min-width:0 !important; padding:0 !important; margin:0 !important; border:0 !important; border-radius:999px !important; background:transparent !important; color:#F7F6F2 !important; font:500 14px/26px "DM Sans", sans-serif !important; box-shadow:none !important; }
+.gigi-3d .camera-nav button:nth-of-type(3), .gigi-3d .camera-nav button:nth-of-type(4) { width:auto !important; padding:0 8px !important; font:500 10px/26px "IBM Plex Mono", monospace !important; letter-spacing:.02em; color:#A9AFB0 !important; }
+.gigi-3d .camera-nav button:hover { background:rgba(233,185,73,.22) !important; color:#E9B949 !important; }
+/* Explode / Peel are presentation effects for the Project page; Gigi's frame uses the LEVEL switcher instead */
+.gigi-3d .showcase-motion-controls, .gigi-3d .viewer-help-control, .gigi-3d .viewer-help-popover { display:none !important; }
+/* Walk entry: small dark pill, same family as the camera control */
+.gigi-3d .walk-inside-button { left:10px !important; bottom:10px !important; padding:5px 12px !important; font:600 11px/1.4 "DM Sans", sans-serif !important; border-radius:999px !important; background:rgba(32,36,39,.88) !important; color:#E9B949 !important; border:1px solid rgba(233,185,73,.45) !important; box-shadow:0 2px 8px rgba(0,0,0,.25) !important; }

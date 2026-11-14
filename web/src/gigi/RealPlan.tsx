@@ -170,11 +170,14 @@ export const RealPlan: React.FC<Props> = ({
             const p = fixture.position!;
             const isSelected = selectedFixtureId === fixture.id;
             const isHovered = hoveredFixtureId === fixture.id;
-            const isUnverified = !fixture.verified;
+            // red only for reported problems; elements nobody has checked yet are neutral
+            const st = fixture.status;
+            const isUnverified = st === 'Issue Reported';
+            const notChecked = st === 'Not checked';
             const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-            const fillColor = isUnverified ? '#EF4444' : '#E9B949';
-            const strokeColor = isUnverified ? '#B91C1C' : '#C98A12';
-            const tagTextColor = isUnverified ? '#FCA5A5' : '#E9B949';
+            const fillColor = isUnverified ? '#EF4444' : notChecked ? '#A9AFB0' : st === 'Installed' ? '#E9B949' : '#F3D58A';
+            const strokeColor = isUnverified ? '#B91C1C' : notChecked ? '#6B7376' : '#C98A12';
+            const tagTextColor = isUnverified ? '#FCA5A5' : notChecked ? '#E8E6DF' : '#E9B949';
             const pad = 6 * k;
             return (
               <g key={fixture.id} onClick={() => onSelectFixtureFor3D(fixture.id)}
@@ -182,7 +185,7 @@ export const RealPlan: React.FC<Props> = ({
                 className="cursor-pointer" role="button" tabIndex={0} aria-label={`Inspect ${fixture.label} in 3D`}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectFixtureFor3D(fixture.id); } }}>
                 <rect x={p.x - pad} y={p.y - pad} width={p.w + 2 * pad} height={p.h + 2 * pad} rx={3 * k}
-                  fill={fillColor} fillOpacity={isSelected || isHovered ? 0.58 : 0.4} stroke={strokeColor}
+                  fill={fillColor} fillOpacity={isSelected || isHovered ? 0.58 : notChecked ? 0.18 : 0.4} stroke={strokeColor}
                   strokeWidth={(isSelected ? 2.5 : 2) * k} strokeDasharray={`${5 * k} ${3 * k}`} />
                 <circle cx={cx} cy={cy} r={4.2 * k} fill={strokeColor} stroke="#FCFCF9" strokeWidth={1.2 * k} />
                 {idx === 0 && (
@@ -196,7 +199,7 @@ export const RealPlan: React.FC<Props> = ({
                   </g>
                 )}
                 <rect x={p.x - 5 * k} y={p.y + p.h + 8 * k} width={Math.max(p.w + 16 * k, fixture.code.length * 4.2 * k + 8 * k)}
-                  height={12 * k} rx={2.5 * k} fill={isUnverified ? '#7F1D1D' : '#202427'} />
+                  height={12 * k} rx={2.5 * k} fill={isUnverified ? '#7F1D1D' : notChecked ? '#555C60' : '#202427'} />
                 <text x={p.x - 5 * k + Math.max(p.w + 16 * k, fixture.code.length * 4.2 * k + 8 * k) / 2}
                   y={p.y + p.h + 16.5 * k} textAnchor="middle" fill={tagTextColor} fontSize={5.8 * k} fontWeight="600"
                   fontFamily="IBM Plex Mono, monospace">{fixture.code}</text>
@@ -220,7 +223,7 @@ export const RealPlan: React.FC<Props> = ({
               {dwellFixture.code} · {dwellFixture.photoLabel}
             </span>
             <span className={`text-[10px] font-mono ${dwellFixture.verified ? 'text-[#A9AFB0]' : 'text-red-300'}`}>
-              {dwellFixture.verified ? 'Verified' : 'Unverified'}
+              {dwellFixture.status}
             </span>
           </div>
           <div className="relative h-36 bg-[#16191B]">
@@ -244,7 +247,7 @@ export const RealPlan: React.FC<Props> = ({
 
       {/* Subtle Hint Strip */}
       <div className="px-3.5 py-1.5 border-t border-[#A9AFB0]/25 bg-white flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#202427]/70">
-        <span>Drag to move · scroll to zoom · hover &gt;1s over a mark for its site photo · click a mark for 3D.</span>
+        <span><b className="text-[#C98A12]">■</b> checked · <b className="text-red-600">■</b> issue · <b className="text-[#8A9194]">■</b> not checked yet · drag to move · scroll to zoom · hover &gt;1s for site photo · click for 3D</span>
         {userView && <button type="button" onClick={() => setUserView(null)} className="font-mono text-[#9A7218] underline cursor-pointer">Reset view</button>}
         <span className="font-mono text-[#202427] font-medium">LoD Scale {scale}</span>
       </div>

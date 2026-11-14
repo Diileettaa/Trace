@@ -83,14 +83,14 @@ export const Real3D: React.FC<Props> = ({
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 flex-wrap">
               {strip.map((sib) => {
-                const isUnverified = !sib.verified;
+                const isUnverified = sib.status === 'Issue Reported';
                 const isSelected = sib.id === fixture?.id;
                 return (
                   <button key={sib.id} type="button" onClick={() => onSelectSibling(sib.id)}
                     className={`px-2.5 py-1 text-xs font-mono rounded transition-colors cursor-pointer border ${isSelected
                       ? isUnverified ? 'bg-red-600 text-white border-red-400 font-semibold' : 'bg-[#E9B949] text-[#202427] border-[#E9B949] font-semibold'
                       : isUnverified ? 'bg-red-950/60 text-red-300 border-red-500/60' : 'bg-white/5 text-[#A9AFB0] border-white/15 hover:text-[#F7F6F2]'}`}>
-                    {sib.code} {isUnverified ? '· Unverified' : ''}
+                    {sib.code} {isUnverified ? '· Issue' : sib.status === 'Not checked' ? '' : `· ${sib.status}`}
                   </button>
                 );
               })}
@@ -105,7 +105,7 @@ export const Real3D: React.FC<Props> = ({
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
               onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }}
               isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}
-              elementTags={siblingFixtures.filter((f) => isGuid(f.id)).slice(0, 60).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
+              elementTags={mode !== 'room' ? [] : siblingFixtures.filter((f) => isGuid(f.id)).slice(0, 60).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
               clearances={mode === 'room' && fixture && isGuid(fixture.id) && fixture.clearanceMm ? { guid: fixture.id, ...fixture.clearanceMm } : undefined}
               roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
               hideRoomLabels={mode === 'room'} />
@@ -155,7 +155,7 @@ export const Real3D: React.FC<Props> = ({
             {rows.length ? rows.slice(0, 4).map((r) => (
               <div key={r.key} className="bg-[#171A1C] px-3 py-2 rounded-lg border border-white/10">
                 <div className="text-[10px] text-[#A9AFB0]">{r.label}</div>
-                <div className={`text-xs font-mono font-semibold mt-0.5 ${r.accent ? (fixture.verified ? 'text-[#E9B949]' : 'text-red-400') : 'text-[#F7F6F2]'}`}>
+                <div className={`text-xs font-mono font-semibold mt-0.5 ${r.accent ? (fixture.status === 'Issue Reported' ? 'text-red-400' : 'text-[#E9B949]') : 'text-[#F7F6F2]'}`}>
                   {dims[r.key]}
                 </div>
               </div>

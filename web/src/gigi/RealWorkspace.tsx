@@ -139,7 +139,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
         next[id] = v ? {
           ...f,
           verified: !!v.verified,
-          status: v.status || (v.verified ? 'Installed' : 'In Progress'),
+          status: v.status || (v.verified ? 'Installed' : 'Not checked'),
           author: v.latest?.author || v.author || f.author,
           capturedAt: v.latest?.ts || v.ts || f.capturedAt,
           note: v.note || f.note,
@@ -156,9 +156,11 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const scenarioFixtures = (scenario?.targetIds || []).map((id) => fixtures[id]).filter(Boolean) as FixtureVerification[];
   const active3DFixture = (selectedFixtureId && fixtures[selectedFixtureId]) || scenarioFixtures[0] || null;
   const allTargetsVerified = scenarioFixtures.length > 0 && scenarioFixtures.every((f) => f.verified);
-  const unverifiedFixture = scenarioFixtures.find((f) => !f.verified);
-  const overallStatus: VerificationStatus = scenarioFixtures.some((f) => f.status === 'Issue Reported') ? 'Issue Reported'
-    : allTargetsVerified ? 'Installed' : 'In Progress';
+  const unverifiedFixture = scenarioFixtures.find((f) => f.status === 'Issue Reported') || scenarioFixtures.find((f) => !f.verified);
+  const counts = scenarioFixtures.reduce((a, f) => { a[f.status] = (a[f.status] || 0) + 1; return a; }, {} as Record<string, number>);
+  const overallStatus: VerificationStatus = counts['Issue Reported'] ? 'Issue Reported'
+    : scenarioFixtures.length && counts['Installed'] === scenarioFixtures.length ? 'Installed'
+    : (counts['In Progress'] || counts['Installed']) ? 'In Progress' : 'Not checked';
 
   // product data + clearances for the element shown in 3D
   useEffect(() => {
@@ -335,6 +337,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const getStatusLabel = (status: VerificationStatus) => {
     if (status === 'Installed') return (<span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /><span>Installed</span></span>);
     if (status === 'Issue Reported') return (<span className="inline-flex items-center gap-1 text-red-600 font-semibold"><AlertTriangle className="w-3.5 h-3.5 text-red-600" /><span>Issue Reported</span></span>);
+    if (status === 'Not checked') return (<span className="inline-flex items-center gap-1 text-[#555C60] font-semibold"><Clock className="w-3.5 h-3.5 text-[#8A9194]" /><span>Not checked yet</span></span>);
     return (<span className="inline-flex items-center gap-1 text-[#9A7218] font-semibold"><Clock className="w-3.5 h-3.5 text-[#9A7218]" /><span>In Progress</span></span>);
   };
 
@@ -454,8 +457,8 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
           <div className={`rounded-xl border px-3.5 py-2.5 ${overallStatus === 'Issue Reported' && scenario ? 'border-red-300 bg-red-50/70' : 'border-[#A9AFB0]/45 bg-[#F7F6F2]/70'}`}>
             <div className="text-[11px] font-medium text-[#202427]/75">Status</div>
             <div className="text-xs mt-1.5">{scenario ? getStatusLabel(overallStatus) : <span className="text-[#202427]/50">No answer yet</span>}</div>
-            <div className="text-[10px] font-mono text-[#202427]/65 mt-1 truncate">
-              {scenarioFixtures.filter((f) => f.verified).length}/{scenarioFixtures.length} verified
+            <div className="text-[10px] font-mono text-[#202427]/65 mt-1 truncate" title="Site checks recorded for the elements in this answer">
+              {scenarioFixtures.length ? [counts['Issue Reported'] && `${counts['Issue Reported']} issue`, counts['In Progress'] && `${counts['In Progress']} in progress`, counts['Installed'] && `${counts['Installed']} checked`, counts['Not checked'] && `${counts['Not checked']} not checked`].filter(Boolean).join(' · ') : '—'}
             </div>
           </div>
         </div>
@@ -493,7 +496,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
         <span className="text-[10px] font-mono text-[#202427]/60">
           {!scenarioFixtures.length ? 'Ask a question to get elements to verify.'
             : allTargetsVerified ? 'All targets verified — hover >1s over any mark for photo.'
-            : `${unverifiedFixture?.code} (marked red) is awaiting site photo.`}
+            : unverifiedFixture?.status === 'Issue Reported' ? `${unverifiedFixture.code} (red) has a reported issue.` : 'Add a site photo to record a check.'}
         </span>
       </div>
     </div>
@@ -539,11 +542,11 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                     }} className="w-full py-1.5 px-2.5 rounded bg-[#E9B949] hover:bg-[#E9B949]/90 text-[#202427] text-[11px] font-semibold transition-colors cursor-pointer text-left">
                       View {sc.roomCode} in 3D →
                     </button>
-                    {msgFixtures.slice(0, 8).map((fix) => (
+                    {[...msgFixtures].sort((a, b) => ['Issue Reported', 'In Progress', 'Installed', 'Not checked'].indexOf(a.status) - ['Issue Reported', 'In Progress', 'Installed', 'Not checked'].indexOf(b.status)).slice(0, 8).map((fix) => (
                       <button key={fix.id} type="button" onClick={() => { setSelectedFixtureId(fix.id); setViewMode('3d-room'); if (devicePreview === 'mobile') setMobileTab('plan'); }}
-                        className={`w-full text-left px-2 py-1 rounded border flex items-center justify-between gap-1.5 text-[11px] cursor-pointer ${!fix.verified ? 'bg-red-50 border-red-300 text-red-900' : 'bg-[#F7F6F2] border-[#A9AFB0]/35 text-[#202427]'}`}>
+                        className={`w-full text-left px-2 py-1 rounded border flex items-center justify-between gap-1.5 text-[11px] cursor-pointer ${fix.status === 'Issue Reported' ? 'bg-red-50 border-red-300 text-red-900' : 'bg-[#F7F6F2] border-[#A9AFB0]/35 text-[#202427]'}`}>
                         <span className="font-mono font-semibold">{fix.code}</span>
-                        <span className="truncate flex-1">{fix.verified ? fix.status : 'Unverified (Red)'}</span>
+                        <span className={`truncate flex-1 ${fix.status === 'Not checked' ? 'text-[#202427]/55' : ''}`}>{fix.status}</span>
                         <span className="font-medium underline">3D</span>
                       </button>
                     ))}
@@ -766,7 +769,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                 <label className="block text-xs font-medium mb-1">Target Fixture</label>
                 <select value={verifyTargetId} onChange={(e) => { const id = e.target.value; setVerifyTargetId(id); const f = fixtures[id]; if (f) { setVerifyStatus(f.status); setVerifyNote(f.verified ? f.note : ''); setVerifyPhotoPreview(f.photoDataUrl); } }}
                   className="w-full px-3 py-2 text-sm bg-white border border-[#A9AFB0]/60 rounded-lg">
-                  {scenarioFixtures.map((f) => <option key={f.id} value={f.id}>{f.code} — {f.label} ({f.verified ? 'Verified' : 'Unverified - Red'})</option>)}
+                  {scenarioFixtures.map((f) => <option key={f.id} value={f.id}>{f.code} — {f.label} ({f.status})</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -781,6 +784,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                     <option value="Installed">Installed</option>
                     <option value="In Progress">In Progress</option>
                     <option value="Issue Reported">Issue Reported</option>
+                    <option value="Not checked">Not checked</option>
                   </select>
                 </div>
               </div>

@@ -7,7 +7,7 @@ import { roomEnglish } from '../roomNames';
 
 export type LayerId = 'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'dimensions';
 export type ScaleOption = '1:200' | '1:100' | '1:50' | '1:20';
-export type VerificationStatus = 'Installed' | 'In Progress' | 'Issue Reported';
+export type VerificationStatus = 'Installed' | 'In Progress' | 'Issue Reported' | 'Not checked';
 
 export interface Box { x: number; y: number; w: number; h: number }
 
@@ -132,7 +132,8 @@ export function toScenario(
     const id = String(it.id ?? `${path}#item-${i + 1}`);
     const src = it.source_index != null ? sources[it.source_index] : sources[i];
     const v = verify?.[id];
-    const status: VerificationStatus = v?.status || (v?.verified ? 'Installed' : 'In Progress');
+    // nobody has looked at most elements yet: that is "Not checked", not a problem (red = Issue Reported only)
+    const status: VerificationStatus = v?.status || (v?.verified ? 'Installed' : 'Not checked');
     fixtures[id] = {
       id,
       code: it.label || `${(it.category || 'ITEM').slice(0, 3).toUpperCase()}-${i + 1}`,
@@ -144,7 +145,7 @@ export function toScenario(
       verified: !!v?.verified,
       author: v?.latest?.author || v?.author,
       capturedAt: v?.latest?.ts || v?.ts,
-      note: v?.note || (v?.verified ? '' : 'Unverified: no site photo yet.'),
+      note: v?.note || (v?.verified ? '' : 'Not checked on site yet.'),
       photoDataUrl: v?.latest?.url ? `/api${v.latest.url.startsWith('/') ? '' : '/'}${v.latest.url}` : '',
       photoLabel: v?.latest ? `Site photo · ${v.latest.author || 'team'}` : 'No site photo yet',
       manufacturer: 'Loading…',
@@ -175,7 +176,8 @@ export function toScenario(
 
   const fx = Object.values(fixtures);
   const overallStatus: VerificationStatus = fx.some((f) => f.status === 'Issue Reported')
-    ? 'Issue Reported' : fx.length && fx.every((f) => f.verified && f.status === 'Installed') ? 'Installed' : 'In Progress';
+    ? 'Issue Reported' : fx.length && fx.every((f) => f.status === 'Installed') ? 'Installed'
+    : fx.some((f) => f.status === 'In Progress' || f.status === 'Installed') ? 'In Progress' : 'Not checked';
 
   const value = ev.value;
   const unit = ev.unit || '';
