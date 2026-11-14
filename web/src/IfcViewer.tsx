@@ -303,10 +303,13 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
   const [touring, setTouring] = useState(false)
   const [tourStage, setTourStage] = useState(0)
+  const [recording, setRecording] = useState(false)
+  const [transparentCapture, setTransparentCapture] = useState(false)
   const showcaseLightsRef = useRef<THREE.Group | null>(null)
   const explodeAnimationRef = useRef<number | null>(null)
   const tourAnimationRef = useRef<number | null>(null)
   const tourDoneRef = useRef<(() => void) | null>(null)
+  const recordingRef = useRef<{ recorder: MediaRecorder; frame: number; stream: MediaStream } | null>(null)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -589,6 +592,61 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       else stopTour()
     }
     tourAnimationRef.current = requestAnimationFrame(tick)
+  }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.href = url; link.download = filename; link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  function stopRecording() {
+    const active = recordingRef.current
+    if (!active) return
+    recordingRef.current = null
+    cancelAnimationFrame(active.frame)
+    active.stream.getTracks().forEach(track => track.stop())
+    if (active.recorder.state !== 'inactive') active.recorder.stop()
+    setRecording(false)
+  }
+
+  function recordTour() {
+    const source = engine.current?.world.renderer?.three.domElement
+    if (!source || typeof MediaRecorder === 'undefined') { setStatus('Video recording is not supported in this browser.'); return }
+    const output = document.createElement('canvas')
+    output.width = 1920; output.height = 1080
+    const context = output.getContext('2d')
+    if (!context || !output.captureStream) { setStatus('Video recording is not supported in this browser.'); return }
+    let frame = 0
+    const draw = () => { context.drawImage(source, 0, 0, output.width, output.height); frame = requestAnimationFrame(draw); if (recordingRef.current) recordingRef.current.frame = frame }
+    draw()
+    const stream = output.captureStream(30)
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
+    const recorder = new MediaRecorder(stream, { mimeType })
+    const chunks: BlobPart[] = []
+    recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data) }
+    recorder.onstop = () => downloadBlob(new Blob(chunks, { type: mimeType }), 'trace-showcase-tour.webm')
+    recordingRef.current = { recorder, frame, stream }
+    recorder.start(1000)
+    setRecording(true)
+    startTour(stopRecording)
+  }
+
+  function saveHiResScreenshot() {
+    const e = engine.current
+    const source = e?.world.renderer?.three.domElement
+    if (!e || !source) return
+    const renderer = e.world.renderer?.three
+    if (!renderer) return
+    const scene = e.world.scene.three
+    const originalBackground = scene.background
+    if (transparentCapture) { scene.background = null; renderer.setClearColor(0x000000, 0); renderer.render(scene, e.world.camera.three) }
+    const output = document.createElement('canvas')
+    output.width = source.width * 2; output.height = source.height * 2
+    output.getContext('2d')?.drawImage(source, 0, 0, output.width, output.height)
+    if (transparentCapture) { scene.background = originalBackground; renderer.setClearColor(0x000000, 1); renderer.render(scene, e.world.camera.three) }
+    output.toBlob(blob => { if (blob) downloadBlob(blob, `trace-showcase-${transparentCapture ? 'transparent-' : ''}2x.png`) }, 'image/png')
   }
 
   useEffect(() => {
@@ -1371,7 +1429,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
   const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
 
-  return <div className={`viewer ${showcase ? 'showcase-mode' : ''}`}>
+  return <div className={`viewer ${showcase ? 'showcase-mode' : ''} ${recording ? 'showcase-recording' : ''}`}>
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
       ? 'This model contains only plumbing (pipes and fixtures).'
       : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
@@ -1387,6 +1445,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         ? <button className="walk-active" onClick={stopWalk}>Exit Walk · Esc</button>
         : <button title="Enter first-person room view" disabled={!modelReady || !selectedRoomKey} onClick={startWalk}>Walk</button>}
       <button className={touring ? 'tour-active' : ''} title="Play a 40 second guided model tour" disabled={!modelReady || walkMode} onClick={() => touring ? stopTour() : startTour()}>{touring ? 'Stop tour · Esc' : 'Tour · 40s'}</button>
+      <button className={recording ? 'recording-active' : ''} title="Record the 40 second tour as 1920 × 1080 WebM" disabled={!modelReady || (touring && !recording)} onClick={() => recording ? stopRecording() : recordTour()}>{recording ? 'Stop recording' : 'Record tour'}</button>
+      <button title="Download the current 3D view as a 2× PNG" disabled={!modelReady} onClick={saveHiResScreenshot}>Hi-res PNG</button>
+      <label className="transparent-shot"><input type="checkbox" checked={transparentCapture} onChange={event => setTransparentCapture(event.target.checked)} /> Transparent</label>
       <button title="Center the camera on the selected element or room" disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
       <label className="furniture-room-select">Room
         <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>

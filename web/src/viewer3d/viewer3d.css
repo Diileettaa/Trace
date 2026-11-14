@@ -115,3 +115,7 @@
 .tour-caption span { color: #E9B949; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 .tour-caption strong { font-size: 15px; }
 .tour-caption small { color: #A9AFB0; font-size: 10px; }
+.recording-active { background: #b93831 !important; color: #fff !important; border-color: #b93831 !important; }
+.transparent-shot { display: inline-flex; align-items: center; gap: 3px; color: var(--muted, #A9AFB0); font-size: 10px; white-space: nowrap; }
+.transparent-shot input { accent-color: #E9B949; }
+.showcase-recording .viewer-bar, .showcase-recording .explorer-bar, .showcase-recording .showcase-motion-controls, .showcase-recording .room-label-layer, .showcase-recording .viewer-trade-summary, .showcase-recording .ifc-action-popup, .showcase-recording .walk-hud, .showcase-recording .walk-minimap { visibility: hidden; }
