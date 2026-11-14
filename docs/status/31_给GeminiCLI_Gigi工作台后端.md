@@ -38,3 +38,10 @@ Xinran 的路由（/api/docs/ask 等）要先把文件上传到资料库拿 doc 
 - 坐标：矢量 PDF 用 `box`（PDF 点），扫描/图片用 `box_norm1000`；/ask 的 items 里两种都原样透传，方便前端画
 - 方法名以 `:uncertain` 结尾时，回答 `warnings` 里加一条「Two readings disagree — please review」
 - 测试：swiss 一题、扫描图（mock vision）一题，review remove 1 个 → value 减 1
+
+## 7.（第 1–6 做完后）到墙距离改成按房间真实轮廓算
+现在 clearances 用构件外包盒到房间外包盒，L 形房间、斜墙会偏几十厘米。改：
+- 房间轮廓用 IfcSpace 的平面多边形（room_contents 索引里没有就从 plan SVG 的 polygon_px 换算），swiss 用 DXF 房间多边形
+- 构件取平面外包矩形的四条边中点，沿 ±x、±y 方向射线求到房间多边形边的最近交点距离 → left/right/front/rear（front = 构件朝向一侧；不知道朝向时按离门最近的一侧）
+- 返回 `method: "polygon"`；退回外包盒时 `method: "bbox"`，前端据此显示 ≈
+- 测试：L 形房间一例
