@@ -753,10 +753,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   }, [allLocalIds, explorerReady, exploded, isolateSpaceGuid, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades, walkMode])
 
   useEffect(() => {
-    if (!isolateSpaceGuid) return
-    const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
     const camera = engine.current?.world.camera
-    if (!room || !camera) return
+    if (!camera) return
+    if (!isolateSpaceGuid) { camera.controls.minDistance = .08; camera.controls.maxDistance = 1000; camera.controls.minPolarAngle = 0; camera.controls.maxPolarAngle = Math.PI; return }
+    const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
+    if (!room) return
     const center = room.box.getCenter(new THREE.Vector3())
     const size = room.box.getSize(new THREE.Vector3())
     const diagonal = Math.max(Math.hypot(size.x, size.y), 1)
