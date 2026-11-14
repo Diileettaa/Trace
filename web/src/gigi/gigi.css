@@ -29,7 +29,7 @@
    Unlayered on purpose so it beats the legacy layer. */
 .gigi-3d .viewer-bar, .gigi-3d .status, .gigi-3d .viewer-main-row > :first-child:not(.three):not(canvas) { display: none !important; }
 .gigi-3d .viewer-main-row { height: 100%; }
-.gigi-3d { height: 430px; } .gigi-3d > div { height: 100%; }
+.gigi-3d { height: 430px; } .gigi-3d > div:not(.absolute) { height: 100%; }
 .gigi-3d .three { min-height: 0; flex: 1; }
 
 /* our viewer's light popup clashes with Gigi's frame: replaced by the dark room card in Real3D */
