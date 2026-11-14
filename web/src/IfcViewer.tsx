@@ -37,6 +37,14 @@ interface Props {
   previewRoomStatus?: RoomStatus | null
   collab?: CollabState
   onCollabChange?: (state: CollabState) => void
+  /** Gigi Interior 3D: an IfcSpace GlobalId to isolate. */
+  isolateSpaceGuid?: string | null
+  /** Evidence labels supplied by the Ask adapter. */
+  elementTags?: { guid: string; code: string; verified: boolean; issue?: boolean }[]
+  /** Measured fixture-to-wall distances in millimetres. */
+  clearances?: { guid: string; left?: number; right?: number; front?: number; rear?: number }
+  /** Suppress the room-name overlay for compact/Interior rendering. */
+  hideRoomLabels?: boolean
 }
 
 export interface PlacedProduct {
@@ -254,7 +262,7 @@ function makeCatalogThumbnailModel(product: FurnitureProduct) {
   return makePlaceholder(product, `catalog-${product.id}`)
 }
 
-function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, onRoomAction, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange }: Props) {
+function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, onRoomAction, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange, isolateSpaceGuid, elementTags = [], clearances, hideRoomLabels = false }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
@@ -1597,7 +1605,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       </div>
       {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
-        {!walkMode && rooms.map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
+        {!walkMode && !hideRoomLabels && rooms.map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
           onClick={() => focusRoom(room.key)} title="Open room actions">
