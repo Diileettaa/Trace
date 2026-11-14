@@ -28,8 +28,13 @@ export const RealPlan: React.FC<Props> = ({
   const [dwellReadyId, setDwellReadyId] = useState<string | null>(null);
   const dwellTimerRef = useRef<number | null>(null);
   const url = api.drawingUrl(path);
+  // ours: drag to pan, wheel / pinch to zoom (on top of the LoD scale, reset when the scale or answer changes)
+  const [userView, setUserView] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragRef = useRef<{ x: number; y: number; vb: { x: number; y: number; w: number; h: number }; moved: boolean } | null>(null);
 
-  useEffect(() => { setSize(null); setFailed(false); }, [path]);
+  useEffect(() => { setSize(null); setFailed(false); setUserView(null); }, [path]);
+  useEffect(() => { setUserView(null); }, [scale, scenario?.id, selectedFixtureId]);
   useEffect(() => () => { if (dwellTimerRef.current) window.clearTimeout(dwellTimerRef.current); }, []);
 
   const handleMouseEnterFixture = (id: string) => {
@@ -68,14 +73,62 @@ export const RealPlan: React.FC<Props> = ({
     return `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`;
   }, [size, scale, selectedFixtureId, fixtures, scenario, targetFixtures]);
 
+  const baseVb = (() => { const [x, y, w, h] = viewBox.split(' ').map(Number); return { x, y, w, h }; })();
+  const vb = userView || baseVb;
+  const zoomFactor = size ? Math.max(size[0] / vb.w, 1) : ZOOM[scale];
   // marks keep a constant on-screen size whatever the sheet resolution / zoom
-  const k = size ? Math.max(size[0], size[1]) / 1200 / ZOOM[scale] : 1;
+  const k = size ? Math.max(size[0], size[1]) / 1200 / zoomFactor : 1;
+
+  const toSvg = (clientX: number, clientY: number) => {
+    const el = svgRef.current; if (!el) return { x: 0, y: 0 };
+    const r = el.getBoundingClientRect();
+    const sc = Math.min(r.width / vb.w, r.height / vb.h);
+    const ox = (r.width - vb.w * sc) / 2, oy = (r.height - vb.h * sc) / 2;
+    return { x: vb.x + (clientX - r.left - ox) / sc, y: vb.y + (clientY - r.top - oy) / sc };
+  };
+  const clampVb = (v: { x: number; y: number; w: number; h: number }) => {
+    if (!size) return v;
+    const w = Math.min(Math.max(v.w, size[0] / 24), size[0]), h = w * (v.h / v.w);
+    return { w, h, x: Math.min(Math.max(v.x, -w * 0.25), size[0] - w * 0.75), y: Math.min(Math.max(v.y, -h * 0.25), size[1] - h * 0.75) };
+  };
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const f = Math.exp(Math.max(-0.2, Math.min(0.2, e.deltaY * 0.0015)));  // smooth, ≤ ~20 % per event (touchpads)
+    const p = toSvg(e.clientX, e.clientY);
+    setUserView(clampVb({ x: p.x - (p.x - vb.x) * f, y: p.y - (p.y - vb.y) * f, w: vb.w * f, h: vb.h * f }));
+  };
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    dragRef.current = { x: e.clientX, y: e.clientY, vb, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current; const el = svgRef.current; if (!d || !el) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.moved && Math.hypot(dx, dy) < 4) return;
+    if (!d.moved) { d.moved = true; el.setPointerCapture(e.pointerId); }
+    const r = el.getBoundingClientRect(); const sc = Math.min(r.width / d.vb.w, r.height / d.vb.h);
+    setUserView(clampVb({ ...d.vb, x: d.vb.x - dx / sc, y: d.vb.y - dy / sc }));
+  };
+  const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current; dragRef.current = null;
+    if (d?.moved) { try { svgRef.current?.releasePointerCapture(e.pointerId); } catch { /* not captured */ } }
+  };
+  // React's wheel listener is passive (cannot stop the page scrolling): attach a native one
+  const wheelRef = useRef(onWheel); wheelRef.current = onWheel;
+  useEffect(() => {
+    const el = svgRef.current; if (!el) return;
+    const h = (e: WheelEvent) => wheelRef.current(e);
+    el.addEventListener('wheel', h, { passive: false });
+    return () => el.removeEventListener('wheel', h);
+  }, []);
+  const vbString = `${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.w.toFixed(1)} ${vb.h.toFixed(1)}`;
   const dwellFixture = dwellReadyId ? fixtures[dwellReadyId] : null;
   const poly = scenario?.roomPolygon;
 
   return (
     <div className="relative bg-[#FCFCF9] blueprint-grid-bg">
-      <svg viewBox={viewBox} className="w-full h-auto max-h-[560px] select-none block" role="img"
+      <svg ref={svgRef} viewBox={vbString} onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ touchAction: 'none', cursor: dragRef.current?.moved ? 'grabbing' : 'grab' }}
+        className="w-full h-[520px] select-none block" role="img"
         aria-label={`Floor plan ${activeFloor} at scale ${scale}`}>
         {!failed && (
           <image href={url} x={0} y={0} width={size?.[0] || 1000} height={size?.[1] || 700}
@@ -191,7 +244,8 @@ export const RealPlan: React.FC<Props> = ({
 
       {/* Subtle Hint Strip */}
       <div className="px-3.5 py-1.5 border-t border-[#A9AFB0]/25 bg-white flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#202427]/70">
-        <span>Hover &gt;1s over a yellow/red mark to view site photo · Click to open the 3D room.</span>
+        <span>Drag to move · scroll to zoom · hover &gt;1s over a mark for its site photo · click a mark for 3D.</span>
+        {userView && <button type="button" onClick={() => setUserView(null)} className="font-mono text-[#9A7218] underline cursor-pointer">Reset view</button>}
         <span className="font-mono text-[#202427] font-medium">LoD Scale {scale}</span>
       </div>
     </div>
