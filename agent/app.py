@@ -11,6 +11,10 @@ POST /collab/message {space_id, text, author?, role?, notify?}
 POST /collab/media   ?space_id=&author=&role=&note=&filename= -> record {id, space_id, author, role, note, file, kind, created_at}
 GET  /collab/media   ?space_id=                               -> list of media records (newest first)
 GET  /collab/media/file ?id=                                  -> raw media file
+POST /files          ?author=&role=&title=&tags=&filename=    -> record {id, title, filename, author, role, tags, size, kind, created_at}
+GET  /files          ?tag=&q=                                 -> list of files matching tag / title / filename (newest first)
+GET  /files/file     ?id=                                     -> raw file download with Content-Type and filename
+DELETE /files        ?id=&author=                             -> delete file (only author permitted)
 """
 from __future__ import annotations
 
@@ -21,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import agent, collab, config, drawings, media, render as render_service, uploads, vision
+from . import agent, collab, config, drawings, files, media, render as render_service, uploads, vision
 
 app = FastAPI(title="Trace API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -360,6 +364,111 @@ def collab_media_file(id: str = ""):
         or "application/octet-stream"
     )
     return FileResponse(file_path, media_type=ctype)
+
+
+@app.post("/files")
+async def files_post(
+    request: Request,
+    author: str = "",
+    role: str = "",
+    title: str = "",
+    tags: str | None = None,
+    filename: str = "",
+):
+    size = int(request.headers.get("content-length") or 0)
+    if size > files.MAX_FILE_BYTES:
+        raise HTTPException(413, f"file too large (max {files.MAX_FILE_BYTES // (1024 * 1024)} MB)")
+
+    ctype = request.headers.get("content-type", "")
+    data = None
+    fname = filename or ""
+    if "multipart/form-data" in ctype:
+        try:
+            form = await request.form()
+            for v in form.values():
+                if isinstance(v, UploadFile):
+                    data = await v.read()
+                    fname = fname or v.filename or ""
+                    break
+        except Exception:
+            pass
+
+    if data is None:
+        data = await request.body()
+
+    if not fname:
+        fname = request.headers.get("x-filename") or ""
+        if not fname:
+            import re
+
+            cd = request.headers.get("content-disposition", "")
+            m = re.search(r'filename=["\']?([^"\';]+)["\']?', cd)
+            if m:
+                fname = m.group(1)
+
+    if not fname:
+        raise HTTPException(400, "filename is required")
+
+    if not data:
+        raise HTTPException(400, "empty file")
+
+    if len(data) > files.MAX_FILE_BYTES:
+        raise HTTPException(413, f"file too large (max {files.MAX_FILE_BYTES // (1024 * 1024)} MB)")
+
+    raw_tags = request.query_params.getlist("tags")
+    parsed_tags = files.parse_tags(raw_tags if len(raw_tags) > 1 else (tags or ""))
+
+    try:
+        return files.save_file(
+            filename=fname,
+            data=data,
+            author=author,
+            role=role,
+            title=title,
+            tags=parsed_tags,
+        )
+    except files.FileError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/files")
+def files_list(tag: str | None = None, q: str | None = None):
+    return files.list_files(tag=tag, q=q)
+
+
+@app.get("/files/file")
+def files_download(id: str = ""):
+    if not id:
+        raise HTTPException(400, "id is required")
+    try:
+        file_path, rec = files.resolve_file(id)
+    except files.FileSecurityError as e:
+        raise HTTPException(400, str(e))
+    except (files.FileItemNotFoundError, files.FileNotFoundError) as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+    ctype = files.MIME_MAP.get(file_path.suffix.lower()) or "application/octet-stream"
+    fname = rec.get("filename") if rec and rec.get("filename") else file_path.name
+    return FileResponse(file_path, media_type=ctype, filename=fname)
+
+
+@app.delete("/files")
+def files_delete(id: str = "", author: str = ""):
+    if not id:
+        raise HTTPException(400, "id is required")
+    try:
+        deleted = files.delete_file(id=id, author=author)
+        return {"ok": True, "id": id, "deleted": deleted}
+    except files.FilePermissionError as e:
+        raise HTTPException(403, str(e))
+    except (files.FileItemNotFoundError, files.FileNotFoundError) as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 class RenderIn(BaseModel):
