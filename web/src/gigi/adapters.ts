@@ -2,7 +2,8 @@
 // Turns our /api responses into the shapes Gigi's components already use
 // (QueryScenario, FixtureVerification from design/gigi/src/data/workspaceData.ts),
 // so GigiWorkspace / LargeExecutionPlan / Detailed3DViewer can stay visually identical.
-// Written by Claude; Codex owns the components that call it.
+// Written by Claude.
+import { roomEnglish } from '../roomNames';
 
 export type LayerId = 'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'dimensions';
 export type ScaleOption = '1:200' | '1:100' | '1:50' | '1:20';
@@ -132,10 +133,10 @@ export function toScenario(
     fixtures[id] = {
       id,
       code: it.label || `${(it.category || 'ITEM').slice(0, 3).toUpperCase()}-${i + 1}`,
-      label: it.name || it.label || it.category || 'Item',
+      label: String(it.name || it.label || it.category || 'Item').replace(/\s*\([^)]*\)\s*$/, ''),
       category: it.category || 'item',
-      roomCode: it.space_id ? String(it.room_name || it.space_id) : '',
-      roomName: it.room_name ?? null,
+      roomCode: it.space_id ? roomEnglish(String(it.room_name || it.space_id)) : '',
+      roomName: it.room_name ? roomEnglish(String(it.room_name)) : null,
       status,
       verified: !!v?.verified,
       author: v?.latest?.author || v?.author,
@@ -159,8 +160,8 @@ export function toScenario(
   const roomKey = top && topShare >= 0.6 ? top : null;
   const room = !roomKey ? null : (plan?.rooms?.find((r) => r.space_id === roomKey || r.number === roomKey || r.name === roomKey)
     || (ask?.summary?.room ? { ...ask.summary.room } : null));
-  const roomName = room?.name || items.find((it) => it.space_id === roomKey)?.room_name || '';
-  const roomCode = roomKey ? (room?.number || roomName || roomKey) : 'Whole sheet';
+  const roomName = roomEnglish(room?.name || items.find((it) => it.space_id === roomKey)?.room_name || '');
+  const roomCode = roomKey ? (roomName ? `${roomName}${room?.number && room.number !== room?.name ? ` ${room.number}` : ''}` : (room?.number || roomKey)) : 'Whole sheet';
   const dims = room?.dims_m;
   const roomDimensions = dims
     ? `L ${dims.L.toFixed(2)}m × B ${dims.B.toFixed(2)}m${dims.H ? ` × H ${dims.H.toFixed(2)}m` : ''}`
