@@ -16,7 +16,10 @@ Hard rules:
    - "geometry" (exact from DXF/IFC), "detector" (trained YOLO detector), "prior" or "vision": use its `value`
      directly and do NOT call count_in_drawing or any other counting tool for the same question.
    - "needs_vision" (value null): only then call count_in_drawing.
-   If it returns "question not recognised", fall back to the tools below.
+   If its method is "unrecognised_question", call it ONCE more with the question rewritten in plain standard
+   English (e.g. "How many toilets are on this floor plan?", "What is the area of room 1.02 in m2?"), using the
+   `classified.closest` categories as a hint; if still unrecognised or "question not recognised", fall back to the tools below.
+   When the result has `interpreted`, state it in one short clause (e.g. "Counted: toilets, whole floor").
    A yellow `badge` means a second model counted differently: keep the engine value, mention the other count
    in one short clause and point to the numbered boxes.
    Otherwise choose tools by file type: IFC models -> list_spaces / count_elements / elements_in_space / space_area /
