@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Building2, Eye } from 'lucide-react';
 import IfcViewer from '../IfcViewer';
 import PlanRooms3D from '../components/PlanRooms3D';
+import GeometrySceneViewer from '../components/GeometrySceneViewer';
+import { isMeasuredGeometryScene, loadGeometryScene, type GeometryScene } from '../viewer3d/geometryScene';
 import type { FixtureVerification, QueryScenario } from './adapters';
 
 interface Props {
@@ -29,7 +31,16 @@ export const Real3D: React.FC<Props> = ({
   storeyId, onStoreys, visibleLayers,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
+  const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
   useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
+  useEffect(() => {
+    const source = model || plan;
+    let active = true;
+    setGeometryScene(null);
+    if (!source) return () => { active = false; };
+    void loadGeometryScene(source).then((next) => { if (active && next && isMeasuredGeometryScene(next)) setGeometryScene(next); });
+    return () => { active = false; };
+  }, [model, plan]);
   const guids = (scenario?.targetIds || []).filter(isGuid);
   const selectedGuid = mode === 'room' && fixture && isGuid(fixture.id) ? fixture.id : null;
   const roomLabel = scenario?.roomCode || 'Room';
@@ -94,7 +105,9 @@ export const Real3D: React.FC<Props> = ({
         )}
 
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
-          {model ? (
+          {geometryScene ? (
+            <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling} />
+          ) : model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
               onSelectRoom={setPickedRoom}
               isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}

@@ -113,3 +113,26 @@ export function isMeasuredGeometryScene(value: GeometryScene): boolean {
     && value.unit === 'm'
     && value.coordinateSystem === 'x-right,y-up,z-plan-north'
 }
+
+export function isGeometryScene(value: unknown): value is GeometryScene {
+  if (!value || typeof value !== 'object') return false
+  const scene = value as Partial<GeometryScene>
+  return typeof scene.projectId === 'string'
+    && (scene.sourceKind === 'ifc' || scene.sourceKind === 'vector-drawing' || scene.sourceKind === 'raster-drawing')
+    && (scene.quality === 'measured' || scene.quality === 'illustrative')
+    && (scene.coordinateSystem === 'x-right,y-up,z-plan-north' || scene.coordinateSystem === 'drawing-pixels')
+    && (scene.unit === 'm' || scene.unit === 'px')
+    && Array.isArray(scene.rooms)
+    && Array.isArray(scene.walls)
+    && Array.isArray(scene.openings)
+    && Array.isArray(scene.objects)
+}
+
+/** The route is intentionally separate from `/api/scene`, which stores shared placements. */
+export async function loadGeometryScene(path: string, page = 1): Promise<GeometryScene | null> {
+  const query = new URLSearchParams({ path, page: String(page) })
+  const response = await fetch(`/api/geometry/scene?${query}`)
+  if (!response.ok) return null
+  const value: unknown = await response.json()
+  return isGeometryScene(value) ? value : null
+}
