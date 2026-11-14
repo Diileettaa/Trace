@@ -11,6 +11,7 @@ import {
 } from './adapters';
 import { RealPlan } from './RealPlan';
 import { Real3D } from './Real3D';
+import type { GeometrySource } from '../viewer3d/geometryScene';
 import './gigi.css';
 
 interface ChatMessage {
@@ -96,6 +97,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [mobileTab, setMobileTab] = useState<'plan' | 'ask'>('plan');
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
   const [imageSize, setImageSize] = useState<[number, number] | null>(null);
+  const [evidenceSource, setEvidenceSource] = useState<GeometrySource | null>(null);
 
   const [questionInput, setQuestionInput] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -629,6 +631,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             !project.model || !/\.ifc$/i.test(askPath) ? (
               <RealPlan path={askPath} page={sheetPage} scenario={scenario} activeLayers={activeLayers} scale={scale} activeFloor={activeFloor}
                 fixtures={fixtures} selectedFixtureId={selectedFixtureId} onImageSize={setImageSize}
+                evidenceSource={evidenceSource?.file === askPath && (evidenceSource.page ?? 1) === sheetPage ? evidenceSource : null}
                 tool={tool} removed={removed} added={added} measurePts={measurePts}
                 onToggleRemove={(id) => setRemoved((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
                 onAddBox={(b) => setAdded((prev) => [...prev, b])}
@@ -646,6 +649,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               onSwitchMode={(m) => setViewMode(m === 'building' ? '3d-building' : '3d-room')}
               onSelectSibling={(id) => { if (fixtures[id]) setSelectedFixtureId(id); }} onBackTo2D={() => setViewMode('2d')}
               onAsk={(q) => void runPromptInCurrentChat(q)}
+              onOpenSource={(source) => { setEvidenceSource(source); setAskPath(source.file); setSheetPage(source.page ?? 1); setViewMode('2d'); }}
               storeyId={storeyId} onStoreys={(list) => setStoreys([...list].sort((a, b) => b.elevation - a.elevation))}
               visibleLayers={{ architecture: activeLayers.architecture, sanitary: activeLayers.sanitary, hvac: activeLayers.hvac, electrical: activeLayers.electrical }} />
           )}

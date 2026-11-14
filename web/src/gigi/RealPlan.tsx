@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { api, layerOf, type FixtureVerification, type LayerId, type QueryScenario, type ScaleOption } from './adapters';
+import type { GeometrySource } from '../viewer3d/geometryScene';
 
 interface Props {
   path: string;
@@ -24,13 +25,15 @@ interface Props {
   onToggleRemove?: (id: string) => void;
   onAddBox?: (b: { x: number; y: number; w: number; h: number }) => void;
   onMeasurePoint?: (p: [number, number]) => void;
+  /** Source evidence from a measured 3D element; bbox is in this drawing's pixels. */
+  evidenceSource?: GeometrySource | null;
 }
 
 const ZOOM: Record<ScaleOption, number> = { '1:200': 1, '1:100': 2, '1:50': 4, '1:20': 8 };
 
 export const RealPlan: React.FC<Props> = ({
   path, page = 1, scenario, activeLayers, scale, activeFloor, fixtures, selectedFixtureId, onSelectFixtureFor3D, onImageSize,
-  tool = 'view', removed, added = [], measurePts = [], onToggleRemove, onAddBox, onMeasurePoint,
+  tool = 'view', removed, added = [], measurePts = [], onToggleRemove, onAddBox, onMeasurePoint, evidenceSource,
 }) => {
   const [draft, setDraft] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [size, setSize] = useState<[number, number] | null>(null);
@@ -45,7 +48,7 @@ export const RealPlan: React.FC<Props> = ({
   const dragRef = useRef<{ x: number; y: number; vb: { x: number; y: number; w: number; h: number }; moved: boolean } | null>(null);
 
   useEffect(() => { setSize(null); setFailed(false); setUserView(null); }, [path]);
-  useEffect(() => { setUserView(null); }, [scale, scenario?.id, selectedFixtureId]);
+  useEffect(() => { setUserView(null); }, [scale, scenario?.id, selectedFixtureId, evidenceSource?.file, evidenceSource?.page, evidenceSource?.bbox?.join(',')]);
   useEffect(() => () => { if (dwellTimerRef.current) window.clearTimeout(dwellTimerRef.current); }, []);
 
   const handleMouseEnterFixture = (id: string) => {
@@ -67,6 +70,15 @@ export const RealPlan: React.FC<Props> = ({
   const viewBox = useMemo(() => {
     if (!size) return '0 0 1000 700';
     const [W, H] = size;
+    const bbox = evidenceSource?.bbox;
+    if (bbox) {
+      const [x0, y0, x1, y1] = bbox;
+      const rawW = Math.max(x1 - x0, 8), rawH = Math.max(y1 - y0, 8);
+      const w = Math.min(W, rawW * 2.2), h = Math.min(H, rawH * 2.2);
+      const x = Math.min(Math.max((x0 + x1) / 2 - w / 2, 0), W - w);
+      const y = Math.min(Math.max((y0 + y1) / 2 - h / 2, 0), H - h);
+      return `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`;
+    }
     const z = ZOOM[scale];
     if (z === 1) return `0 0 ${W} ${H}`;
     const sel = selectedFixtureId ? fixtures[selectedFixtureId]?.position : null;
@@ -82,7 +94,7 @@ export const RealPlan: React.FC<Props> = ({
     const w = W / z, h = H / z;
     const x = Math.min(Math.max(cx - w / 2, 0), W - w), y = Math.min(Math.max(cy - h / 2, 0), H - h);
     return `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`;
-  }, [size, scale, selectedFixtureId, fixtures, scenario, targetFixtures]);
+  }, [size, scale, selectedFixtureId, fixtures, scenario, targetFixtures, evidenceSource]);
 
   const baseVb = (() => { const [x, y, w, h] = viewBox.split(' ').map(Number); return { x, y, w, h }; })();
   const vb = userView || baseVb;
@@ -239,6 +251,15 @@ export const RealPlan: React.FC<Props> = ({
             <text x={b.x + b.w / 2} y={b.y - 4 * k} textAnchor="middle" fontSize={8 * k} fontFamily="IBM Plex Mono, monospace" fill="#15803D" fontWeight="700">+ added</text>
           </g>
         ))}
+        {evidenceSource?.bbox && (
+          <g className="pointer-events-none">
+            <rect x={evidenceSource.bbox[0]} y={evidenceSource.bbox[1]}
+              width={evidenceSource.bbox[2] - evidenceSource.bbox[0]} height={evidenceSource.bbox[3] - evidenceSource.bbox[1]}
+              fill="#E9B949" fillOpacity={0.13} stroke="#C98A12" strokeWidth={2.5 * k} />
+            <text x={evidenceSource.bbox[0]} y={Math.max(12 * k, evidenceSource.bbox[1] - 5 * k)}
+              fill="#202427" fontSize={11 * k} fontFamily="ui-monospace, monospace">{evidenceSource.label || '3D source evidence'}</text>
+          </g>
+        )}
         {draft && <rect x={Math.min(draft.x0, draft.x1)} y={Math.min(draft.y0, draft.y1)} width={Math.abs(draft.x1 - draft.x0)} height={Math.abs(draft.y1 - draft.y0)} fill="#22C55E" fillOpacity={0.15} stroke="#15803D" strokeWidth={1.5 * k} />}
         {measurePts.length > 0 && (
           <g>

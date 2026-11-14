@@ -5,7 +5,7 @@ import { ArrowLeft, Building2, Eye } from 'lucide-react';
 import IfcViewer from '../IfcViewer';
 import PlanRooms3D from '../components/PlanRooms3D';
 import GeometrySceneViewer from '../components/GeometrySceneViewer';
-import { isMeasuredGeometryScene, loadGeometryScene, type GeometryScene } from '../viewer3d/geometryScene';
+import { isMeasuredGeometryScene, loadGeometryScene, type GeometryScene, type GeometrySource } from '../viewer3d/geometryScene';
 import type { FixtureVerification, QueryScenario } from './adapters';
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   onSelectSibling: (id: string) => void;
   onBackTo2D: () => void;
   onAsk?: (question: string) => void;   // ours: ask about the room the user clicked
+  onOpenSource?: (source: GeometrySource) => void;
   storeyId?: string | null;              // LEVEL switcher in Gigi's top bar
   onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void;
   visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical', boolean>>;
@@ -28,7 +29,7 @@ const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
 
 export const Real3D: React.FC<Props> = ({
   mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
-  storeyId, onStoreys, visibleLayers,
+  storeyId, onStoreys, visibleLayers, onOpenSource,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
@@ -120,6 +121,7 @@ export const Real3D: React.FC<Props> = ({
           {geometryScene ? (
             <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling}
               onSelectRoom={setPickedRoom}
+              onSelectSource={onOpenSource}
               focusRoomId={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : pickedRoom?.id) : null} />
           ) : model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}

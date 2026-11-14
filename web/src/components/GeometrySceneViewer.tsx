@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { GeometryObject, GeometryOpening, GeometryScene, PlanPoint } from '../viewer3d/geometryScene'
+import type { GeometryObject, GeometryOpening, GeometryScene, GeometrySource, PlanPoint } from '../viewer3d/geometryScene'
 
 interface Props {
   scene: GeometryScene
   onSelectObject?: (id: string) => void
   onSelectRoom?: (room: { id: string; name: string }) => void
+  onSelectSource?: (source: GeometrySource) => void
   focusRoomId?: string | null
 }
 
@@ -77,7 +78,7 @@ const openingSymbol = (opening: GeometryOpening) => {
 }
 
 /** Renders only calibrated metre-based data supplied by the scene endpoint. */
-export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, focusRoomId }: Props) {
+export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, onSelectSource, focusRoomId }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const reviewNeeded = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
     .some(item => item.confidence !== undefined && item.confidence < .7)
@@ -109,6 +110,7 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
       const floor = roomMesh(room.polygon, room.floorYM ?? 0, floorMaterial)
       floor.userData.roomId = room.id
       floor.userData.roomName = room.name || room.number || room.id
+      floor.userData.source = room.source
       scene3.add(floor)
       bounds.expandByObject(floor)
       const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(room.polygon.map(([x, z]) => new THREE.Vector3(x, room.floorYM ?? .01, z))), roomLine)
@@ -123,11 +125,13 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, wall.heightM, wall.thicknessM), wallMaterial)
         mesh.position.set((ax + bx) / 2, wall.baseYM + wall.heightM / 2, (az + bz) / 2)
         mesh.rotation.y = Math.atan2(bz - az, bx - ax)
+        mesh.userData.objectId = wall.id
+        mesh.userData.source = wall.source
         scene3.add(mesh); bounds.expandByObject(mesh)
       }
     }
-    for (const opening of scene.openings) { const mesh = openingSymbol(opening); scene3.add(mesh); bounds.expandByObject(mesh) }
-    for (const item of scene.objects) { const mesh = symbol(item); scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const opening of scene.openings) { const mesh = openingSymbol(opening); mesh.userData.source = opening.source; scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const item of scene.objects) { const mesh = symbol(item); mesh.userData.source = item.source; scene3.add(mesh); bounds.expandByObject(mesh) }
 
     const size = bounds.isEmpty() ? new THREE.Vector3(5, 3, 5) : bounds.getSize(new THREE.Vector3())
     const center = bounds.isEmpty() ? new THREE.Vector3() : bounds.getCenter(new THREE.Vector3())
@@ -150,20 +154,24 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
       raycaster.setFromCamera(pointer, camera)
       const hit = raycaster.intersectObjects(scene3.children, true).find(candidate => {
         let node: THREE.Object3D | null = candidate.object
-        while (node) { if (typeof node.userData.objectId === 'string' || typeof node.userData.roomId === 'string') return true; node = node.parent }
+        while (node) { if (typeof node.userData.objectId === 'string' || typeof node.userData.roomId === 'string' || node.userData.source) return true; node = node.parent }
         return false
       })
       let node = hit?.object ?? null
-      while (node && typeof node.userData.objectId !== 'string' && typeof node.userData.roomId !== 'string') node = node.parent
+      while (node && typeof node.userData.objectId !== 'string' && typeof node.userData.roomId !== 'string' && !node.userData.source) node = node.parent
       if (node?.userData.objectId) onSelectObject?.(node.userData.objectId as string)
       else if (node?.userData.roomId) onSelectRoom?.({ id: node.userData.roomId as string, name: node.userData.roomName as string })
+      const source = node?.userData.source as GeometrySource | undefined
+      // An IFC GUID is already inspectable in 3D. A drawing link requires the
+      // exact PNG-pixel rectangle defined by the shared tool result format.
+      if (source?.bbox) onSelectSource?.(source)
     }
     renderer.domElement.addEventListener('click', onClick)
     const resize = () => { const width = Math.max(1, element.clientWidth); const height = Math.max(1, element.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix() }
     const observer = new ResizeObserver(resize); observer.observe(element); resize()
     const animate = () => { if (disposed) return; controls.update(); renderer.render(scene3, camera); frame = requestAnimationFrame(animate) }; animate()
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
-  }, [focusRoomId, onSelectObject, onSelectRoom, scene])
+  }, [focusRoomId, onSelectObject, onSelectRoom, onSelectSource, scene])
 
   return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside></div>
 }
