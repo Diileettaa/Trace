@@ -33,8 +33,7 @@ DEFINITIONS = {
 }
 
 def source_of(path):
-    p = path.replace("\\", "/").split("/")
-    return p[p.index("data") + 1] if "data" in p else None
+    return A.resolve_source(path)
 
 def _canon(category):
     return SYN.get((category or "").strip().lower(), None) if category else None
@@ -44,7 +43,7 @@ def inventory(path):
     src = source_of(path)
     if src == "swiss_dwellings":
         stem = os.path.splitext(os.path.basename(path))[0]
-        f = swiss.parse(os.path.join(A.DATA, "data", "swiss_dwellings", stem + ".dxf"))
+        f = swiss.parse(A.swiss_dxf(path))
         return {"source": src, "kind": "vector floor plan (one storey)",
                 "count_categories": ["door", "window", "toilet", "sink", "bathtub", "shower", "apartment", "room (by label)"],
                 "area_scopes": ["room (by number)", "apartment (by letter)", "label (all rooms with that label)", "floor (all numbered indoor rooms)"],

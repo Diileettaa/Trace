@@ -5,6 +5,7 @@ from functools import lru_cache
 from .dxf import read_entities, area, bbox, inside, centroid
 
 ROOM_NO = re.compile(r"^[A-Z]?\d+\.\d+$")
+UNIT_LABEL = re.compile(r"^(?:Whg|App|Appt|Apt|Wohnung|Appartement|Appartamento|Logement|Unit)\.?\s*[A-Z]$", re.I)
 AREA_TXT = re.compile(r"\d\s*m(²|2)\b")
 OUTDOOR = re.compile(r"balkon|balcon|loggia|terrass|terrazz|veranda|sitzplatz|jardin|garten|giardino|patio", re.I)
 SHAFT_VOID = re.compile(r"schacht|luftraum|gaine|vide|cavedi|cavedio|vuoto", re.I)
@@ -31,17 +32,33 @@ def parse(path):
     outlines = [e["points"] for e in by["ROOM_OUTLINE"] if e["type"] == "LWPOLYLINE" and len(e["points"]) >= 3]
     texts = [e for e in by["ROOM_TEXT"] if e["type"] in ("TEXT", "MTEXT")]
     nums = [t for t in texts if ROOM_NO.match(t["text"].strip())]
-    others = [t for t in texts if not ROOM_NO.match(t["text"].strip()) and not AREA_TXT.search(t["text"])]
+    unit_labels = [t for t in texts if UNIT_LABEL.match(t["text"].strip())]
+    others = [t for t in texts if not ROOM_NO.match(t["text"].strip()) and not AREA_TXT.search(t["text"])
+              and not UNIT_LABEL.match(t["text"].strip())]
     rooms = []
+    # Each label text names one room. Pass 1: labels inside the room's own outline; pass 2: small rooms whose label is
+    # drawn outside take the nearest label within 1.5 m that no other room has claimed (else they stay unnamed).
+    d2 = lambda o, t: (o["pos"][0] - t["pos"][0]) ** 2 + (o["pos"][1] - t["pos"][1]) ** 2
+    plan, used = [], set()
     for t in nums:
         hits = [p for p in outlines if inside(t["pos"], p)]
         poly = min(hits, key=area) if hits else None
         cand = [o for o in others if poly is None or inside(o["pos"], poly)]
         cand = [o for o in cand if not re.search(r"\b[A-Z]$", o["text"].strip()) or " " not in o["text"].strip()] or cand
-        if not cand:  # label drawn outside a small room: take the closest text within 1.5 m
-            near = [o for o in others if (o["pos"][0] - t["pos"][0]) ** 2 + (o["pos"][1] - t["pos"][1]) ** 2 < 1.5 ** 2]
-            cand = near
-        name = min(cand, key=lambda o: (o["pos"][0] - t["pos"][0]) ** 2 + (o["pos"][1] - t["pos"][1]) ** 2)["text"] if cand else ""
+        plan.append([t, poly, cand])
+    for item in plan:                                   # pass 1: own label inside the outline
+        t, poly, cand = item
+        free = [o for o in cand if id(o) not in used]
+        pick = min(free, key=lambda o: d2(o, t)) if free else None
+        if pick is not None: used.add(id(pick))
+        item.append(pick)
+    for item in plan:                                   # pass 2: label drawn just outside a small room
+        t, poly, cand, pick = item
+        if pick is None:
+            near = [o for o in others if id(o) not in used and d2(o, t) < 1.5 ** 2]
+            if near: pick = min(near, key=lambda o: d2(o, t)); used.add(id(pick)); item[3] = pick
+    for t, poly, cand, pick in plan:
+        name = pick["text"] if pick is not None else ""
         rooms.append({"number": t["text"].strip(), "name": name.strip(), "area": round(area(poly), 2) if poly else None,
                       "poly": poly, "bbox": bbox(poly) if poly else None, "text_pos": t["pos"]})
     # ---- holes: ROOM_OUTLINE polygons drawn inside a room (lift core, shaft, column) are cut out of its net area.
@@ -55,13 +72,20 @@ def parse(path):
             r["holes"] = [{"area_m2": round(area(o), 2), "number": next((x["number"] for x in rooms if x["poly"] is o), None)} for o in top]
             r["area"] = round(r["area"] - sum(area(o) for o in top), 2)
     # ---- apartments: UNIT_OUTLINE polylines + the unit label text inside them
-    units = []
-    for e in by["UNIT_OUTLINE"]:
-        if e["type"] != "LWPOLYLINE" or len(e["points"]) < 3: continue
-        poly = e["points"]
-        lab = [o["text"].strip() for o in others if inside(o["pos"], poly) and re.search(r"\b[A-Z]$", o["text"].strip())
-               and not any(r["name"] == o["text"].strip() for r in rooms)]
-        units.append({"label": lab[0] if lab else "", "letter": lab[0][-1] if lab else "", "poly": poly, "bbox": bbox(poly)})
+    units, claimed = [], set()
+    polys = [e["points"] for e in by["UNIT_OUTLINE"] if e["type"] == "LWPOLYLINE" and len(e["points"]) >= 3]
+    for poly in polys:
+        lab = next((o for o in unit_labels if id(o) not in claimed and inside(o["pos"], poly)), None)
+        if lab is not None: claimed.add(id(lab))
+        units.append({"label": lab["text"].strip() if lab else "", "poly": poly, "bbox": bbox(poly)})
+    for u in units:   # label drawn outside its outline: nearest label nobody claimed
+        if u["label"]: continue
+        free = [o for o in unit_labels if id(o) not in claimed]
+        if not free: continue
+        c = centroid(u["poly"]); o = min(free, key=lambda o: (o["pos"][0] - c[0]) ** 2 + (o["pos"][1] - c[1]) ** 2)
+        claimed.add(id(o)); u["label"] = o["text"].strip()
+    for u in units: u["letter"] = u["label"][-1] if u["label"] else ""
+    apartment_letters = sorted({t["text"].strip()[-1] for t in unit_labels})
     for r in rooms:
         r["unit"] = next((u["letter"] for u in units if u["letter"] and inside(r["text_pos"], u["poly"])), "") or \
                     next((u["letter"] for u in units if u["letter"] and r["poly"] and inside(centroid(r["poly"]), u["poly"])), "")
@@ -90,7 +114,9 @@ def parse(path):
             if tag == "P48":
                 ob, b = bbox(o["points"]), rb[i]; W, H = b[2] - b[0], b[3] - b[1]
                 bx, by = (ob[0] + ob[2]) / 2, (ob[1] + ob[3]) / 2
-                off = abs(bx - (b[0] + b[2]) / 2) / W if W > H else abs(by - (b[1] + b[3]) / 2) / H
+                # WC bowl sits off-centre; washbasin bowl is centred on both axes. Measure both axes: square
+                # WC boxes (0.5 x 0.5 m) have no long axis, and their bowl may be offset either way.
+                off = max(abs(bx - (b[0] + b[2]) / 2) / W, abs(by - (b[1] + b[3]) / 2) / H)
                 aspects[i].append(off)
         else: tag = "L"
         inner[i].append(tag)
@@ -101,5 +127,7 @@ def parse(path):
         if kind in ("wc", "washbasin") and asp:
             kind = "wc" if max(asp) > WC_OFFSET else "washbasin"
         fixtures.append({"kind": kind, "bbox": b})
-    return {"rooms": rooms, "units": units, "doors": doors, "windows": windows, "fixtures": fixtures,
+    # bathtubs: one 69-vertex tub outline per bathtub (two tubs can share one fixture rectangle)
+    bathtubs = [{"bbox": bbox(e["points"])} for e in F if e["type"] == "LWPOLYLINE" and len(e["points"]) == 69]
+    return {"rooms": rooms, "units": units, "apartment_letters": apartment_letters, "bathtubs": bathtubs, "doors": doors, "windows": windows, "fixtures": fixtures,
             "extent": bbox([p for r in rooms if r["poly"] for p in r["poly"]]) if rooms else None}

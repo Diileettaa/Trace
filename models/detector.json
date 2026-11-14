@@ -1,13 +1,11 @@
 {
- "weights": "cubicasa_yolo11m_1280.pt",
- "imgsz": 1280,
- "thresholds": {
-  "door": 0.3,
-  "window": 0.45,
-  "toilet": 0.4,
-  "sink": 0.5,
-  "shower": 0.3,
-  "bathtub": 0.3
- },
- "note": "thresholds tuned on Junction answers, val plans only; held-out test: door 72.8, window 45.6, toilet 94.0, sink 82.7, shower/tub 76.9"
+ "models": [
+  {"tag": "r1", "weights": "cubicasa_yolo11m_1280.pt", "imgsz": 1280},
+  {"tag": "r2std", "weights": "cubicasa_r2std_1536.pt", "imgsz": 1536},
+  {"tag": "rtdetr", "weights": "rtdetr_l_cubi.pt", "imgsz": 1024, "arch": "rtdetr"}
+ ],
+ "fuse": {"door": ["r1", "r2std"], "window": ["r2std", "rtdetr"]},
+ "thresholds": {"door": 0.4, "window": 0.5, "toilet": 0.4, "sink": 0.5, "shower": 0.3, "bathtub": 0.3},
+ "fallback_thresholds": {"door": 0.3, "window": 0.45},
+ "note": "Round 2 (F1_original images, thresholds on val plans): door r1+r2std test 65.0 -> 67.3 (fair subset 70.6 -> 71.3); window r2std+rtdetr test 45.8 -> 53.5 (fair subset 51.5 -> 57.4). rtdetr = public RT-DETR-L CubiCasa weights (OldDeLorean/rtdetr-floorplan-detector, trained on the official train split; no license stated, so not committed). Fair subset = official val/test plans, which neither model trained on."
 }

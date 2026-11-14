@@ -96,8 +96,10 @@ ROOM_CAT = {"bedroom": "bedroom", "balcony": "balcony", "floor": "floors", "labe
 #   kitchen              -        89.7     92.5   95.6
 #   sauna                -        44.7*    90.5   55     (*63.4 as 'sauna box or SS label', used without VLM)
 #   bathroom             -         -       93.0   89
-SOURCE_WITH_VLM = {**{c: "detector" for c in DETECTOR_CATS}, "bedroom": "rooms", "kitchen": "prior",
-                   "balcony": "vlm", "floors": "vlm", "wc_room": "vlm", "sauna": "vlm", "bathroom": "vlm"}
+SOURCE_WITH_VLM = {**{c: "detector" for c in DETECTOR_CATS}, "bedroom": "min", "kitchen": "agree_else_prior",
+                   "balcony": "vlm", "floors": "vlm", "wc_room": "vlm", "sauna": "agree_else_prior", "bathroom": "vlm"}
+# Combinations of the vision model (VLM) and the room detector, chosen on one half of the test plans and checked on
+# the other half: sauna 91.8 -> 95.1, bedroom (min of the two) 86.7 -> 87.8, kitchen 95.0 -> 95.6.
 # Zero-API mode (no key, or a plan the vision model never saw): local models only, priors where nothing beats them.
 SOURCE_NO_VLM = {**{c: "detector" for c in DETECTOR_CATS}, "bedroom": "rooms", "balcony": "rooms", "floors": "rooms",
                  "wc_room": "rooms", "kitchen": "prior", "sauna": "rooms", "bathroom": "prior"}
@@ -192,6 +194,20 @@ def answer(png_path, question, size_fn=None):
         if boxes is not None:
             return len(boxes), _items(c, boxes, png_path, size_fn), f"cubicasa:detector[yolo-cubicasa]:{c}", warn
         src = "vlm" if vlm else "prior"
+    if src in ("min", "agree_else_prior"):
+        vb = _normalise_boxes(det.get("boxes")).get(c, []) or []
+        rb = room_boxes(png_path, c)
+        if rb is None: src = "vlm"
+        elif src == "min":
+            boxes, who = (vb, f"vlm[{det['model']}]") if len(vb) <= len(rb) else (rb, "rooms[yolo-cubicasa-rooms]")
+            return len(boxes), _items(c, boxes, png_path, size_fn), f"cubicasa:min({who}):{c}", warn + \
+                [f"vision model found {len(vb)}, room detector {len(rb)}; the lower count is used (more reliable for {c})"]
+        elif len(vb) == len(rb):
+            return len(vb), _items(c, vb, png_path, size_fn), f"cubicasa:agree[vlm+rooms]:{c}", warn + \
+                [f"vision model and room detector agree ({len(vb)})"]
+        else:
+            return CATS[c][2], [], f"cubicasa:prior:{c}", warn + \
+                [f"vision model ({len(vb)}) and room detector ({len(rb)}) disagree; answered the most common value ({CATS[c][2]})"]
     if src == "rooms":
         boxes = room_boxes(png_path, c)
         if boxes is not None:
