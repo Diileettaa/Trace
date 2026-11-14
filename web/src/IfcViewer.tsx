@@ -746,6 +746,33 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
           const boxes = await model.getBoxes(allLocalIds)
           const roomBounds = room.box.clone().expandByScalar(isolateSpaceGuid ? .3 : 0)
           visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(roomBounds))
+          if (isolateSpaceGuid) {
+            const camera = current.world.camera
+            const target = camera.controls.getTarget(new THREE.Vector3())
+            console.info('[Trace] interior isolation', {
+              roomGuid: isolateSpaceGuid,
+              bounds: { min: roomBounds.min.toArray(), max: roomBounds.max.toArray() },
+              visibleObjectCount: visibleIds.length,
+              camera: { position: camera.three.position.toArray(), target: target.toArray() },
+            })
+          }
+          if (!visibleIds.length && isolateSpaceGuid) {
+            const containingStorey = room.storeyId ? storeys.find(storey => storey.id === room.storeyId) : undefined
+            const storeyItems = containingStorey?.itemIds.filter(id => allLocalIds.includes(id)) ?? []
+            visibleIds = storeyItems.length ? storeyItems : allLocalIds
+            const center = room.box.getCenter(new THREE.Vector3())
+            const roomSize = room.box.getSize(new THREE.Vector3())
+            const distance = Math.max(roomSize.x, roomSize.y, 2.5) * 1.5
+            console.warn('[Trace] interior isolation fallback: showing containing storey', {
+              roomGuid: isolateSpaceGuid,
+              storeyId: containingStorey?.id ?? null,
+              visibleObjectCount: visibleIds.length,
+            })
+            void current.world.camera.controls.setLookAt(
+              center.x + distance, center.y - distance, center.z + distance * .8,
+              center.x, center.y, center.z + .8, true,
+            )
+          }
           const hidden = allLocalIds.filter(id => !visibleIds.includes(id))
           if (hidden.length) await model.setVisible(hidden, false)
           const walls = visibleIds.filter(id => /IFCWALL/i.test(classByLocalIdRef.current.get(id) || ''))
