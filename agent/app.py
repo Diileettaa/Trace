@@ -15,6 +15,10 @@ POST /files          ?author=&role=&title=&tags=&filename=    -> record {id, tit
 GET  /files          ?tag=&q=                                 -> list of files matching tag / title / filename (newest first)
 GET  /files/file     ?id=                                     -> raw file download with Content-Type and filename
 DELETE /files        ?id=&author=                             -> delete file (only author permitted)
+GET  /scene          ?model=&since_version=                   -> whole scene or {"changed": false, "version": n}
+POST /scene/placement {model?, instanceId, catalogId, ...}    -> add or update placement (version +1)
+DELETE /scene/placement ?model=&instanceId=&author=           -> delete placement (version +1)
+GET  /scene/history  ?model=&limit=50                         -> recent placement history
 """
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import agent, collab, config, drawings, files, media, render as render_service, uploads, vision
+from . import agent, collab, config, drawings, files, media, render as render_service, scene, uploads, vision
 
 app = FastAPI(title="Trace API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -467,6 +471,61 @@ def files_delete(id: str = "", author: str = ""):
         raise HTTPException(403, str(e))
     except (files.FileItemNotFoundError, files.FileNotFoundError) as e:
         raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/scene")
+def scene_get(model: str = "", since_version: int | None = None):
+    if not model:
+        raise HTTPException(400, "model is required")
+    try:
+        return scene.get_scene(model=model, since_version=since_version)
+    except scene.SceneValidationError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/scene/placement")
+def scene_placement_post(body: dict, model: str = ""):
+    target_model = model or body.get("model") or ""
+    if not target_model:
+        raise HTTPException(400, "model is required (via ?model= or body.model)")
+    try:
+        placement, ver = scene.save_placement(model=target_model, data=body)
+        return {**placement, "version": ver}
+    except scene.SceneValidationError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.delete("/scene/placement")
+def scene_placement_delete(model: str = "", instanceId: str = "", author: str = ""):
+    if not model:
+        raise HTTPException(400, "model is required")
+    if not instanceId:
+        raise HTTPException(400, "instanceId is required")
+    try:
+        deleted, ver = scene.delete_placement(model=model, instance_id=instanceId, author=author)
+        return {"ok": True, "instanceId": instanceId, "version": ver, "deleted": deleted}
+    except scene.SceneValidationError as e:
+        raise HTTPException(400, str(e))
+    except scene.SceneNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/scene/history")
+def scene_history_get(model: str = "", limit: int = 50):
+    if not model:
+        raise HTTPException(400, "model is required")
+    try:
+        return scene.get_history(model=model, limit=limit)
+    except scene.SceneValidationError as e:
+        raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(500, str(e))
 
