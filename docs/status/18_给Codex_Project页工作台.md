@@ -13,7 +13,12 @@
 - 路径输入框收进「Advanced」，默认不显示
 - **选中文件后立刻在右侧显示图纸或 3D 模型**，再让用户提问；Examples 里的题也按当前图纸过滤（GET /questions 已有 path 信息，前端过滤）
 - 演示模式（URL 带 ?demo=1 或从 Launch Demo 进入）隐藏「Upload your own drawing」；正常模式保留但放到文件浏览器里作为「Upload」按钮
-- **Project 页打开时直接加载 featured 里的第一个 IFC（esplanades 模型）和它对应的平面 PDF**，不要空白
+- **Project 页的起始画面：选一个项目**（不自动加载，用户自己点，但一步就能看到内容）
+  - `GET /catalog` 里的 `projects`：4 个现成项目，每个有 title、subtitle、description、model（IFC 或 null）、plan（平面图或 null）、demo_data
+  - 画成 4 张大卡片：缩略图（plan 用 /drawing 缩略图，只有 model 的用 3D 图标）+ 标题 + 一句说明 + 「Demo data」标签（demo_data 为 true 时）+ 「Open」按钮
+  - 下面一行小字链接「Or browse all drawings…」打开文件浏览器
+  - 点 Open → 进入工作台，加载这个项目的 model 和 plan；顶栏显示项目名，旁边「Switch project」可以回到起始画面
+  - 记住上次打开的项目（localStorage），再进来时起始画面上把它放第一个并标「Continue」，但仍然由用户点
 
 ## 2. Project 页布局改成三栏工作台（P0）
 - 顶栏：项目名「Demo project」+ 当前模型名（点开就是选择器）+ 右上角「你是谁」：第一次进来弹一个小窗填名字和工种，存 localStorage，以后都显示成头像（首字母 + 工种颜色），点头像可改。**删掉页面里的「Team contacts / Register contact」大表单**
