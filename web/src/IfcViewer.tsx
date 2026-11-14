@@ -27,6 +27,7 @@ interface Props {
   onSelectGuid?: (guid: string) => void
   onPlacementsChange?: (placements: PlacedProduct[]) => void
   onScreenshot?: (dataUrl: string, roomName: string, note: string) => void
+  onSelectRoom?: (room: { id: string; name: string } | null) => void
 }
 
 export interface PlacedProduct {
@@ -181,7 +182,7 @@ function makePlaceholder(product: CatalogProduct, instanceId: string) {
   return group
 }
 
-function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot }: Props) {
+function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
@@ -316,7 +317,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
                 guid: guidsById[index] ?? '', box: roomBox }]
             })
             setRooms(nextRooms)
-            if (nextRooms.length) setSelectedRoomKey(nextRooms[0].key)
+            if (nextRooms.length) {
+              setSelectedRoomKey(nextRooms[0].key)
+              onSelectRoom?.({ id: nextRooms[0].name, name: nextRooms[0].name })
+            }
           }
         } catch (error) { console.warn('Could not list IFC spaces:', error) }
 
@@ -349,6 +353,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
+  }
+
+  function selectRoom(key: string) {
+    setSelectedRoomKey(key)
+    const room = rooms.find((candidate) => candidate.key === key)
+    onSelectRoom?.(room ? { id: room.name, name: room.name } : null)
   }
 
   useEffect(() => {
@@ -522,7 +532,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           const hit = await model.raycast({ camera: e.world.camera.three, mouse: point, dom: canvas })
           if (!hit) continue
           const room = rooms.find((candidate) => candidate.modelId === model.modelId && candidate.localId === hit.localId)
-          if (room) { setSelectedRoomKey(room.key); break }
+          if (room) { selectRoom(room.key); break }
         } catch { /* A click outside model geometry is not a room selection. */ }
       }
     }
@@ -538,7 +548,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       canvas.removeEventListener('pointercancel', onPointerUp, true)
       canvas.removeEventListener('click', onClick)
     }
-  }, [modelReady, rooms])
+  }, [modelReady, onSelectRoom, rooms])
 
   return <div className="viewer">
     <BuildingExplorer
@@ -554,7 +564,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <span className="catalog-label">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
-      <select aria-label="IFC space" value={selectedRoomKey} onChange={(event) => setSelectedRoomKey(event.target.value)}>
+      <select aria-label="IFC space" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
         <option value="">Select an IfcSpace…</option>
         {rooms.map((room) => <option key={room.key} value={room.key}>{room.name}</option>)}
       </select>

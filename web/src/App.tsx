@@ -265,7 +265,7 @@ export default function App() {
         <div className="nav-links">
           <button className={activePage === 'home' ? 'active' : ''} onClick={() => setActivePage('home')}>Home</button>
         <button className={activePage === 'ask' ? 'active' : ''} onClick={() => setActivePage('ask')}>Ask</button>
-        <button className={activePage === 'community' ? 'active' : ''} onClick={() => setActivePage('community')}>Community</button>
+        <button className={activePage === 'community' ? 'active' : ''} onClick={() => setActivePage('community')}>Project</button>
         </div>
         <div className="nav-actions"><button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
       </nav>
@@ -273,6 +273,9 @@ export default function App() {
         collab={collab}
         onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
+        onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }}
+        modelPath={path}
+        onModelPathChange={(nextPath) => { setPath(nextPath); setViewMode('3d') }}
       /> : <div className="app">
       <aside className="panel">
         <header className="header">
