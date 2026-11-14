@@ -32,13 +32,19 @@ export const Real3D: React.FC<Props> = ({
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
+  const [geometryError, setGeometryError] = useState<string | null>(null);
   useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
   useEffect(() => {
     const source = model || plan;
     let active = true;
     setGeometryScene(null);
+    setGeometryError(null);
     if (!source) return () => { active = false; };
-    void loadGeometryScene(source).then((next) => { if (active && next && isMeasuredGeometryScene(next)) setGeometryScene(next); });
+    void loadGeometryScene(source).then((result) => {
+      if (!active) return;
+      if (result.scene && isMeasuredGeometryScene(result.scene)) setGeometryScene(result.scene);
+      else setGeometryError(result.error ?? null);
+    });
     return () => { active = false; };
   }, [model, plan]);
   const guids = (scenario?.targetIds || []).filter(isGuid);
@@ -105,6 +111,12 @@ export const Real3D: React.FC<Props> = ({
         )}
 
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
+          {geometryError && (
+            <div className="absolute z-10 left-3 top-3 max-w-xs rounded border border-amber-300/60 bg-[#202427]/95 px-3 py-2 text-[11px] text-[#F7F6F2] shadow-sm">
+              <strong className="block text-[#E9B949]">Measured scene not shown</strong>
+              {geometryError} Using the source view instead.
+            </div>
+          )}
           {geometryScene ? (
             <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling}
               onSelectRoom={setPickedRoom}

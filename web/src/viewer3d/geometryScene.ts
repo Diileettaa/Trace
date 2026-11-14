@@ -74,6 +74,13 @@ export interface GeometryScene {
   objects: GeometryObject[]
 }
 
+/** A failed scene is never rendered as a plausible-looking measured model. */
+export interface GeometrySceneLoadResult {
+  scene: GeometryScene | null
+  /** Undefined means that the optional geometry endpoint has not been implemented yet. */
+  error?: string
+}
+
 const hasPolygon = (room: PlanRoom): room is PlanRoom & { polygon_px: PlanPoint[] } =>
   Array.isArray(room.polygon_px) && room.polygon_px.length >= 3
 
@@ -167,11 +174,50 @@ export function isGeometryScene(value: unknown): value is GeometryScene {
   return normalizeGeometryScene(value) !== null
 }
 
+/**
+ * Keep the renderer deliberately strict: a partially parsed response must not
+ * look like an authoritative measured building.  The engine can still return
+ * empty arrays for a discipline that genuinely is absent from a drawing.
+ */
+export function geometrySceneValidationError(value: unknown, scene: GeometryScene | null): string | null {
+  const raw = record(value)
+  if (!raw || !scene) return 'Expected a metric geometry scene with its coordinate system and unit declared.'
+  for (const key of ['rooms', 'walls', 'openings', 'objects']) {
+    if (!Array.isArray(raw[key])) return `Geometry scene is missing the required ${key} array.`
+  }
+  if (scene.quality !== 'measured') return 'Geometry scene is illustrative, not calibrated metric data.'
+  if (!isMeasuredGeometryScene(scene)) return 'Geometry scene must use metres and x-right, y-up, z-plan-north coordinates.'
+  if (scene.rooms.length + scene.walls.length + scene.openings.length + scene.objects.length === 0) {
+    return 'Geometry scene contains no rooms, walls, openings, or objects.'
+  }
+  if (records(raw.rooms).length !== scene.rooms.length
+    || records(raw.walls).length !== scene.walls.length
+    || records(raw.openings).length !== scene.openings.length
+    || records(raw.objects).length !== scene.objects.length) {
+    return 'Geometry scene contains one or more incomplete coordinates or dimensions.'
+  }
+  if (scene.walls.some(wall => wall.thicknessM <= 0 || wall.heightM <= 0)
+    || scene.openings.some(opening => opening.widthM <= 0 || opening.heightM <= 0)
+    || scene.objects.some(item => item.confidence !== undefined && (item.confidence < 0 || item.confidence > 1))) {
+    return 'Geometry scene contains invalid metric dimensions or confidence values.'
+  }
+  return null
+}
+
 /** The route is intentionally separate from `/api/scene`, which stores shared placements. */
-export async function loadGeometryScene(path: string, page = 1): Promise<GeometryScene | null> {
+export async function loadGeometryScene(path: string, page = 1): Promise<GeometrySceneLoadResult> {
   const query = new URLSearchParams({ path, page: String(page) })
-  const response = await fetch(`/api/geometry/scene?${query}`)
-  if (!response.ok) return null
-  const value: unknown = await response.json()
-  return normalizeGeometryScene(value)
+  try {
+    const response = await fetch(`/api/geometry/scene?${query}`)
+    // The route is optional until Xinran's geometry exporter lands.  A missing
+    // route is a normal fallback case, not an error shown to the user.
+    if (response.status === 404) return { scene: null }
+    if (!response.ok) return { scene: null, error: `Geometry source is unavailable (HTTP ${response.status}).` }
+    const value: unknown = await response.json()
+    const scene = normalizeGeometryScene(value)
+    const error = geometrySceneValidationError(value, scene)
+    return error ? { scene: null, error } : { scene }
+  } catch {
+    return { scene: null, error: 'Geometry source could not be read.' }
+  }
 }
