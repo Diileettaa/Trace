@@ -83,6 +83,7 @@ export default function App() {
   const [renderBusy, setRenderBusy] = useState(false)
   const [browserOpen, setBrowserOpen] = useState(false)
   const [project, setProject] = useState<CatalogProject | null>(null)
+  const [projectPlanPath, setProjectPlanPath] = useState('')
 
   useEffect(() => {
     setSelectedSampleIndex('')
@@ -375,13 +376,14 @@ export default function App() {
         </div>
         <div className="nav-actions"><button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
       </nav>
-      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === '3d' ? item.path : null, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
+      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || ''); setProjectPlanPath(next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProjectPlanPath(item.kind === 'plan' ? item.path : ''); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === '3d' ? item.path : null, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
         collab={collab} onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
         onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }}
         selectedDocumentId={selectedDocumentId} onAskDocument={askAboutDocument} modelPath={path}
-        drawingPath={path.toLowerCase().endsWith('.ifc') ? '' : path}
+        drawingPath={path.toLowerCase().endsWith('.ifc') ? projectPlanPath : path}
         onModelPathChange={(nextPath) => { setPath(nextPath); setViewMode('3d') }}
+        projectName={project?.title || 'Demo project'} onSwitchProject={() => { setProject(null); setProjectPlanPath('') }}
       /> : <div className="app">
       <aside className="panel">
         <header className="header">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { postDirect, postRoomChat } from '../api'
+import { postDirect, postRoomChat, setRoomStatus } from '../api'
 import IfcViewer from '../IfcViewer'
 import ContactRegistration from './ContactRegistration'
 import DirectMessages from './DirectMessages'
@@ -22,29 +22,32 @@ interface Props {
   onModelPathChange: (path: string) => void
   selectedDocumentId: number | null
   onAskDocument: (document: ProjectDocument) => void
+  projectName: string
+  onSwitchProject: () => void
 }
 
-export default function CommunityPage({ collab, onChange, screenshot, onScreenshot, modelPath, drawingPath, onModelPathChange, selectedDocumentId, onAskDocument }: Props) {
+export default function CommunityPage({ collab, onChange, screenshot, onScreenshot, modelPath, drawingPath, onModelPathChange, selectedDocumentId, onAskDocument, projectName, onSwitchProject }: Props) {
   const [roomId, setRoomId] = useState('')
-  const [roomName, setRoomName] = useState('')
   const [recipient, setRecipient] = useState('')
   const [target, setTarget] = useState<'room' | 'direct'>('room')
   const [message, setMessage] = useState('')
   const [feedback, setFeedback] = useState('')
-  const [modelDraft, setModelDraft] = useState(modelPath.toLowerCase().endsWith('.ifc') ? modelPath : '')
   const [selectedRoom, setSelectedRoom] = useState<{ id: string; name: string } | null>(null)
   const [browseModel, setBrowseModel] = useState(false)
+  const [mainTab, setMainTab] = useState<'3D' | '2D plan' | 'Files' | 'Schedule'>('3D')
+  const [roomTab, setRoomTab] = useState<'Overview' | 'Chat' | 'Photos' | 'Schedule'>('Overview')
+  const [dmOpen, setDmOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  let profile: { name?: string; trade?: string } | null = null
+  try { profile = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') } catch { /* profile is optional until Community */ }
   let currentPerson = ''
   try { currentPerson = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* profile is registered in Project */ }
 
-  useEffect(() => {
-    if (modelPath.toLowerCase().endsWith('.ifc')) setModelDraft(modelPath)
-  }, [modelPath])
+  useEffect(() => { if (!profile) setProfileOpen(true) }, [])
 
   const selectRoom = useCallback((room: { id: string; name: string } | null) => {
     setSelectedRoom(room)
     setRoomId(room?.id || '')
-    setRoomName(room?.name || '')
   }, [])
 
   async function sendScreenshot() {
@@ -61,56 +64,26 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
     } catch (error) { setFeedback(error instanceof Error ? error.message : String(error)) }
   }
 
-  return <main className="project-page">
-    <header className="community-heading"><div><h1>Project</h1><p className="sub">A shared place for the model, team conversations and project files.</p></div><span className="demo-schedule">Demo project</span></header>
-    <div className="project-grid">
-      <SharedPlanPanel drawingPath={drawingPath} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} />
-      <section className="project-section shared-model-section">
-        <div className="project-section-heading"><div><h2>Shared 3D model</h2><p className="sub">Select a room in the model to start its conversation.</p></div></div>
-        <div className="row project-model-picker">
-          <button type="button" className="dataset-picker-button" onClick={() => setBrowseModel(true)}>{modelDraft ? `▧ ${modelDraft.split('/').pop()}` : 'Browse 3D models…'}</button>
-          <button className="primary" disabled={!modelDraft.trim().toLowerCase().endsWith('.ifc')} onClick={() => {
-            setSelectedRoom(null); setRoomId(''); setRoomName(''); onModelPathChange(modelDraft.trim())
-          }}>Load model</button>
-        </div>
-        {modelPath.toLowerCase().endsWith('.ifc') ? <div className="project-shared-layout">
-          <div className="project-model-viewer"><IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom}
-            onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>
-          {selectedRoom ? <RoomMediaPanel spaceId={selectedRoom.id} roomName={selectedRoom.name} />
-            : <aside className="room-media-sidebar room-media-empty">Select a room in the model to view its notes and media.</aside>}
-        </div> : <div className="project-model-empty">Load an IFC model path to share an interactive room view with the team.</div>}
+  return <main className="project-workbench">
+    <header className="workbench-header"><div className="workbench-project-title"><button className="workbench-back" onClick={onSwitchProject}>‹ Switch project</button><div><h1>{projectName}</h1><span title={modelPath}>{modelPath.split('/').pop() || 'No model selected'}</span></div></div><div className="workbench-header-actions"><button className="workbench-model-select" onClick={() => setBrowseModel(true)}>Change model</button><button className="workbench-envelope" aria-label="Private messages" onClick={() => setDmOpen(true)}>✉<span>{collab.messages.filter(m => m.thread === 'direct').length || ''}</span></button><button className="workbench-avatar" title="Edit your identity" onClick={() => setProfileOpen(true)}>{profile?.name?.slice(0, 1).toUpperCase() || '?'}</button><span className="workbench-trade">{profile?.trade || 'Set up profile'}</span></div></header>
+    <div className="workbench-grid">
+      <aside className="workbench-room-tree"><h2>Building</h2>{modelPath ? <><p className="workbench-tree-node">⌄ {modelPath.split('/').pop()}</p><p className="workbench-tree-group">Rooms</p>{selectedRoom ? <button className="workbench-room-node selected" onClick={() => setRoomTab('Overview')}><i />{selectedRoom.name}<small>{collab.messages.filter(item => item.space_id === selectedRoom.id).length || 'Selected'}</small></button> : <p className="workbench-empty">Select a room in the model to see its details here.</p>}</> : <p className="workbench-empty">Choose a model to browse its rooms.</p>}</aside>
+      <section className="workbench-center"><nav className="workbench-tabs" aria-label="Project workspace tabs">{(['3D', '2D plan', 'Files', 'Schedule'] as const).map(tab => <button key={tab} className={mainTab === tab ? 'active' : ''} onClick={() => setMainTab(tab)}>{tab}</button>)}</nav>
+        {mainTab === '3D' && <>{!modelPath.toLowerCase().endsWith('.ifc') ? <div className="project-model-empty">Choose a 3D model from the project library to load the building.</div> : <div className="workbench-viewport"><IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom} onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>}</>}
+        {mainTab === '2D plan' && <SharedPlanPanel drawingPath={drawingPath} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} selectedRoomId={selectedRoom?.id} onRoomSelect={selectRoom} />}
+        {mainTab === 'Files' && <section className="workbench-files"><div className="project-section-heading"><div><h2>Project files</h2><p className="sub">Plans, permits and reports</p></div></div><DocsLibrary selectedDocumentId={selectedDocumentId} onAskDocument={onAskDocument} /></section>}
+        {mainTab === 'Schedule' && <section className="workbench-schedule"><WorkTimeline collab={collab} onChange={onChange} /></section>}
       </section>
-
-      <div className="project-side">
-        <section className="project-section communication-section">
-          <div className="project-section-heading"><div><h2>Communication</h2><p className="sub">Contacts, room chat, private messages and the shared timeline.</p></div></div>
-          <ContactRegistration onRegister={onChange} />
-          <div className="project-communication-grid">
-            <DirectMessages collab={collab} onChange={onChange} />
-            <section className="collab room-community">
-              <h3>Room chat{roomName ? ` · ${roomName}` : ''}</h3>
-              {roomId ? <RoomCollabPanel spaceId={roomId} spaceName={roomName || roomId} role="" collab={collab} onChange={onChange} onHighlightSpace={() => {}} />
-                : <p className="dim small">Select a room in the shared model to open its chat.</p>}
-            </section>
-            <WorkTimeline collab={collab} onChange={onChange} />
-            <section className="collab screenshot-community">
-              <h3>Share a 3D screenshot</h3>
-              {screenshot ? <><p className="dim small">Screenshot ready · {screenshot.roomName}{screenshot.note && ` · “${screenshot.note}”`}</p><img className="community-screenshot" src={screenshot.dataUrl} alt="Annotated 3D room screenshot" />
-                <div className="row"><select value={target} onChange={event => setTarget(event.target.value as 'room' | 'direct')}><option value="room">Room chat</option><option value="direct">Private chat</option></select>
-                  {target === 'room' ? <input aria-label="Screenshot room ID" value={roomId} onChange={event => setRoomId(event.target.value)} placeholder="Room ID" /> : <select value={recipient} onChange={event => setRecipient(event.target.value)}><option value="">Choose contact…</option>{(collab.people || []).filter(person => person.id !== currentPerson).map(person => <option key={person.id} value={person.id}>{person.name} · {person.trade}</option>)}</select>}</div>
-                <div className="row"><input value={message} onChange={event => setMessage(event.target.value)} placeholder={screenshot.note || 'Message with screenshot'} /><button disabled={target === 'room' ? !roomId : !recipient} onClick={sendScreenshot}>Send to chat</button></div>
-                {feedback && <p className={feedback.includes('successfully') ? 'dim small' : 'error'}>{feedback}</p>}
-              </> : <p className="dim small">Take a screenshot in the 3D view from Ask or Project, then share it with a note.</p>}
-            </section>
-          </div>
-        </section>
-
-      </div>
+      {selectedRoom && <aside className="workbench-room-card"><div className="workbench-room-title"><div><small>ROOM DETAILS</small><h2>{selectedRoom.name}</h2></div><button aria-label="Close room" onClick={() => selectRoom(null)}>×</button></div><nav className="workbench-tabs room-tabs">{(['Overview', 'Chat', 'Photos', 'Schedule'] as const).map(tab => <button key={tab} className={roomTab === tab ? 'active' : ''} onClick={() => setRoomTab(tab)}>{tab}</button>)}</nav>
+        {roomTab === 'Overview' && <div className="workbench-overview"><p><b>Room</b><span>{selectedRoom.name}</span></p><label className="workbench-field"><b>Area m²</b><input type="number" min="0" step="0.1" placeholder="Not available" /></label><label className="workbench-field"><b>Status</b><select value={collab.status[selectedRoom.id]?.status || 'pending'} onChange={event => void setRoomStatus(selectedRoom.id, event.target.value as 'pending' | 'built' | 'missing_wall').then(onChange).catch(error => setFeedback(String(error)))}><option value="pending">Not started / pending</option><option value="built">Built</option><option value="missing_wall">Missing wall</option></select></label><button onClick={() => setRoomTab('Chat')}>Add a room note</button></div>}
+        {roomTab === 'Chat' && <RoomCollabPanel spaceId={selectedRoom.id} spaceName={selectedRoom.name} role="" collab={collab} onChange={onChange} onHighlightSpace={() => {}} />}
+        {roomTab === 'Photos' && <RoomMediaPanel spaceId={selectedRoom.id} roomName={selectedRoom.name} />}
+        {roomTab === 'Schedule' && <WorkTimeline collab={collab} onChange={onChange} />}
+      </aside>}
     </div>
-    <section className="project-section project-files-section">
-      <div className="project-section-heading"><div><h2>Shared files</h2><p className="sub">Project drawings, permits and reports</p></div></div>
-      <DocsLibrary selectedDocumentId={selectedDocumentId} onAskDocument={onAskDocument} />
-    </section>
-    <DatasetBrowser open={browseModel} kind="3d" onClose={() => setBrowseModel(false)} onSelect={(item: CatalogItem) => { setModelDraft(item.path); setSelectedRoom(null); setRoomId(''); setRoomName(''); onModelPathChange(item.path); setBrowseModel(false) }} />
+    {profileOpen && <div className="workbench-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setProfileOpen(false) }}><section className="workbench-dialog"><button className="workbench-dialog-close" onClick={() => setProfileOpen(false)}>×</button><h2>Your project identity</h2><p>Set your name and trade. Add contact details so teammates can reach you.</p><ContactRegistration compact onRegister={state => { onChange(state); setProfileOpen(false) }} /></section></div>}
+    {dmOpen && <><button className="workbench-drawer-shade" aria-label="Close private messages" onClick={() => setDmOpen(false)} /><aside className="workbench-drawer"><header><h2>Private messages</h2><button onClick={() => setDmOpen(false)}>×</button></header><DirectMessages collab={collab} onChange={onChange} /></aside></>}
+    {screenshot && <section className="workbench-shot-inbox"><div><b>Screenshot ready · {screenshot.roomName}</b><img src={screenshot.dataUrl} alt="Screenshot ready to share" />{screenshot.note && <small>{screenshot.note}</small>}</div><div className="row"><select value={target} onChange={event => setTarget(event.target.value as 'room' | 'direct')}><option value="room">Room chat</option><option value="direct">Private chat</option></select>{target === 'room' ? <input aria-label="Screenshot room ID" value={roomId} onChange={event => setRoomId(event.target.value)} placeholder="Room ID" /> : <select value={recipient} onChange={event => setRecipient(event.target.value)}><option value="">Choose contact…</option>{(collab.people || []).filter(person => person.id !== currentPerson).map(person => <option key={person.id} value={person.id}>{person.name} · {person.trade}</option>)}</select>}<input value={message} onChange={event => setMessage(event.target.value)} placeholder="Add a note…" /><button disabled={target === 'room' ? !roomId : !recipient} onClick={sendScreenshot}>Send to chat</button></div>{feedback && <p>{feedback}</p>}</section>}
+    <DatasetBrowser open={browseModel} kind="3d" onClose={() => setBrowseModel(false)} onSelect={(item: CatalogItem) => { setSelectedRoom(null); setRoomId(''); onModelPathChange(item.path); setBrowseModel(false) }} />
   </main>
 }

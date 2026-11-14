@@ -4,10 +4,10 @@ import type { CollabState } from '../types'
 import RoomDetailCard from './RoomDetailCard'
 
 const statusColor: Record<string, string> = { built: '#74A889', missing_wall: '#D84B45', pending: '#E9B949' }
-export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChange, onScreenshot, selectedRoomId, onCloseRoom, compact = false }: {
+export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChange, onScreenshot, selectedRoomId, onCloseRoom, onRoomSelect, compact = false }: {
   drawingPath: string; modelPath: string; collab: CollabState; onChange: (state: CollabState) => void
   onScreenshot: (dataUrl: string, name: string, note: string) => void
-  selectedRoomId?: string | null; onCloseRoom?: () => void; compact?: boolean
+  selectedRoomId?: string | null; onCloseRoom?: () => void; onRoomSelect?: (room: { id: string; name: string } | null) => void; compact?: boolean
 }) {
   const [path, setPath] = useState(drawingPath)
   const [plan, setPlan] = useState<PlanRoomsResult | null>(null)
@@ -39,7 +39,7 @@ export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChan
     void run(); const timer = window.setInterval(() => void run(), 3000)
     return () => { active = false; window.clearInterval(timer) }
   }, [path])
-  function choose(room: PlanRoom, focusDetails = false) { setSelected(room); if (focusDetails) window.setTimeout(() => details.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }
+  function choose(room: PlanRoom, focusDetails = false) { setSelected(room); onRoomSelect?.({ id: room.space_id, name: room.name || room.number || room.space_id }); if (focusDetails) window.setTimeout(() => details.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }
   const [width, height] = plan?.image_size || [0, 0]
   if (compact) return selected ? <div ref={details}><RoomDetailCard room={selected} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} onClose={() => { setSelected(null); onCloseRoom?.() }} /></div> : null
   return <section className="project-section shared-plan-section">

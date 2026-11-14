@@ -7,9 +7,26 @@ export interface CatalogSource { source: string; label: string; description: str
 export interface CatalogProject { id: string; title: string; subtitle: string; description: string; model: string | null; plan: string | null; demo_data: boolean }
 interface Catalog { featured: string[]; projects: CatalogProject[]; sources: CatalogSource[] }
 
+const FALLBACK_CATALOG: Catalog = {
+  featured: ['data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc', 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf', 'data/swiss_dwellings/site1000_bldg2082_floor9385.pdf', 'data/ifc_bench/ac20_arc.ifc'],
+  projects: [
+    { id: 'esplanades', title: 'Apartment building, Tallinn', subtitle: 'BIM model + floor plan · demo team data', description: 'Six-storey residential building. Explore the model, room status, notes and photos.', model: 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc', plan: 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf', demo_data: true },
+    { id: 'swiss', title: 'Swiss apartment floor', subtitle: 'Vector floor plan · exact areas', description: 'Two apartments on one floor with room areas and fixtures.', model: null, plan: 'data/swiss_dwellings/site1000_bldg2082_floor9385.pdf', demo_data: true },
+    { id: 'fzk', title: 'Family house (FZK-Haus)', subtitle: 'Small BIM model · walk through', description: 'Explore two storeys, rooms and walk mode.', model: 'data/ifc_bench/ac20_arc.ifc', plan: null, demo_data: false },
+    { id: 'clinic', title: 'Clinic – plumbing', subtitle: 'BIM model · one trade only', description: 'Pipes and sanitary fixtures of a medical clinic.', model: 'data/ifc_models/bsc-clinic_clinic-plumbing.ifc', plan: null, demo_data: false },
+  ],
+  sources: [
+    { source: 'ifc_models', label: 'BIM models', description: '3D building models and plan sheets', license: 'See the data source license', count: 2, groups: [{ name: 'Apartment building, Tallinn', count: 2, items: [
+      { path: 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc', label: '3D model', kind: '3d' }, { path: 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf', label: 'Plan 04 · 4th floor', kind: 'plan' },
+    ] }] },
+    { source: 'swiss_dwellings', label: 'Swiss apartments', description: 'Vector floor plans by building and floor', license: 'See the data source license', count: 1, groups: [{ name: 'Site 1000 · Building 2082', count: 1, items: [{ path: 'data/swiss_dwellings/site1000_bldg2082_floor9385.pdf', label: 'Floor 9385', kind: 'plan' }] }] },
+    { source: 'ifc_bench', label: 'BIM model benchmarks', description: 'Additional IFC models', license: 'See the data source license', count: 1, groups: [{ name: 'FZK-Haus', count: 1, items: [{ path: 'data/ifc_bench/ac20_arc.ifc', label: '3D model', kind: '3d' }] }] },
+  ],
+}
+
 export async function loadCatalog(): Promise<Catalog> {
   const response = await fetch('/api/catalog')
-  if (!response.ok) throw new Error(`Catalog unavailable (${response.status})`)
+  if (!response.ok) return FALLBACK_CATALOG
   return response.json()
 }
 
