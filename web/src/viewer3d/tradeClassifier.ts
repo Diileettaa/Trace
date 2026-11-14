@@ -1,7 +1,18 @@
+import * as THREE from 'three'
 import type { FragmentsModel } from '@thatopen/fragments'
 import type { TradesState, TradeKey } from './types'
 
 export type IfcClassItems = Record<string, number[]>
+
+export const TRADE_COLORS: Record<TradeKey, string> = {
+  plumbing: '#1F6FEB',
+  electrical: '#E9B949',
+  structure: '#6B7174',
+  architecture: '#C8CDD0',
+  furniture: '#8B5E3C',
+}
+
+export const ARCHITECTURE_OPACITY = 0.3
 
 export const TRADE_DEFINITIONS: Record<TradeKey, { label: string; regex: RegExp; categories: string[] }> = {
   architecture: {
@@ -78,4 +89,12 @@ export function classifyModelTrades(_model: FragmentsModel, byClass: IfcClassIte
 
 export function allModelLocalIds(byClass: IfcClassItems): number[] {
   return [...new Set(Object.values(byClass).flat())]
+}
+
+export async function applyTradeColors(model: FragmentsModel, trades: TradesState): Promise<void> {
+  await Promise.all(Object.values(trades).map(async (trade) => {
+    if (!trade.itemIds.length) return
+    await model.setColor(trade.itemIds, new THREE.Color(TRADE_COLORS[trade.key as TradeKey]))
+    if (trade.key === 'architecture') await model.setOpacity(trade.itemIds, ARCHITECTURE_OPACITY)
+  }))
 }

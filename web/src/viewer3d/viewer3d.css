@@ -39,7 +39,16 @@
 .trade-checkbox-label input[type="checkbox"] { margin: 0; accent-color: var(--ink, #202427); }
 .trade-checkbox-label.disabled { opacity: .6; cursor: default; }
 .trade-checkbox-label input:disabled { cursor: default; }
+.trade-plumbing { border-left: 4px solid #1F6FEB; }
+.trade-electrical { border-left: 4px solid #E9B949; }
+.trade-structure { border-left: 4px solid #6B7174; }
+.trade-architecture { border-left: 4px solid #C8CDD0; }
+.trade-furniture { border-left: 4px solid #8B5E3C; }
 .trade-none, .trade-count { color: var(--muted, #A9AFB0); font-size: 11px; }
+.only-trade { color: var(--ink, #202427); font-weight: 650; }
+.trade-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 0 62px; }
+.trade-legend-item { display: inline-flex; align-items: center; gap: 4px; color: var(--ink, #202427); font-size: 10px; }
+.trade-swatch { width: 9px; height: 9px; border: 1px solid rgba(32,36,39,.65); border-radius: 2px; }
 .no-mep { padding-left: 5px; color: var(--muted, #A9AFB0); font-size: 11px; }
 .explorer-hint {
   display: flex;

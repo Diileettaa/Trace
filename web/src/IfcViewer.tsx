@@ -9,6 +9,7 @@ import {
   applyBuildingVisibility,
   applyStoreyCut,
   classifyModelTrades,
+  applyTradeColors,
   allModelLocalIds,
   createInitialTrades,
   loadStoreys,
@@ -243,7 +244,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true })
         world.camera = new OBC.SimpleCamera(components)
         components.init()
-        components.get(OBC.Grids).create(world)
+        const grid = components.get(OBC.Grids).create(world)
+        grid.visible = false
 
         const fragments = components.get(OBC.FragmentsManager)
         engine.current = { components, world, fragments }
@@ -284,6 +286,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         ])
         if (cancelled) return
         const nextTrades = classifyModelTrades(loadedModel, allByClass)
+        await applyTradeColors(loadedModel, nextTrades)
         const ids = new Set(allModelLocalIds(allByClass))
         for (const id of await loadedModel.getLocalIds()) ids.add(id)
         for (const storey of nextStoreys) {
