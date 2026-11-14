@@ -232,3 +232,30 @@ def test_engine_raster_count_gets_nemotron_check(monkeypatch):
     r = engine_adapter.answer("data/demo/plan.png", "How many windows?")
     assert r["verified_by"]["nemotron_count"] == 13 and r["verified_by"]["agreement"] is False
     assert any("Nemotron counted 13" in w for w in r["warnings"])
+
+
+def test_ask_endpoint_caches_answers(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from agent import agent
+    from agent.app import app
+
+    calls = []
+
+    def fake_ask(q, p, r):
+        calls.append(q)
+        return {"answer_text": "2 toilets", "evidence": [{"tool": "x", "value": 2}], "tool_calls": [], "timing": {}}
+
+    monkeypatch.setattr(agent, "ask", fake_ask)
+    c = TestClient(app)
+    a = c.post("/ask", json={"question": "How many toilets?", "path": "data/demo/plan.png"}).json()
+    b = c.post("/ask", json={"question": "How many toilets?", "path": "data/demo/plan.png"}).json()
+    assert len(calls) == 1 and b["from_cache"] is True and a["answer_text"] == b["answer_text"]
+    c.post("/ask?fresh=true", json={"question": "How many toilets?", "path": "data/demo/plan.png"})
+    assert len(calls) == 2
+
+
+def test_tool_results_carry_elapsed_time():
+    from agent import tools
+
+    assert "elapsed_s" in tools.call("sum_values", {"values": [1, 2]})

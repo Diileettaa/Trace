@@ -99,6 +99,15 @@ def _mock(name: str) -> dict:
 
 def call(name: str, args: dict[str, Any]) -> dict:
     """Run one tool call and always return the shared result format (never raise to the model)."""
+    import time
+
+    t0 = time.perf_counter()
+    r = _call(name, args)
+    r["elapsed_s"] = round(time.perf_counter() - t0, 2)
+    return r
+
+
+def _call(name: str, args: dict[str, Any]) -> dict:
     try:
         if name == "room_status":
             return room_status(**args)

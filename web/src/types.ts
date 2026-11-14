@@ -35,6 +35,8 @@ export interface AskResponse {
   answer_text: string
   evidence: Evidence[]
   tool_calls: { name: string; args: Record<string, unknown> }[]
+  timing?: { total_s: number; gemini_calls_s: number[]; tools_s: number[] }
+  from_cache?: boolean
 }
 
 export interface DatasetQuestion {

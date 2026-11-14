@@ -36,14 +36,26 @@ def health():
 
 
 @app.post("/ask")
-def ask(body: AskIn):
+def ask(body: AskIn, fresh: bool = False):
     if body.path:
         try:
             drawings.resolve(body.path)
         except drawings.DrawingError as e:
             raise HTTPException(404, str(e))
+    import hashlib
+
+    key = hashlib.sha256(json.dumps([body.question.strip(), body.path, body.role, config.GEMINI_MODEL]).encode()).hexdigest()[:32]
+    f = config.CACHE_DIR / "answers" / f"{key}.json"
+    if f.exists() and not fresh:
+        out = json.loads(f.read_text(encoding="utf-8"))
+        out["from_cache"] = True
+        return out
     try:
-        return agent.ask(body.question, body.path, body.role)
+        out = agent.ask(body.question, body.path, body.role)
+        if not any(e.get("tool") == "number_check" for e in out["evidence"]):
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+        return out
     except Exception as e:  # surface the real error to the UI instead of a bare 500
         import traceback
 

@@ -308,6 +308,14 @@ export default function App() {
               </summary>
               <pre>{JSON.stringify(res.tool_calls, null, 2)}</pre>
             </details>
+            {res.from_cache ? (
+              <p className="dim small">Answered from cache (asked before)</p>
+            ) : res.timing ? (
+              <p className="dim small">
+                Answered in {res.timing.total_s.toFixed(1)} s · Gemini {res.timing.gemini_calls_s.map((t) => t.toFixed(1)).join(' + ')} s
+                · tools {res.timing.tools_s.map((t) => t.toFixed(1)).join(' + ')} s
+              </p>
+            ) : null}
           </section>
         )}
 

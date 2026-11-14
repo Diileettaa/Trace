@@ -7,7 +7,11 @@ pixel space of the drawing the user is looking at (PDFs are shown rendered at 15
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 from . import config, drawings, ifc_plan, vision
+
+_POOL = ThreadPoolExecutor(max_workers=4)
 
 PT_TO_PX = drawings.PDF_RENDER_DPI / 72.0
 _NICE = {"wc": "WC", "washbasin": "Washbasin", "bathtub": "Bathtub", "shower": "Shower", "door": "Door",
@@ -36,6 +40,10 @@ def answer(path: str, question: str) -> dict:
     import engine.answer as ea
 
     ea.DATA = str(config.DATA_DIR)
+    early = None
+    if "cubicasa5k" in path and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
+        # the Nemotron second count does not depend on the engine result: run both at the same time
+        early = _POOL.submit(nemotron_check, path, question)
     r = ea.answer(path, question)
     is_pdf = path.lower().endswith(".pdf")
     counters: dict[str, int] = {}
@@ -77,7 +85,12 @@ def answer(path: str, question: str) -> dict:
     method = str(r.get("method"))
     if method.startswith("cubicasa:vlm") and isinstance(r.get("value"), int):
         r["warnings"] = list(r.get("warnings") or [])
-        verify = nemotron_check(path, method.rsplit(":", 1)[-1], r["value"], question)
+        try:
+            verify = early.result(timeout=180) if early else nemotron_check(path, question)
+        except Exception as e:  # never fail the answer because the second opinion failed
+            verify = {"nemotron_count": None, "model": config.NEMOTRON_MODEL or None, "error": type(e).__name__}
+        verify = dict(verify)
+        verify["agreement"] = None if verify["nemotron_count"] is None else verify["nemotron_count"] == r["value"]
         r["verified_by"] = verify
         if verify["nemotron_count"] is None:
             r["warnings"].append("Second check (Nemotron) not run")
@@ -101,11 +114,10 @@ def answer(path: str, question: str) -> dict:
     return out
 
 
-def nemotron_check(path: str, category: str, value: int, question: str) -> dict:
+def nemotron_check(path: str, question: str) -> dict:
     """Independent Nemotron 3.5 Super VL count on the same drawing (cached by image + prompt + model)."""
     png_bytes = drawings.page_png(path, 1).read_bytes()
-    target = f"{category}s (the question was: {question})"
+    target = f"what this question asks about: {question}"
     second, _ = vision.cached_call("nemotron-count", png_bytes, vision.VERIFY_PROMPT.format(target=target),
                                    config.NEMOTRON_MODEL or "none", lambda: vision._nemotron_count(png_bytes, target))
-    return {"nemotron_count": second, "agreement": None if second is None else second == value,
-            "model": config.NEMOTRON_MODEL or None}
+    return {"nemotron_count": second, "model": config.NEMOTRON_MODEL or None}

@@ -98,9 +98,15 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
     tool_calls: list[dict] = []
     answer = ""
 
+    import time
+
+    t_start = time.perf_counter()
+    model_s: list[float] = []
     for attempt in range(2):  # second attempt only if the number check fails
         for _ in range(config.MAX_TOOL_STEPS):
+            t0 = time.perf_counter()
             resp = client.models.generate_content(model=config.GEMINI_MODEL, contents=contents, config=gen_config)
+            model_s.append(round(time.perf_counter() - t0, 2))
             calls = resp.function_calls or []
             if not calls:
                 answer = resp.text or ""
@@ -129,7 +135,9 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
             evidence.append({"tool": "number_check", "value": None, "items": [], "sources": [], "method": "check",
                              "warnings": [f"Unverified numbers in answer: {bad}"]})
 
-    return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls}
+    timing = {"total_s": round(time.perf_counter() - t_start, 2), "gemini_calls_s": model_s,
+              "tools_s": [e.get("elapsed_s") for e in evidence if "elapsed_s" in e]}
+    return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls, "timing": timing}
 
 
 def list_models() -> None:
