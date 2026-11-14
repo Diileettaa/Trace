@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ask, getCollab, inventory, renderMoodImage, sampleQuestions } from './api'
 import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
@@ -35,6 +35,10 @@ export default function App() {
   const [role, setRole] = useState<Role>('')
   const [samples, setSamples] = useState<DatasetQuestion[]>([])
   const [source, setSource] = useState('cubicasa5k')
+  const [selectedDemoId, setSelectedDemoId] = useState('')
+  const [selectedSampleIndex, setSelectedSampleIndex] = useState('')
+  const [questionFlash, setQuestionFlash] = useState(false)
+  const questionRef = useRef<HTMLTextAreaElement>(null)
   const [expected, setExpected] = useState<DatasetQuestion | null>(null)
   const [res, setRes] = useState<AskResponse | null>(null)
   const [inv, setInv] = useState<Evidence | null>(null)
@@ -58,6 +62,7 @@ export default function App() {
   const [renderBusy, setRenderBusy] = useState(false)
 
   useEffect(() => {
+    setSelectedSampleIndex('')
     sampleQuestions(source || undefined).then(setSamples)
   }, [source])
   useEffect(() => () => { if (renderImageUrl) URL.revokeObjectURL(renderImageUrl) }, [renderImageUrl])
@@ -69,6 +74,11 @@ export default function App() {
     const t = setTimeout(() => setFlashSpace(null), 4000)
     return () => clearTimeout(t)
   }, [flashSpace])
+  useEffect(() => {
+    if (!questionFlash) return
+    const timer = window.setTimeout(() => setQuestionFlash(false), 1200)
+    return () => window.clearTimeout(timer)
+  }, [questionFlash])
 
   const evidence: Evidence[] = useMemo(() => [...(inv ? [inv] : []), ...(res?.evidence ?? [])], [inv, res])
 
@@ -144,6 +154,8 @@ export default function App() {
 
   function pick(q: DatasetQuestion) {
     setQuestion(q.question)
+    setSelectedDemoId('')
+    setQuestionFlash(true)
     setPath(q.path)
     setExpected(q)
     setRes(null)
@@ -221,8 +233,11 @@ export default function App() {
   }
 
   function applyDemo(item: DemoItem) {
+    setSelectedDemoId(item.id)
+    setSelectedSampleIndex('')
     setPath(item.path)
     setQuestion(item.question)
+    setQuestionFlash(true)
     setRole(item.role ?? '')
     setSpace(item.space ?? null)
     setExpected(null)
@@ -289,9 +304,39 @@ export default function App() {
           <p className="sub">Ask a drawing anything. Every answer shows where it came from.</p>
         </header>
 
+        <details className="examples-panel">
+          <summary>Examples</summary>
+          <label>
+            Demo scenarios
+            <select className="demo-select" value={selectedDemoId} onChange={(e) => {
+              const item = DEMO_ITEMS.find((d) => d.id === e.target.value)
+              if (item) applyDemo(item)
+            }}>
+              <option value="">Choose a demo scenario…</option>
+              {DEMO_ITEMS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Dataset samples
+            <div className="row">
+              <select value={source} onChange={(e) => setSource(e.target.value)}>
+                {SOURCES.map((s) => <option key={s} value={s}>{s || 'All sources'}</option>)}
+              </select>
+              <select value={selectedSampleIndex} onChange={(e) => {
+                const index = e.target.value
+                setSelectedSampleIndex(index)
+                if (index !== '' && samples[Number(index)]) pick(samples[Number(index)])
+              }}>
+                <option value="">Select a question…</option>
+                {samples.map((q, i) => <option key={i} value={i}>{q.question.slice(0, 70)}</option>)}
+              </select>
+            </div>
+          </label>
+        </details>
+
         <label className="question-primary">
           Question{space && <span className="scope"> · Room scope: {space.name} <a onClick={() => setSpace(null)}>×</a></span>}
-          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={4}
+          <textarea ref={questionRef} className={questionFlash ? 'question-flash' : ''} value={question} onChange={(e) => setQuestion(e.target.value)} rows={4}
             placeholder="Ask a question about your drawing or model…"
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
           <small className="control-help">Ask in any language, e.g. "How many toilets?" or "一共有几扇门"</small>
@@ -324,32 +369,6 @@ export default function App() {
           <small className="control-help role-help">Changes how the answer is explained, not the numbers.</small>
           <button className="primary" onClick={submit} disabled={busy}>{busy ? 'Thinking…' : 'Ask'}</button>
         </div>
-
-        <details className="examples-panel">
-          <summary>Examples</summary>
-          <label>
-            Demo scenarios
-            <select className="demo-select" value="" onChange={(e) => {
-              const item = DEMO_ITEMS.find((d) => d.id === e.target.value)
-              if (item) applyDemo(item)
-            }}>
-              <option value="">Choose a demo scenario…</option>
-              {DEMO_ITEMS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-            </select>
-          </label>
-          <label>
-            Dataset samples
-            <div className="row">
-              <select value={source} onChange={(e) => setSource(e.target.value)}>
-                {SOURCES.map((s) => <option key={s} value={s}>{s || 'All sources'}</option>)}
-              </select>
-              <select value="" onChange={(e) => pick(samples[Number(e.target.value)])}>
-                <option value="">Select a question…</option>
-                {samples.map((q, i) => <option key={i} value={i}>{q.question.slice(0, 70)}</option>)}
-              </select>
-            </div>
-          </label>
-        </details>
 
         {!isIfc && path && <div className="control-with-help"><button onClick={scan} disabled={busy}>Scan &amp; number all elements</button><small className="control-help">Find and number everything on the drawing.</small></div>}
 
