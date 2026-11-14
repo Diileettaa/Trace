@@ -3,6 +3,7 @@ import * as OBC from '@thatopen/components'
 import * as THREE from 'three'
 import { RenderedFaces } from '@thatopen/fragments'
 import { deleteScenePlacement, fileUrl, getScene, saveScenePlacement, type ScenePlacement } from './api'
+import FurnitureCatalogModal, { type FurnitureProduct } from './components/FurnitureCatalogModal'
 import catalogUrl from './catalog.json?url'
 import {
   BuildingExplorer,
@@ -46,19 +47,7 @@ export interface PlacedProduct {
   space_id?: string | null
 }
 
-interface CatalogProduct {
-  id: string
-  category: string
-  name: string
-  width_mm: number
-  depth_mm: number
-  height_mm: number
-  price_eur: number
-  material: string
-  color_hex: string
-  variants: string[]
-  mount: 'floor' | 'ceiling' | 'wall'
-}
+type CatalogProduct = FurnitureProduct
 
 interface RoomOption {
   key: string
@@ -212,6 +201,10 @@ function makePlaceholder(product: CatalogProduct, instanceId: string) {
   return group
 }
 
+function makeCatalogThumbnailModel(product: FurnitureProduct) {
+  return makePlaceholder(product, `catalog-${product.id}`)
+}
+
 function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
@@ -227,6 +220,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [selectedRoomKey, setSelectedRoomKey] = useState('')
   const [screenshotNote, setScreenshotNote] = useState('')
   const [selectedProductId, setSelectedProductId] = useState('')
+  const [catalogOpen, setCatalogOpen] = useState(false)
   const [placed, setPlaced] = useState<PlacedProduct[]>([])
   const [selectedPlacementId, setSelectedPlacementId] = useState('')
   const [selectedElement, setSelectedElement] = useState<IfcElementInfo | null>(null)
@@ -524,10 +518,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     return () => { cancelled = true; if (timer !== undefined) window.clearTimeout(timer) }
   }, [catalog, modelReady, path])
 
-  function addProduct() {
+  function addProduct(productId = selectedProductId) {
     const e = engine.current
     const room = rooms.find((candidate) => candidate.key === selectedRoomKey)
-    const product = catalog.find((candidate) => candidate.id === selectedProductId)
+    const product = catalog.find((candidate) => candidate.id === productId)
     if (!e || !room || !product) return
     const instanceId = crypto.randomUUID()
     const group = makePlaceholder(product, instanceId)
@@ -811,14 +805,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
       <button disabled={!modelReady} onClick={fitModel}>Fit</button>
       <button disabled={!modelReady || (!selectedGuid && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
-      <select aria-label="IFC space" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
-        <option value="">Select an IfcSpace…</option>
-        {rooms.map((room) => <option key={room.key} value={room.key}>{room.name}</option>)}
-      </select>
-      <select aria-label="Demo catalog product" value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)}>
-        {catalog.map((product) => <option key={product.id} value={product.id}>{product.name} · €{product.price_eur}</option>)}
-      </select>
-      <button disabled={!selectedRoomKey || !modelReady} onClick={addProduct}>Add product</button>
+      <label className="furniture-room-select">Room
+        <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
+          <option value="">Select a room…</option>
+          {rooms.map((room) => <option key={room.key} value={room.key}>{room.name}</option>)}
+        </select>
+        <small>Determines where furniture is placed; it does not change the catalog.</small>
+      </label>
+      <button disabled={!selectedRoomKey || !modelReady} onClick={() => setCatalogOpen(true)}>Add furniture</button>
       <button disabled={!placed.length} onClick={rotateProduct}>Rotate 90°</button>
       <button disabled={!selectedPlacementId} onClick={removeProduct}>Delete</button>
       <span className="dim small">{placed.length} placed</span>
@@ -841,6 +835,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         <small>Double-click the element to zoom in.</small>
       </aside>}
     </div>
+    {catalogOpen && <FurnitureCatalogModal products={catalog}
+      roomName={rooms.find((room) => room.key === selectedRoomKey)?.name || 'No room selected'}
+      createModel={makeCatalogThumbnailModel}
+      onPlace={(product) => { setSelectedProductId(product.id); addProduct(product.id); setCatalogOpen(false) }}
+      onClose={() => setCatalogOpen(false)} />}
   </div>
 }
 
