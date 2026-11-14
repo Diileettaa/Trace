@@ -294,6 +294,7 @@ export default function App() {
           <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={4}
             placeholder="Ask a question about your drawing or model…"
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
+          <small className="control-help">Ask in any language, e.g. "How many toilets?" or "一共有几扇门"</small>
         </label>
 
         <label>
@@ -307,6 +308,7 @@ export default function App() {
             else setViewMode('2d')
           }}
             placeholder="data/cubicasa5k/high_quality-108.png" />
+          <small className="control-help">Which drawing or 3D model to ask about. Pick one from Examples or upload your own.</small>
         </label>
         <UploadButton onUploaded={(u) => {
           setPath(u.path)
@@ -319,6 +321,7 @@ export default function App() {
           <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
           </select>
+          <small className="control-help role-help">Changes how the answer is explained, not the numbers.</small>
           <button className="primary" onClick={submit} disabled={busy}>{busy ? 'Thinking…' : 'Ask'}</button>
         </div>
 
@@ -348,7 +351,7 @@ export default function App() {
           </label>
         </details>
 
-        {!isIfc && path && <button onClick={scan} disabled={busy}>Scan &amp; number all elements</button>}
+        {!isIfc && path && <div className="control-with-help"><button onClick={scan} disabled={busy}>Scan &amp; number all elements</button><small className="control-help">Find and number everything on the drawing.</small></div>}
 
         {err && <div className="error" title={err}><strong>Error:</strong> {err.length > 200 ? err.slice(0, 200) + '…' : err}</div>}
         {mock && <div className="mock">MOCK DATA — engine not connected, numbers are placeholders</div>}
@@ -488,13 +491,15 @@ export default function App() {
         {(isIfc || viewMode === '3d') && activeIfcPath && (
           <section className="render-panel">
             <div className="render-actions">
-              <label>Render style<input value={renderStyle} onChange={(event) => setRenderStyle(event.target.value)} /></label>
+              <label>Render style<input value={renderStyle} onChange={(event) => setRenderStyle(event.target.value)} /><small className="control-help">Generates an illustrative image of the selected room in this style (AI image, not to scale).</small></label>
               <button disabled={!renderSource || renderBusy} onClick={renderMood}>
                 {renderBusy ? 'Rendering…' : 'Render mood image'}
               </button>
+              <small className="control-help">Generates an illustrative image of the selected room in this style (AI image, not to scale).</small>
               <button onClick={exportBom} disabled={!placedProducts.length && !(res?.evidence ?? []).some((item) => item.unit === 'count')}>
                 Export BOM (CSV)
               </button>
+              <small className="control-help">Download a list of the placed furniture with prices.</small>
               {renderSource && <span className="dim small">Screenshot ready · {renderRoomName}</span>}
             </div>
             {renderError && <p className="error">{renderError}</p>}

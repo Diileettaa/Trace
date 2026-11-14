@@ -19,6 +19,7 @@ export function StoreyPanel({
     <div className="explorer-row">
       <span className="explorer-label">Storey:</span>
       <div className="explorer-pills">
+        <small className="explorer-help">Show one floor only; everything above it is cut away.</small>
         <button
           type="button"
           className={`storey-pill ${selectedStoreyId === null ? 'active' : ''}`}

@@ -23,6 +23,7 @@ export function TradeLayersPanel({ trades, onToggleTrade, disabled = false }: Tr
     <div className="explorer-row">
       <span className="explorer-label">Trades:</span>
       <div className="explorer-pills">
+        <small className="explorer-help">Building systems in this model. Untick to hide them.</small>
         {onlyTrade ? (
           <span className="only-trade">Only {onlyTrade.label.toLowerCase()} in this model</span>
         ) : tradeList.map((trade) => (

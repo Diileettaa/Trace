@@ -824,11 +824,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     />
     <div className="viewer-bar furniture-bar">
       <span className="path">{path}</span>
-      <span className="catalog-label">Demo catalog</span>
+      <span className="catalog-label" title="Demo catalog">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
-      <button disabled={!modelReady} onClick={fitModel}>Fit</button>
-      <button disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
+      <button title="Fit the whole model in view" disabled={!modelReady} onClick={fitModel}>Fit</button>
+      <button title="Center the camera on the selected element or room" disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
       <label className="furniture-room-select">Room
         <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
           <option value="">Select a room…</option>
@@ -837,10 +837,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         <small>Determines where furniture is placed; it does not change the catalog.</small>
       </label>
       <button disabled={!selectedRoomKey || !modelReady} onClick={() => setCatalogOpen(true)}>Add furniture</button>
+      <small className="furniture-help">Place demo furniture in the selected room. Everyone on the project sees it.</small>
       <button disabled={!placed.length} onClick={rotateProduct}>Rotate 90°</button>
       <button disabled={!selectedPlacementId} onClick={removeProduct}>Delete</button>
       <span className="dim small">{placed.length} placed</span>
       <input aria-label="Screenshot note" value={screenshotNote} onChange={event => setScreenshotNote(event.target.value)} placeholder="Screenshot note…" />
+      <small className="furniture-help">Note saved with the screenshot.</small>
       <button disabled={!modelReady} onClick={screenshot}>Screenshot</button>
     </div>
     {status && <div className="status">{status}</div>}
