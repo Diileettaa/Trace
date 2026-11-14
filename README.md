@@ -8,6 +8,8 @@ Team **Montree** · Junction 2026 · Stoa challenge "Make Blueprints Talk"
 
 - **Ask** – free-form questions about a floor plan (PDF, PNG, DXF) or BIM model (IFC), in any language.
   Every number in the answer comes from a tool result; a code check rejects any number that does not.
+  Free-form wording is mapped to the engine's exact solvers by `engine/nlq.py` (en/zh/fi/sv/de/fr/it, room names
+  matched against the drawing, e.g. kitchen → Küche): 1,198 paraphrased questions, 100% same answer as the canonical form.
 - **Evidence** – each counted item is an orange numbered box on the drawing (or a highlighted GUID in 3D).
 - **How I got this** – the source (geometry / detector / vision LLM / prior), the method, evidence count,
   engine and LLM time, tokens and cost, and a consistency badge from an independent second model.
