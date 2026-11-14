@@ -1236,14 +1236,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   useEffect(() => {
     const canvas = engine.current?.world.renderer?.three.domElement
     if (!canvas || !modelReady || walkMode) return
-    let last = 0
+    let last = 1
     const wheel = (event: WheelEvent) => {
       event.preventDefault()
       const raw = event.ctrlKey ? event.deltaY * .35 : event.deltaY
       const normalized = THREE.MathUtils.clamp(raw / (Math.abs(raw) > 80 ? 1800 : 750), -.05, .05)
       const target = 1 + normalized
-      last += (target - last) * .72
-      zoomCamera(last || target)
+      last += (target - last) * .38
+      zoomCamera(last)
     }
     const keys = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
