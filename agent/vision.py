@@ -82,6 +82,7 @@ def _nemotron_count(png_bytes: bytes, target: str) -> int | None:
     resp = client.chat.completions.create(
         model=config.NEMOTRON_MODEL,
         temperature=0,
+        max_tokens=4096,
         messages=[
             {
                 "role": "user",
@@ -92,8 +93,10 @@ def _nemotron_count(png_bytes: bytes, target: str) -> int | None:
             }
         ],
     )
-    text = resp.choices[0].message.content or ""
-    m = re.search(r'"count"\s*:\s*(\d+)', text)
+    msg = resp.choices[0].message
+    # reasoning models (Nemotron on Verda) may put the JSON after their reasoning; look at both fields
+    text = (msg.content or "") + "\n" + (getattr(msg, "reasoning_content", None) or "")
+    m = re.search(r'"count"\s*:\s*(\d+)', msg.content or "") or re.search(r'"count"\s*:\s*(\d+)', text)
     return int(m.group(1)) if m else None
 
 

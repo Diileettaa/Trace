@@ -7,7 +7,7 @@ pixel space of the drawing the user is looking at (PDFs are shown rendered at 15
 """
 from __future__ import annotations
 
-from . import config, drawings, ifc_plan
+from . import config, drawings, ifc_plan, vision
 
 PT_TO_PX = drawings.PDF_RENDER_DPI / 72.0
 _NICE = {"wc": "WC", "washbasin": "Washbasin", "bathtub": "Bathtub", "shower": "Shower", "door": "Door",
@@ -57,7 +57,7 @@ def answer(path: str, question: str) -> dict:
             x0, y0, x1, y1 = box
             sources.append({"file": path, "page": 1, "bbox": [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)],
                             "label": label})
-    if ":prior" in str(r.get("method")):
+    if "prior" in str(r.get("method")):
         # cubicasa without a vision result: the engine falls back to typical-plan statistics, not a detection
         out_warn = "Engine has no detection for this raster plan (statistical prior only); use count_in_drawing"
         return {"value": None, "unit": r.get("unit"), "items": [], "sources": [], "method": f"engine:{r.get('method')}",
@@ -73,6 +73,17 @@ def answer(path: str, question: str) -> dict:
             n = len(guid_items) - len(boxes)
             r.setdefault("warnings", [])
             r["warnings"] = list(r["warnings"]) + [f"{n} of {len(guid_items)} elements are not on this floor plan (shown in 3D only)"]
+    # raster plans: the engine's count comes from a vision model, so get an independent second count from Nemotron
+    method = str(r.get("method"))
+    if method.startswith("cubicasa:vlm") and isinstance(r.get("value"), int):
+        r["warnings"] = list(r.get("warnings") or [])
+        verify = nemotron_check(path, method.rsplit(":", 1)[-1], r["value"], question)
+        r["verified_by"] = verify
+        if verify["nemotron_count"] is None:
+            r["warnings"].append("Second check (Nemotron) not run")
+        elif not verify["agreement"]:
+            r["warnings"].append(f"Detector found {r['value']} but Nemotron counted {verify['nemotron_count']}: "
+                                 "please check the highlighted boxes")
     model = next((s["file"] for s in r.get("sources") or [] if str(s.get("file", "")).endswith(".ifc")), None)
     out = {
         "value": r.get("value"),
@@ -83,6 +94,18 @@ def answer(path: str, question: str) -> dict:
         "warnings": list(r.get("warnings") or []),
         "engine_sources": r.get("sources") or [],
     }
+    if r.get("verified_by"):
+        out["verified_by"] = r["verified_by"]
     if model:
         out["model_file"] = model
     return out
+
+
+def nemotron_check(path: str, category: str, value: int, question: str) -> dict:
+    """Independent Nemotron 3.5 Super VL count on the same drawing (cached by image + prompt + model)."""
+    png_bytes = drawings.page_png(path, 1).read_bytes()
+    target = f"{category}s (the question was: {question})"
+    second, _ = vision.cached_call("nemotron-count", png_bytes, vision.VERIFY_PROMPT.format(target=target),
+                                   config.NEMOTRON_MODEL or "none", lambda: vision._nemotron_count(png_bytes, target))
+    return {"nemotron_count": second, "agreement": None if second is None else second == value,
+            "model": config.NEMOTRON_MODEL or None}

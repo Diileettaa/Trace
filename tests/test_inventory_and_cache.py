@@ -217,3 +217,18 @@ def test_ifc_plan_boxes_from_svg_guid_groups(monkeypatch):
     r = engine_adapter.answer("data/ifc_models/m_plan.pdf", "How many doors?")
     assert len(r["sources"]) == 1 and r["sources"][0]["label"] == "Door 1"
     assert any("not on this floor plan" in w for w in r["warnings"])
+
+
+def test_engine_raster_count_gets_nemotron_check(monkeypatch):
+    import engine.answer as ea
+
+    from agent import engine_adapter, vision
+
+    monkeypatch.setattr(vision.config, "NEMOTRON_MODEL", "nemotron-test")
+    monkeypatch.setattr(vision, "_nemotron_count", lambda png, t: 13)
+    fake = {"value": 10, "unit": "count", "method": "cubicasa:vlm[gemini]:window", "warnings": [],
+            "items": [{"category": "window", "png_bbox": [1, 2, 3, 4]}], "sources": [{"file": "data/demo/plan.png"}]}
+    monkeypatch.setattr(ea, "answer", lambda p, q: fake)
+    r = engine_adapter.answer("data/demo/plan.png", "How many windows?")
+    assert r["verified_by"]["nemotron_count"] == 13 and r["verified_by"]["agreement"] is False
+    assert any("Nemotron counted 13" in w for w in r["warnings"])
