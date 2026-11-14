@@ -43,3 +43,9 @@ Ask 页 → Tallinn → 问 "How many doors are on this floor?" → 点任一门
    - 碰到墙停下（射线检测墙/门框，门洞可以穿过 → 走进相邻房间时自动切换 isolateSpaceGuid 到那个房间）
    - 去掉现在的摇杆、楼层小地图和「Walk mode」提示条；左下角只留一个「Exit walk」按钮（在原 Walk inside 位置）
    - 现在的问题：进入 Walk 后走不动、像钉在原地；方向按钮难用 —— 以上替代它
+
+## 再补充（Diletta 22:45）
+10. **按楼层看**：IfcViewer 新 props `storeyId?: string | null` 和回调 `onStoreys?: (list: {id, name, elevation}[]) => void`（模型加载后回调一次，名字已英文化）。给了 storeyId：只显示这一层（其他层隐藏，不是半透明），隐藏这一层的天花板/上层楼板，镜头从上方斜 60° 看整层（target = 该层中心，距离按该层包围盒）。Real3D 会把 Gigi 顶条的 LEVEL 下拉接到这里
+11. **Layer Guide 控制 3D**：新 prop `visibleLayers?: { architecture, sanitary, hvac, electrical }`：architecture = IfcWall/Slab/Door/Window/Stair/Roof/Column/Beam；sanitary = IfcSanitaryTerminal/FlowTerminal/Pipe*；hvac = IfcDuct*/AirTerminal/Damper；electrical = IfcLightFixture/ElectricAppliance/Outlet/Cable*。关掉的那类整类隐藏
+12. **右下角缩放控件改优雅**：现在的黑方块太粗。改成 Gigi 风格：竖排细胶囊（白底 #F7F6F2/90、1px #A9AFB0 边框、圆角 999px、阴影很淡），按钮 28×28 图标（lucide Plus / Minus / Maximize2(Fit) / RotateCcw(Reset)），中间细滑杆 2px 宽，滑块 10px 圆点 #E9B949；整体宽 36px，贴右下角 12px
+13. **渲染**：默认开柔和光照（环境光 + 一个方向光带软阴影），墙浅暖灰 #E8E6DF，地板 #F7F6F2，门窗深灰，选中/高亮 #E9B949，未核实 #EF4444；关掉现在过亮的白色和粉红外墙
