@@ -6,6 +6,13 @@
 - 静止不动时整页来回抖/重影（Whole Building、Explode、房间标签都出现双影），3D 模型有时消失
 - 疑似：3D 画布按容器尺寸 resize → 页面出现/消失滚动条 → 容器宽度变 → 再 resize，死循环。或 ResizeObserver 里 setState 引起重排
 - 修：3D 容器固定高度（calc(100vh - 顶栏)）、overflow:hidden；body 设 `scrollbar-gutter: stable`；resize 回调用 requestAnimationFrame 去抖，尺寸变化 <2px 忽略；renderer.setSize(w,h,false)
+
+- 补充（Claude 21:30 本地测）：780 px 宽窗口下没测到尺寸循环，但 **3D 画布被挤到 20 px 宽**（canvas 31×679）→ 窄屏布局 bug，要修：3D 区最小宽 480 px，侧栏在 <1200 px 时收成抽屉
+- 抖动只在 Diletta 的大屏（约 2400 px、Windows 缩放 150%，devicePixelRatio=1.5）出现。重点查：
+  1. 小数 DPR 下 canvas 尺寸取整来回 ±1 px → 用 Math.floor(w*dpr)，且只在变化 ≥2 px 时 setSize
+  2. e15bd85 触控板惯性缩放 / OrbitControls damping 永不停止 → 速度 <0.001 时归零，停止 render 循环（按需渲染）
+  3. 房间标签（HTML 覆盖层）每帧重新定位用了小数像素 → transform 取整
+  4. 用 Chrome DevTools 把窗口设成 2400×1300、DPR 1.5（Device toolbar）复现，静止 10 秒用 rAF 记录按钮 getBoundingClientRect 和相机位置，必须全程不变
 - 验证：Tallinn 3D 静止 30 秒录屏无抖动，控制台无 ResizeObserver loop 警告
 
 ## 1. 语言统一
