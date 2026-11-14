@@ -96,32 +96,6 @@ interface IfcElementInfo {
 
 interface ScreenClearanceLine { side: 'left' | 'right' | 'front' | 'rear'; value: number; x1: number; y1: number; x2: number; y2: number }
 
-/**
- * A room is shown as a dollhouse cut: retain only this
- * shallow box instead of hiding its neighbours and putting the camera inside.
- */
-function sectionBoxForRoom(room: RoomOption, _dims?: Props['roomDims']) {
-  const center = room.box.getCenter(new THREE.Vector3())
-  const source = room.box.getSize(new THREE.Vector3())
-  const width = source.x
-  const depth = source.z
-  return new THREE.Box3(
-    new THREE.Vector3(center.x - width / 2 - .4, room.box.min.y - .05, center.z - depth / 2 - .4),
-    new THREE.Vector3(center.x + width / 2 + .4, room.box.min.y + 2, center.z + depth / 2 + .4),
-  )
-}
-
-function clippingPlanesForBox(bounds: THREE.Box3) {
-  return [
-    new THREE.Plane(new THREE.Vector3(1, 0, 0), -bounds.min.x),
-    new THREE.Plane(new THREE.Vector3(-1, 0, 0), bounds.max.x),
-    new THREE.Plane(new THREE.Vector3(0, 1, 0), -bounds.min.y),
-    new THREE.Plane(new THREE.Vector3(0, -1, 0), bounds.max.y),
-    new THREE.Plane(new THREE.Vector3(0, 0, 1), -bounds.min.z),
-    new THREE.Plane(new THREE.Vector3(0, 0, -1), bounds.max.z),
-  ]
-}
-
 function readProperty(data: Record<string, unknown>, key: string): string {
   const raw = data[key]
   if (raw && typeof raw === 'object' && 'value' in raw) return String((raw as { value: unknown }).value ?? '')
@@ -815,11 +789,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const selectedStorey = selectedStoreyId ? storeys.find(item => item.id === selectedStoreyId) ?? null : null
     const sectionRoom = isolateSpaceGuid ? rooms.find(candidate => candidate.guid === isolateSpaceGuid) : undefined
     if (sectionRoom) {
-      const bounds = sectionBoxForRoom(sectionRoom, roomDims)
-      roomSectionBoundsRef.current = bounds
-      model.useClippingPlanes(clippingPlanesForBox(bounds))
-      current.world.renderer.three.localClippingEnabled = true
-      current.world.renderer.needsUpdate = true
+      roomSectionBoundsRef.current = null
+      const roomStorey = sectionRoom.storeyId ? storeys.find(storey => storey.id === sectionRoom.storeyId) ?? null : null
+      applyStoreyCut(current.components, current.world, model, roomStorey)
     } else {
       roomSectionBoundsRef.current = null
       applyStoreyCut(current.components, current.world, model, planView ? selectedStorey : null)
@@ -878,32 +850,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     }
     const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
     if (!room) return
-    const bounds = sectionBoxForRoom(room, roomDims)
-    roomSectionBoundsRef.current = bounds
+    const bounds = room.box
     const center = bounds.getCenter(new THREE.Vector3())
     const size = bounds.getSize(new THREE.Vector3())
-    const diagonal = Math.max(Math.hypot(size.x, size.z), 1)
-    const target = new THREE.Vector3(center.x, bounds.min.y + .8, center.z)
-    const distance = diagonal * 1.6
-    const horizontal = distance * Math.cos(Math.PI / 4)
-    const elevation = distance * Math.sin(Math.PI / 4)
-    const azimuth = THREE.MathUtils.degToRad(35)
-    camera.controls.minDistance = diagonal * .6
-    camera.controls.maxDistance = diagonal * 3
-    camera.controls.minPolarAngle = .15
-    camera.controls.maxPolarAngle = Math.PI / 2 - .08
-    camera.controls.dollyToCursor = false
-    camera.controls.setBoundary(bounds.clone().expandByScalar(.5))
-    camera.controls.boundaryFriction = .2
-    camera.controls.boundaryEnclosesCamera = false
-    const previousSmoothTime = camera.controls.smoothTime
-    camera.controls.smoothTime = .6
-    void camera.controls.setLookAt(
-      target.x + Math.cos(azimuth) * horizontal,
-      target.y + elevation,
-      target.z - Math.sin(azimuth) * horizontal,
-      target.x, target.y, target.z, true,
-    ).finally(() => { camera.controls.smoothTime = previousSmoothTime })
+    const distance = Math.max(size.x, size.z, 1) * 2.6
+    camera.set('Plan')
+    void camera.projection.set('Orthographic').then(() => {
+      void camera.controls.setLookAt(center.x, bounds.max.y + distance, center.z, center.x, bounds.min.y, center.z, true)
+    })
   }, [isolateSpaceGuid, roomDims, rooms])
 
   useEffect(() => {
