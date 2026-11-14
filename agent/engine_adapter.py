@@ -275,6 +275,7 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
                                 if poly.contains(pt) or poly.distance(pt) < 0.3:
                                     it["space_id"] = r.get("number")
                                     it["room_name"] = r.get("name") or r.get("number")
+                                    it["room_number"] = r.get("number") or ""
                                     break
         except Exception:
             pass
@@ -296,6 +297,7 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
                 if cf.is_file():
                     try:
                         import json
+
                         idx = json.loads(cf.read_text(encoding="utf-8"))
                     except Exception:
                         pass
@@ -314,6 +316,7 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
                         it["space_id"] = sg
                         sp = space_map.get(sg, {})
                         it["room_name"] = sp.get("long") or sp.get("name") or sg
+                        it["room_number"] = sp.get("name") or ""
         except Exception:
             pass
 
@@ -354,14 +357,21 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
             item_id = f"{path}#{cat}-{n}"
         item["id"] = item_id
 
-        # Label (e.g. WC-208.1 or WC-1)
+        # Label: use room number/name (e.g. 208 -> WC-208.1); do NOT use space GUID; fallback to DR-1
         abbr = ABBREV.get(cat, cat.upper()[:3])
-        sid = item.get("space_id")
-        if sid:
-            clean_sid = re.sub(r"[^\w\-.]", "", str(sid))
-            room_counters[(abbr, clean_sid)] += 1
-            idx = room_counters[(abbr, clean_sid)]
-            label = f"{abbr}-{clean_sid}.{idx}"
+        room_ref = item.get("room_number") or ""
+        if not room_ref and item.get("space_id"):
+            sid_str = str(item["space_id"]).strip()
+            # If space_id is not a 22-char IFC GUID, it can be used as a room number (e.g. Swiss "2.04")
+            if len(sid_str) < 18:
+                room_ref = sid_str
+
+        clean_room = re.sub(r"[^\w\-.]", "", str(room_ref)).strip() if room_ref else ""
+
+        if clean_room and len(clean_room) < 18:
+            room_counters[(abbr, clean_room)] += 1
+            idx = room_counters[(abbr, clean_room)]
+            label = f"{abbr}-{clean_room}.{idx}"
         else:
             global_counters[abbr] += 1
             idx = global_counters[abbr]
@@ -370,6 +380,7 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
         item["label"] = label
         item.setdefault("space_id", None)
         item.setdefault("room_name", None)
+        item.pop("room_number", None)
         enriched.append(item)
 
     return enriched

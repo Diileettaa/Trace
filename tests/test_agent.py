@@ -230,3 +230,35 @@ def test_evidence_items_stable_id_and_space(monkeypatch):
         assert "space_id" in item
         assert "room_name" in item
 
+
+def test_ifc_items_label_uses_room_name_and_retains_guid_space_id(monkeypatch):
+    from agent import engine_adapter
+
+    raw_ifc_result = {
+        "value": 2,
+        "unit": "count",
+        "method": "ifc:doors",
+        "warnings": [],
+        "sources": [],
+        "items": [
+            {"category": "IFCDOOR", "guid": "DOOR_GUID_1", "name": "Door 1", "space_id": "LONG_SPACE_GUID_123456", "room_name": "LIVING", "room_number": "208"},
+            {"category": "IFCDOOR", "guid": "DOOR_GUID_2", "name": "Door 2", "space_id": None, "room_name": None},
+        ],
+    }
+    monkeypatch.setattr("engine.answer.answer", lambda p, q: raw_ifc_result)
+
+    res = engine_adapter.answer("data/ifc_models/model.ifc", "How many doors?")
+    items = res["items"]
+    assert len(items) == 2
+
+    # Item with room number gets DR-208.1, while space_id remains GUID
+    assert items[0]["id"] == "DOOR_GUID_1"
+    assert items[0]["label"] == "DR-208.1"
+    assert items[0]["space_id"] == "LONG_SPACE_GUID_123456"
+
+    # Item without room gets DR-1, space_id is None
+    assert items[1]["id"] == "DOOR_GUID_2"
+    assert items[1]["label"] == "DR-1"
+    assert items[1]["space_id"] is None
+
+
