@@ -292,6 +292,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [walkMode, setWalkMode] = useState(false)
   const [walkSpeed, setWalkSpeed] = useState(1.5)
   const [walkMap, setWalkMap] = useState({ x: 0, y: 0, yaw: 0 })
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -762,6 +764,18 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     frame = requestAnimationFrame(placeLabels)
     return () => cancelAnimationFrame(frame)
   }, [modelReady, rooms, selectedStoreyId])
+
+  useEffect(() => {
+    if (!modelReady) return
+    const key = 'trace-3d-first-walk-hint-seen'
+    try {
+      if (localStorage.getItem(key)) return
+      localStorage.setItem(key, '1')
+    } catch { /* Storage can be unavailable in private browsing. */ }
+    setShowFirstWalkHint(true)
+    const timer = window.setTimeout(() => setShowFirstWalkHint(false), 5000)
+    return () => window.clearTimeout(timer)
+  }, [modelReady])
 
   useEffect(() => {
     const e = engine.current
@@ -1245,6 +1259,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           </svg>
         </div>
       </>}
+      {showFirstWalkHint && <div className="first-walk-hint">Pick a floor on the left, then click a room to fly in. Press Walk to look around inside.</div>}
+      <div className="viewer-help-control">
+        <button type="button" aria-label="3D controls help" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}>?</button>
+        {helpOpen && <aside className="viewer-help-popover">
+          <div><strong>3D controls</strong><button type="button" aria-label="Close 3D controls help" onClick={() => setHelpOpen(false)}>×</button></div>
+          <ul>
+            <li>Left mouse drag: rotate</li>
+            <li>Right mouse drag: pan</li>
+            <li>Wheel: zoom</li>
+            <li>Double-click: focus an element</li>
+            <li>Walk: WASD / arrows move, drag to look, wheel changes speed, Esc exits</li>
+          </ul>
+        </aside>}
+      </div>
       {rooms.find(room => room.key === inspectedRoomKey) && (() => {
         const room = rooms.find(candidate => candidate.key === inspectedRoomKey)!
         const spaceId = room.guid || room.key
