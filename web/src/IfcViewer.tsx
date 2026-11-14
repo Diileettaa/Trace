@@ -493,7 +493,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
             setRooms(nextRooms)
             if (nextRooms.length) {
               setSelectedRoomKey(nextRooms[0].key)
-              onSelectRoom?.({ id: nextRooms[0].guid || nextRooms[0].key, name: nextRooms[0].name })
             }
           }
         } catch (error) { console.warn('Could not list IFC spaces:', error) }
