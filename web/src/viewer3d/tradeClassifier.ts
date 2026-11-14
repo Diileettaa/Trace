@@ -6,6 +6,7 @@ export type IfcClassItems = Record<string, number[]>
 
 export const TRADE_COLORS: Record<TradeKey, string> = {
   plumbing: '#0756B9',
+  hvac: '#C04B32',
   electrical: '#C18A00',
   structure: '#50585C',
   architecture: '#B8C0C3',
@@ -30,6 +31,11 @@ export const TRADE_DEFINITIONS: Record<TradeKey, { label: string; regex: RegExp;
     regex: /IFCPIPE[A-Z]*|IFCFLOWTERMINAL|IFCSANITARYTERMINAL|IFCVALVE|IFCPUMP/i,
     categories: ['IfcPipeSegment', 'IfcPipeFitting', 'IfcFlowTerminal', 'IfcSanitaryTerminal', 'IfcValve', 'IfcPump'],
   },
+  hvac: {
+    label: 'HVAC',
+    regex: /IFCDUCT[A-Z]*|IFCAIRTERMINAL|IFCFAN|IFCAIRTOAIRHEATRECOVERY/i,
+    categories: ['IfcDuctSegment', 'IfcDuctFitting', 'IfcDuctSilencer', 'IfcAirTerminal', 'IfcFan', 'IfcAirToAirHeatRecovery'],
+  },
   electrical: {
     label: 'Electrical',
     regex: /IFCCABLE[A-Z]*|IFCLIGHTFIXTURE|IFCOUTLET|IFCSWITCHINGDEVICE|IFCELECTRICDISTRIBUTIONBOARD/i,
@@ -52,6 +58,7 @@ export function createInitialTrades(): TradesState {
     architecture: emptyTrade('architecture'),
     structure: emptyTrade('structure'),
     plumbing: emptyTrade('plumbing'),
+    hvac: emptyTrade('hvac'),
     electrical: emptyTrade('electrical'),
     furniture: emptyTrade('furniture'),
   }

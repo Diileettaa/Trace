@@ -1,5 +1,4 @@
 import type { FragmentsModel } from '@thatopen/fragments'
-import * as THREE from 'three'
 import type { StoreyInfo, TradesState } from './types'
 
 /** Applies the intersection of the selected storey and enabled trade layers. */
@@ -36,11 +35,6 @@ export async function applyBuildingVisibility(
     if (toHide.length) await model.setVisible(toHide, false)
     if (toShow.length) await model.setVisible(toShow, true)
     model.clearGhost()
-    const ghosts = [...lowerIds].filter(id => !hiddenTradeIds.has(id))
-    if (ghosts.length) {
-      await model.setColor(ghosts, new THREE.Color('#8C9294'))
-      await model.setOpacity(ghosts, 0.15)
-    }
   } catch (error) {
     console.warn('Could not apply building visibility:', error)
   }

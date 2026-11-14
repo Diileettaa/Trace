@@ -15,6 +15,7 @@ export function TradeLayersPanel({ trades, onToggleTrade, disabled = false }: Tr
     architecture: 'walls, doors, windows and roofs',
     structure: 'slabs, columns and beams',
     plumbing: 'pipes, sanitary fixtures and plumbing equipment',
+    hvac: 'ducts, fans and air terminals',
     electrical: 'cables, lights, outlets and electrical equipment',
     furniture: 'furniture that is part of the IFC model',
   }

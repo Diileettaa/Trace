@@ -10,7 +10,7 @@ export interface StoreyInfo {
   box: THREE.Box3
 }
 
-export type TradeKey = 'architecture' | 'structure' | 'plumbing' | 'electrical' | 'furniture'
+export type TradeKey = 'architecture' | 'structure' | 'plumbing' | 'hvac' | 'electrical' | 'furniture'
 
 export interface TradeConfig {
   key: TradeKey
@@ -25,6 +25,7 @@ export interface TradesState {
   architecture: TradeConfig
   structure: TradeConfig
   plumbing: TradeConfig
+  hvac: TradeConfig
   electrical: TradeConfig
   furniture: TradeConfig
 }

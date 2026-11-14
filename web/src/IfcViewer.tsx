@@ -47,7 +47,7 @@ interface Props {
   roomDims?: { L?: number; B?: number; H?: number }
   storeyId?: string | null
   onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void
-  visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical', boolean>>
+  visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'dimensions', boolean>>
   /** Suppress the room-name overlay for compact/Interior rendering. */
   hideRoomLabels?: boolean
 }
@@ -951,7 +951,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     counts[floor.id] = rooms.filter(room => room.storeyId === floor.id).length
     return counts
   }, {})
-  useEffect(() => { if (visibleLayers) setTrades(current => ({ ...current, ...Object.fromEntries(Object.entries(visibleLayers).map(([key, enabled]) => [key, { ...current[key as TradeKey], enabled: enabled !== false }])) })) }, [visibleLayers])
+  useEffect(() => {
+    if (!visibleLayers) return
+    const layerToTrade: Partial<Record<keyof NonNullable<Props['visibleLayers']>, TradeKey>> = {
+      architecture: 'architecture', sanitary: 'plumbing', hvac: 'hvac', electrical: 'electrical',
+    }
+    setTrades(current => {
+      const next = { ...current }
+      for (const [layer, enabled] of Object.entries(visibleLayers)) {
+        const trade = layerToTrade[layer as keyof typeof layerToTrade]
+        if (trade) next[trade] = { ...next[trade], enabled: enabled !== false }
+      }
+      return next
+    })
+  }, [visibleLayers])
   useEffect(() => { if (storeys.length) onStoreys?.(storeys.map(storey => ({ id: storey.id, name: englishRoomName(storey.name), elevation: storey.elevation }))) }, [onStoreys, storeys])
   useEffect(() => { if (storeyId && storeyId !== selectedStoreyId) selectStorey(storeyId) }, [storeyId, selectedStoreyId])
   const walkFloorRooms = rooms.filter(room => room.storeyId === selectedStoreyId)
