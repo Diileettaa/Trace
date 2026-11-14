@@ -94,6 +94,8 @@ interface IfcElementInfo {
   dimensions: [number, number, number]
 }
 
+interface ScreenClearanceLine { side: 'left' | 'right' | 'front' | 'rear'; value: number; x1: number; y1: number; x2: number; y2: number }
+
 function readProperty(data: Record<string, unknown>, key: string): string {
   const raw = data[key]
   if (raw && typeof raw === 'object' && 'value' in raw) return String((raw as { value: unknown }).value ?? '')
@@ -315,6 +317,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
   const [walkHelpVisible, setWalkHelpVisible] = useState(false)
   const [elementTagPositions, setElementTagPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [clearanceLines, setClearanceLines] = useState<ScreenClearanceLine[]>([])
   const walkHelpTimerRef = useRef<number | null>(null)
   const [showcase, setShowcase] = useState(false)
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
@@ -806,8 +809,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   useEffect(() => {
     const model = modelRef.current
     const camera = engine.current?.world.camera
-    if (!isolateSpaceGuid || !model || !camera || !elementTags.length || !allLocalIds.length) {
+    if (!isolateSpaceGuid || !model || !camera || (!elementTags.length && !clearances) || !allLocalIds.length) {
       setElementTagPositions({})
+      setClearanceLines([])
       return
     }
     let cancelled = false
@@ -818,7 +822,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         model.getBoxes(allLocalIds),
       ])
       if (cancelled) return
-      const wanted = new Set(elementTags.map(tag => tag.guid))
+      const wanted = new Set([...elementTags.map(tag => tag.guid), ...(clearances?.guid ? [clearances.guid] : [])])
       const boxesByGuid = new Map<string, THREE.Box3>()
       guids.forEach((guid, index) => {
         const elementBox = boxes[index]
@@ -840,13 +844,34 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
             }
           }
         }
+        const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
+        const clearanceBox = clearances?.guid ? boxesByGuid.get(clearances.guid) : undefined
+        const lines: ScreenClearanceLine[] = []
+        if (room && clearanceBox && clearances) {
+          const fixtureCenter = clearanceBox.getCenter(new THREE.Vector3())
+          const floorZ = room.box.min.z + .025
+          const definitions: { side: ScreenClearanceLine['side']; value?: number; from: THREE.Vector3; to: THREE.Vector3 }[] = [
+            { side: 'left', value: clearances.left, from: new THREE.Vector3(clearanceBox.min.x, fixtureCenter.y, floorZ), to: new THREE.Vector3(room.box.min.x, fixtureCenter.y, floorZ) },
+            { side: 'right', value: clearances.right, from: new THREE.Vector3(clearanceBox.max.x, fixtureCenter.y, floorZ), to: new THREE.Vector3(room.box.max.x, fixtureCenter.y, floorZ) },
+            { side: 'front', value: clearances.front, from: new THREE.Vector3(fixtureCenter.x, clearanceBox.min.y, floorZ), to: new THREE.Vector3(fixtureCenter.x, room.box.min.y, floorZ) },
+            { side: 'rear', value: clearances.rear, from: new THREE.Vector3(fixtureCenter.x, clearanceBox.max.y, floorZ), to: new THREE.Vector3(fixtureCenter.x, room.box.max.y, floorZ) },
+          ]
+          for (const item of definitions) {
+            if (item.value == null) continue
+            const from = item.from.project(camera.three)
+            const to = item.to.project(camera.three)
+            if (from.z < -1 || from.z > 1 || to.z < -1 || to.z > 1) continue
+            lines.push({ side: item.side, value: item.value, x1: (from.x + 1) * .5 * rect.width, y1: (1 - from.y) * .5 * rect.height, x2: (to.x + 1) * .5 * rect.width, y2: (1 - to.y) * .5 * rect.height })
+          }
+        }
         setElementTagPositions(next)
+        setClearanceLines(lines)
         frame = requestAnimationFrame(update)
       }
       update()
     })().catch(error => console.warn('[Trace] could not anchor interior evidence tags', error))
     return () => { cancelled = true; cancelAnimationFrame(frame) }
-  }, [allLocalIds, elementTags, isolateSpaceGuid, modelReady])
+  }, [allLocalIds, clearances, elementTags, isolateSpaceGuid, modelReady, rooms])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
@@ -1706,7 +1731,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       </div>
       {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
-        {isolateSpaceGuid && clearances && <div className="interior-clearances">{(['left', 'right', 'front', 'rear'] as const).map((side, index) => clearances[side] == null ? null : <span key={side} style={{ left: `${16 + (index % 2) * 55}%`, top: `${60 + Math.floor(index / 2) * 12}%` }}><i />{clearances[side]} mm</span>)}</div>}
+        {isolateSpaceGuid && clearanceLines.length > 0 && <svg className="interior-clearances" aria-label="Fixture clearances">{clearanceLines.map(line => <g key={line.side}><line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} /><text x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2}>{line.value} mm</text></g>)}</svg>}
         {isolateSpaceGuid && roomDims && <div className="room-floor-dimensions">{roomDims.L != null && <span className="room-dim-l">↔ {roomDims.L.toFixed(2)} m</span>}{roomDims.B != null && <span className="room-dim-b">↕ {roomDims.B.toFixed(2)} m</span>}</div>}
         {isolateSpaceGuid && elementTags.slice(0, 12).map((tag) => {
           const position = elementTagPositions[tag.guid]
