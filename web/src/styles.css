@@ -503,6 +503,8 @@ button.doc-status-pill { cursor: pointer; }
 .desktop-project { color: #F7F6F2; font-size: 11px; letter-spacing: .12em; font-weight: 750; }
 .desktop-level { border: 0; background: transparent; color: #E9B949; font: inherit; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .gigi-workspace { display: grid; grid-template-columns: minmax(230px, .82fr) minmax(460px, 2fr) minmax(280px, .95fr); height: calc(100vh - 68px); overflow: hidden; background: #F7F6F2; }
+.gigi-workspace, .gigi-workspace > * { min-height: 0; scrollbar-gutter: stable; }
+.gigi-workspace > .stage { contain: layout paint; }
 .gigi-workspace > .panel, .gigi-workspace > .workspace-chat { overflow-y: auto; background: #F7F6F2; border-right: 1px solid #A9AFB0; padding: 18px; }
 .gigi-workspace > .stage { min-width: 0; overflow: auto; padding: 18px; background: #fff; }
 .workspace-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; color:#202427; font-size:18px; font-weight:800; }.workspace-heading small { color:#A9AFB0; font-size:11px; }.workspace-mode { display:flex; gap:3px; padding:3px; border:1px solid #A9AFB0; border-radius:7px; }.workspace-mode button { border:0; background:transparent; padding:5px 9px; border-radius:4px; }.workspace-mode button.on { background:#202427; color:#F7F6F2; }
