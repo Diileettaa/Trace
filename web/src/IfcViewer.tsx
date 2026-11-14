@@ -848,7 +848,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const lateral = Math.max(Math.min(size.x, size.y) * 0.28, 0.7)
     const controls = e.world.camera.controls
     const oldSmoothTime = controls.smoothTime
-    controls.smoothTime = 0.8
+    controls.smoothTime = isolateSpaceGuid ? 0.6 : 0.8
     void controls.setLookAt(target.x + lateral, target.y - lateral, target.z,
       target.x, target.y, target.z, true).finally(() => { controls.smoothTime = oldSmoothTime })
   }
