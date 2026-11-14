@@ -153,7 +153,7 @@ export function applyStoreyCut(
 export async function applyExplodedView(
   model: FragmentsModel,
   storeys: StoreyInfo[],
-  exploded: boolean,
+  exploded: boolean | number,
   spacing = 6.0,
   placements?: Map<string, THREE.Group>
 ) {
@@ -179,6 +179,7 @@ export async function applyExplodedView(
       }
     }
 
+    const overallProgress = typeof exploded === 'number' ? exploded : exploded ? 1 : 0
     // Apply or reset vertical offsets on tile meshes
     for (const mesh of model.tiles.values()) {
       const geom = mesh.geometry
@@ -198,7 +199,7 @@ export async function applyExplodedView(
       const orig = geom.userData.originalPositions as Float32Array
       const idAttr = geom.attributes.id
 
-      if (exploded) {
+      if (overallProgress > 0) {
         for (let i = 0; i < pos.count; i++) {
           const origZ = orig[3 * i + 2]
           let sIdx = 0
@@ -217,7 +218,10 @@ export async function applyExplodedView(
             sIdx = findStoreyIndexByZ(storeys, origZ)
           }
 
-          pos.setZ(i, origZ + sIdx * spacing)
+          const delay = sIdx * 0.08
+          const local = Math.max(0, Math.min(1, (overallProgress - delay) / Math.max(.15, 1 - delay)))
+          const eased = local < .5 ? 4 * local * local * local : 1 - Math.pow(-2 * local + 2, 3) / 2
+          pos.setZ(i, origZ + sIdx * spacing * eased)
         }
       } else {
         for (let i = 0; i < pos.count; i++) pos.setXYZ(i, orig[3 * i], orig[3 * i + 1], orig[3 * i + 2])
@@ -232,9 +236,12 @@ export async function applyExplodedView(
     if (placements) {
       for (const group of placements.values()) {
         const baseFloorZ = typeof group.userData.floorZ === 'number' ? group.userData.floorZ : group.position.z
-        if (exploded) {
+        if (overallProgress > 0) {
           const sIdx = findStoreyIndexByZ(storeys, baseFloorZ)
-          group.position.z = baseFloorZ + sIdx * spacing
+          const delay = sIdx * 0.08
+          const local = Math.max(0, Math.min(1, (overallProgress - delay) / Math.max(.15, 1 - delay)))
+          const eased = local < .5 ? 4 * local * local * local : 1 - Math.pow(-2 * local + 2, 3) / 2
+          group.position.z = baseFloorZ + sIdx * spacing * eased
         } else {
           group.position.z = baseFloorZ
         }

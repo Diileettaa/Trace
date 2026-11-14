@@ -289,6 +289,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [allLocalIds, setAllLocalIds] = useState<number[]>([])
   const [explorerReady, setExplorerReady] = useState(false)
   const [exploded, setExploded] = useState(false)
+  const [exploding, setExploding] = useState(false)
+  const [peelStep, setPeelStep] = useState(0)
   const [planView, setPlanView] = useState(false)
   const [inspectedRoomKey, setInspectedRoomKey] = useState('')
   const [hoveredRoomKey, setHoveredRoomKey] = useState('')
@@ -300,6 +302,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [showcase, setShowcase] = useState(false)
   const [showcaseDegraded, setShowcaseDegraded] = useState(false)
   const showcaseLightsRef = useRef<THREE.Group | null>(null)
+  const explodeAnimationRef = useRef<number | null>(null)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -503,6 +506,44 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   }, [showcase, showcaseDegraded, modelReady])
 
   useEffect(() => { setShowcaseDegraded(allLocalIds.length > 18000) }, [allLocalIds.length])
+
+  function animateExplode(open: boolean) {
+    const model = modelRef.current
+    if (!model || !storeys.length || exploding) return
+    if (explodeAnimationRef.current) cancelAnimationFrame(explodeAnimationRef.current)
+    setExploding(true)
+    const started = performance.now()
+    const duration = 950
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - started) / duration)
+      const ease = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+      const progress = open ? ease : 1 - ease
+      void applyExplodedView(model, storeys, progress, 6, placementsRef.current)
+      if (t < 1) explodeAnimationRef.current = requestAnimationFrame(tick)
+      else { setExploded(open); setExploding(false); explodeAnimationRef.current = null }
+    }
+    explodeAnimationRef.current = requestAnimationFrame(tick)
+  }
+
+  function advancePeel() {
+    const next = (peelStep + 1) % 4
+    setPeelStep(next)
+    const model = modelRef.current
+    if (!model) return
+    void (async () => {
+      const architecture = trades.architecture.itemIds
+      if (architecture.length) await model.setOpacity(architecture, next >= 2 ? .2 : 1)
+      const roofAndSlabs = trades.structure.itemIds
+      if (roofAndSlabs.length) await model.setOpacity(roofAndSlabs, next >= 1 ? .35 : 1)
+      await applyTradeColors(model, trades)
+    })()
+  }
+
+  useEffect(() => {
+    const advance = (event: KeyboardEvent) => { if (event.code === 'Space' && modelReady && !walkMode) { event.preventDefault(); advancePeel() } }
+    window.addEventListener('keydown', advance)
+    return () => window.removeEventListener('keydown', advance)
+  }, [modelReady, walkMode, peelStep, trades])
 
   useEffect(() => {
     const current = engine.current
@@ -1304,12 +1345,17 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       trades={trades}
       onToggleTrade={toggleTrade}
       exploded={exploded}
-      onExplodedChange={setExploded}
+      onExplodedChange={animateExplode}
       planView={planView}
       onPlanViewChange={setPlanView}
       disabled={!modelReady || !explorerReady || walkMode}
     />
     <div className="three" ref={box}>
+      <div className="showcase-motion-controls" aria-label="Showcase motion controls">
+        <button type="button" disabled={!modelReady || exploding} onClick={() => animateExplode(!exploded)}>{exploding ? 'Exploding…' : exploded ? 'Assemble' : 'Explode'}</button>
+        <button type="button" disabled={!modelReady} onClick={advancePeel}>Peel · {peelStep}/3</button>
+        {peelStep > 0 && <span>Step {peelStep}: {['', 'Lift slabs', 'Fade envelope', 'Reveal systems'][peelStep]}</span>}
+      </div>
       <div className="room-label-layer" aria-label="Room labels">
         {!walkMode && rooms.map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
