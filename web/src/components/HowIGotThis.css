@@ -1,0 +1,83 @@
+.how-got-this {
+  margin-top: 14px;
+  color: var(--ink, #202427);
+  background: var(--paper, #F7F6F2);
+  border: 1px solid var(--line, #A9AFB0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.how-got-this > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--ink, #202427);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  list-style-position: inside;
+}
+.source-badge, .evidence-count, .cache-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+}
+.source-badge { background: rgba(233,185,73,.3); }
+.evidence-count { background: #E8EAEB; }
+.cache-badge { color: #202427; background: #E9B949; }
+.how-got-body { padding: 12px; }
+.method-line { margin: 0 0 10px; color: var(--ink, #202427); font-size: 12px; }
+.trace-timing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 9px 10px;
+  background: rgba(233,185,73,.14);
+  border-left: 3px solid var(--accent, #E9B949);
+  font-size: 12px;
+}
+.trace-timing small { color: var(--muted, #707779); }
+.answer-trace {
+  display: grid;
+  gap: 0;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.answer-trace li {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 10px;
+  position: relative;
+  padding: 7px 0 9px;
+  border-bottom: 1px solid rgba(169,175,176,.45);
+  font-size: 12px;
+}
+.answer-trace li:last-child { border-bottom: 0; }
+.trace-kind {
+  width: fit-content;
+  height: fit-content;
+  padding: 3px 6px;
+  color: var(--ink, #202427);
+  background: #E8EAEB;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.trace-tool .trace-kind { background: rgba(31,111,235,.14); }
+.trace-check.passed .trace-kind { background: rgba(79,135,109,.18); }
+.trace-check.failed .trace-kind { background: rgba(178,72,52,.17); }
+.trace-answer .trace-kind { background: rgba(233,185,73,.38); }
+.answer-trace p { margin: 3px 0; color: #51595B; white-space: pre-wrap; }
+.answer-trace small { color: var(--muted, #707779); }
+.trace-warnings {
+  padding: 8px 10px;
+  background: #fff7df;
+  border-left: 3px solid #E9B949;
+  font-size: 12px;
+}
+.trace-warnings ul { margin: 5px 0 0; padding-left: 18px; }
+.trace-warnings li + li { margin-top: 3px; }

@@ -24,6 +24,7 @@ export interface Evidence {
   items: Item[]
   sources: Source[]
   method?: string
+  source?: string | { kind?: string; label?: string }
   warnings?: string[]
   by_category?: Record<string, number>
   cached?: boolean
@@ -36,7 +37,22 @@ export interface AskResponse {
   evidence: Evidence[]
   tool_calls: { name: string; args: Record<string, unknown> }[]
   timing?: { total_s: number; gemini_calls_s: number[]; tools_s: number[] }
+  usage?: { input?: number; output?: number; thinking?: number; gemini_calls?: number; vision_calls?: number; nemotron_calls?: number }
+  trace?: AnswerTraceStep[]
   from_cache?: boolean
+}
+
+export interface AnswerTraceStep {
+  kind: 'question' | 'tool' | 'check' | 'answer' | string
+  title: string
+  detail?: string
+  method?: string
+  boxes?: number
+  items?: number
+  elapsed_s?: number
+  cached?: boolean
+  warnings?: string[]
+  ok?: boolean
 }
 
 export interface DatasetQuestion {

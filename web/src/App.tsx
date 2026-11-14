@@ -8,6 +8,7 @@ import LandingPage from './components/LandingPage'
 import SpaceTree, { type TreeEntry } from './components/SpaceTree'
 import UploadButton from './components/UploadButton'
 import VerifyBadge from './components/VerifyBadge'
+import { HowIGotThis } from './components/HowIGotThis'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
 
 const SOURCES = ['', 'cubicasa5k', 'swiss_dwellings', 'ifc_models', 'ifc_bench', 'opening_design']
@@ -124,7 +125,6 @@ export default function App() {
     [entries, flashSpace],
   )
   const page = sources[0]?.page ?? 1
-  const warnings = (res?.evidence ?? []).flatMap((e) => e.warnings ?? [])
   const mock = evidence.some((e) => (e.warnings ?? []).some((w) => w.includes('MOCK DATA')))
   const isIfc = path.toLowerCase().endsWith('.ifc')
   const modelFile = useMemo(() => {
@@ -363,7 +363,6 @@ export default function App() {
             {res.evidence.map((e, i) => (
               <div key={i}>
                 <VerifyBadge ev={e} />
-                {e.cached && <span className="badge grey">⚡ Cached result</span>}
               </div>
             ))}
             {expected && (
@@ -405,9 +404,6 @@ export default function App() {
                 </ul>
               </div>
             )}
-            {warnings.length > 0 && (
-              <ul className="warnings">{warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}</ul>
-            )}
             {res.tool_calls.length > 0 && <div className="tool-chain">
                 <span className="tool-chain-label">Gemini</span>
                 {res.tool_calls.map((t, i) => (
@@ -418,14 +414,7 @@ export default function App() {
                 ))}
                 <span className="dim"> ({res.tool_calls.length} call{res.tool_calls.length === 1 ? '' : 's'})</span>
             </div>}
-            {res.from_cache ? (
-              <p className="dim small">Answered from cache (asked before)</p>
-            ) : res.timing ? (
-              <p className="dim small">
-                Answered in {res.timing.total_s.toFixed(1)} s · Gemini {res.timing.gemini_calls_s.map((t) => t.toFixed(1)).join(' + ')} s
-                · tools {res.timing.tools_s.map((t) => t.toFixed(1)).join(' + ')} s
-              </p>
-            ) : null}
+            <HowIGotThis response={res} />
           </section>
         )}
 
