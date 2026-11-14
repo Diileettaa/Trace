@@ -277,11 +277,11 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
       let usePath = askPath;
       let usePage = sheetPage;
       let source: ChatMessage['source'];
-      if (sheetCount > 1) {
+      if (sheetCount > 3) {  // a real sheet set; small projects keep the sheet the user opened
         const r = await fetch(`/api/sheetset/pick?project=${encodeURIComponent(project.id)}&q=${encodeURIComponent(promptText)}&current=${encodeURIComponent(askPath)}`)
           .then((x) => x.json()).catch(() => null);
         const top: Sheet | undefined = r?.picks?.[0];
-        if (top && !(top.why || []).includes('no specific match')) {
+        if (top && !(top.why || []).includes('no specific match') && !(/\.ifc$/i.test(top.path) && !/\.ifc$/i.test(askPath) && project.plan)) {
           usePath = top.path; usePage = top.page;
           source = { label: [top.title, sheetName(top)].filter(Boolean).join(' — '), path: top.path, page: top.page, why: top.why || [] };
           if (usePath !== askPath || usePage !== sheetPage) { setAskPath(usePath); setSheetPage(usePage); }
@@ -298,7 +298,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
       (sc as any).__fixtures = fx;
       setFixtures(fx);
       setSelectedFixtureId(null);
-      setViewMode(/\.ifc$/i.test(usePath) && !project.plan ? '3d-building' : '2d');
+      setViewMode(/\.ifc$/i.test(usePath) ? '3d-building' : '2d');
       setScale(sc.recommendedScale);
       setActiveLayers((prev) => { const u = { ...prev }; sc.requiredLayers.forEach((l) => { u[l] = true; }); return u; });
       patchChat(chatId, (c) => ({ ...c, messages: c.messages.map((m) => m.id !== pendingId ? m : {
@@ -616,7 +616,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
 
         <div className="border border-[#A9AFB0]/40 rounded-xl overflow-hidden">
           {viewMode === '2d' ? (
-            project.plan || !project.model || !/\.ifc$/i.test(askPath) ? (
+            !project.model || !/\.ifc$/i.test(askPath) ? (
               <RealPlan path={askPath} page={sheetPage} scenario={scenario} activeLayers={activeLayers} scale={scale} activeFloor={activeFloor}
                 fixtures={fixtures} selectedFixtureId={selectedFixtureId} onImageSize={setImageSize}
                 tool={tool} removed={removed} added={added} measurePts={measurePts}
@@ -626,7 +626,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                 onSelectFixtureFor3D={(id) => { setSelectedFixtureId(id); setViewMode('3d-room'); }} />
             ) : (
               <div className="h-[420px] flex flex-col items-center justify-center gap-2 bg-[#FCFCF9] blueprint-grid-bg text-center px-8">
-                <span className="text-sm font-semibold text-[#202427]">This project is a BIM model without a 2D sheet</span>
+                <span className="text-sm font-semibold text-[#202427]">{project.plan && askPath !== project.plan ? "This is the 3D model — pick a 2D sheet from the sheet menu" : "This project is a BIM model without a 2D sheet"}</span>
                 <button type="button" onClick={() => setViewMode('3d-building')} className="px-3 py-1.5 rounded-md bg-[#E9B949] text-[#202427] text-xs font-semibold cursor-pointer">Open the 3D model →</button>
               </div>
             )
