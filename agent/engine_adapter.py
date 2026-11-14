@@ -185,7 +185,8 @@ def answer(path: str, question: str) -> dict:
     if "cubicasa5k" in path and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
         from engine import cubicasa
 
-        if cubicasa.category(question) not in (None, *cubicasa.PRIOR_PREFERRED):
+        c = cubicasa.category(question)
+        if c is not None and getattr(cubicasa, "SOURCE_WITH_VLM", {}).get(c) != "prior":
             # the Nemotron second count does not depend on the engine result: run both at the same time
             early = _POOL.submit(nemotron_check, path, question)
     t0 = time.perf_counter()

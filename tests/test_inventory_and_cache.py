@@ -301,3 +301,19 @@ def test_tool_results_carry_elapsed_time():
     from agent import tools
 
     assert "elapsed_s" in tools.call("sum_values", {"values": [1, 2]})
+
+
+def test_parallel_nemotron_check_with_current_engine(monkeypatch):
+    """Regression: the early Nemotron call must work with the engine's current cubicasa tables (no PRIOR_PREFERRED)."""
+    import engine.answer as ea
+
+    from agent import engine_adapter, vision
+
+    monkeypatch.setattr(vision.config, "NEMOTRON_MODEL", "nemotron-test")
+    monkeypatch.setattr(vision.config, "NVIDIA_API_KEY", "test")
+    monkeypatch.setattr(engine_adapter, "nemotron_check", lambda p, q: {"nemotron_count": 2, "model": "n"})
+    monkeypatch.setattr(engine_adapter, "_cubicasa_fast", lambda p, q: None)
+    monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 2, "unit": "count", "items": [], "sources": [],
+                                                    "method": "cubicasa:detector[yolo-cubicasa]:toilet", "warnings": []})
+    r = engine_adapter.answer("data/cubicasa5k/x.png", "How many toilet bowls (WC seats) are drawn on this floor plan?")
+    assert r["value"] == 2 and r["badge"]["color"] == "green"
