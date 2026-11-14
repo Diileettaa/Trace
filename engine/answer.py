@@ -67,9 +67,14 @@ def answer_ifc(path, question, source):
             "sources": [{"file": os.path.relpath(mp, DATA).replace(os.sep, "/")}] + ([{"file": path}] if path.endswith(".pdf") else []),
             "method": method, "warnings": warn}
 
+from functools import lru_cache
+@lru_cache(maxsize=4096)
 def _png_size(png):
+    """Image size from the PNG header (no decoding)."""
     try:
-        import cv2; im = cv2.imread(png); return (im.shape[1], im.shape[0]) if im is not None else None
+        import struct
+        with open(png, "rb") as f: h = f.read(24)
+        return struct.unpack(">II", h[16:24]) if h[:8] == b"\x89PNG\r\n\x1a\n" else None
     except Exception: return None
 
 def answer(path, question):

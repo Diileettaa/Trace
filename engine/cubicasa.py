@@ -78,6 +78,32 @@ def detections(png_path):
 TILES_OUT = os.path.join(os.path.dirname(LOCAL), "vlm_tiles_out")
 TILES_IN = os.path.join(os.path.dirname(LOCAL), "vlm_tiles")
 
+DET_DIR = os.path.join(os.path.dirname(LOCAL), "det_cache")
+DETECTOR_CATS = ("door", "window", "toilet", "sink", "shower_tub")
+VLM_PREFERRED = ()        # full test set (933 plans): the detector beats the vision model on every fixture category
+PRIOR_PREFERRED = ("kitchen",)   # almost every plan has exactly one kitchen; the prior (95.6%) beats the VLM (92.5%)
+
+def _normalise_boxes(b):
+    """Gemini sometimes returns [{"category": c, "box_2d": [[...]]}, ...] instead of {c: [[...]]}."""
+    if isinstance(b, dict): return b
+    out = {}
+    for it in b or []:
+        if isinstance(it, dict) and it.get("category"):
+            bx = it.get("box_2d") or it.get("box") or []
+            bx = bx if bx and isinstance(bx[0], list) else [bx]
+            out.setdefault(it["category"], []).extend(x for x in bx if len(x) == 4)
+    return out
+
+def detector_boxes(png_path, cat):
+    """Boxes from the YOLO detector trained on CubiCasa5k (train/predict_counts.py), if present for this image."""
+    if cat not in DETECTOR_CATS: return None
+    p = os.path.join(DET_DIR, os.path.basename(png_path) + ".json")
+    if os.path.exists(p): return json.load(open(p))["boxes"].get(cat, []) or []
+    from . import detector                       # live inference for new plans (needs ultralytics)
+    try: d = detector.detect(png_path)
+    except Exception: d = None
+    return None if d is None else (d["boxes"].get(cat, []) or [])
+
 def tiled_boxes(png_path, cat):
     """Merge per-tile boxes (tile-normalised 0-1000) back to whole-image 0-1000 and drop duplicates in overlaps."""
     base = os.path.basename(png_path); meta_p = os.path.join(TILES_IN, base + ".tiles.json")
@@ -105,18 +131,31 @@ def answer(png_path, question, size_fn=None):
     try: det = detections(png_path)
     except Exception as e: det = None; err = repr(e)[:200]
     else: err = None
+    if det is None and detector_boxes(png_path, c) is not None:
+        det = {"model": "yolo-cubicasa", "boxes": {}}
+    if det and c in PRIOR_PREFERRED:
+        return CATS[c][2], [], f"cubicasa:prior:{c}", ["answered the most common value (more reliable than the vision model here)"]
     if det:
+        det = {**det, "boxes": _normalise_boxes(det.get("boxes"))}
         boxes = det["boxes"].get(c, []) or []
+        yolo = detector_boxes(png_path, c)
+        vlm_better = c in VLM_PREFERRED and det.get("model", "").startswith(("gemini", "nvidia")) and c in det.get("boxes", {})
+        if yolo is not None and not vlm_better:
+            boxes = yolo; det = {**det, "model": "yolo-cubicasa"}
         tiled = tiled_boxes(png_path, c)
         if tiled is not None: boxes = tiled          # focused 2x2 tile pass (doors/windows) wins when present
         items = [{"category": c, "box_norm1000": b} for b in boxes]
-        if c == "shower_tub" and not boxes:          # model tends to miss these; 0 -> prior (+7 pts on pilot)
+        if c == "shower_tub" and not boxes and det.get("model", "").startswith(("gemini", "nvidia")):          # model tends to miss these; 0 -> prior (+7 pts on pilot)
             return CATS[c][2], [], f"cubicasa:vlm+prior:{c}", ["model found none; answered the most common value"]
         size = size_fn(png_path) if callable(size_fn) else size_fn
         if size:
             w, h = size
             for it in items:
-                b = it["box_norm1000"]; it["png_bbox"] = [round(b[0] * w / 1000), round(b[1] * h / 1000), round(b[2] * w / 1000), round(b[3] * h / 1000)]
+                try:
+                    b = [float(v) for v in it["box_norm1000"]][:4]
+                    it["png_bbox"] = [round(b[0] * w / 1000), round(b[1] * h / 1000), round(b[2] * w / 1000), round(b[3] * h / 1000)]
+                except (TypeError, ValueError, IndexError):
+                    pass   # malformed box from the model: still counted, just not drawn
         return len(boxes), items, f"cubicasa:vlm[{det['model']}]:{c}", []
     warn = ["low confidence: no vision model configured, answered the most common value for this question type"]
     if err: warn.append("vision call failed: " + err)

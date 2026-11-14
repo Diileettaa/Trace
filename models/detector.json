@@ -1,0 +1,13 @@
+{
+ "weights": "cubicasa_yolo11m_1280.pt",
+ "imgsz": 1280,
+ "thresholds": {
+  "door": 0.3,
+  "window": 0.45,
+  "toilet": 0.4,
+  "sink": 0.5,
+  "shower": 0.3,
+  "bathtub": 0.3
+ },
+ "note": "thresholds tuned on Junction answers, val plans only; held-out test: door 72.8, window 45.6, toilet 94.0, sink 82.7, shower/tub 76.9"
+}

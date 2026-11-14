@@ -9,3 +9,4 @@ pytest
 httpx
 numpy
 opencv-python-headless  # engine: calibrates boxes on PNG drawings
+ultralytics
