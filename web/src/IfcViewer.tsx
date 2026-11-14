@@ -956,12 +956,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         const lines: ScreenClearanceLine[] = []
         if (room && clearanceBox && clearances) {
           const fixtureCenter = clearanceBox.getCenter(new THREE.Vector3())
-          const floorZ = room.box.min.z + .025
+          const floorY = room.box.min.y + .025
           const definitions: { side: ScreenClearanceLine['side']; value?: number; from: THREE.Vector3; to: THREE.Vector3 }[] = [
-            { side: 'left', value: clearances.left, from: new THREE.Vector3(clearanceBox.min.x, fixtureCenter.y, floorZ), to: new THREE.Vector3(room.box.min.x, fixtureCenter.y, floorZ) },
-            { side: 'right', value: clearances.right, from: new THREE.Vector3(clearanceBox.max.x, fixtureCenter.y, floorZ), to: new THREE.Vector3(room.box.max.x, fixtureCenter.y, floorZ) },
-            { side: 'front', value: clearances.front, from: new THREE.Vector3(fixtureCenter.x, clearanceBox.min.y, floorZ), to: new THREE.Vector3(fixtureCenter.x, room.box.min.y, floorZ) },
-            { side: 'rear', value: clearances.rear, from: new THREE.Vector3(fixtureCenter.x, clearanceBox.max.y, floorZ), to: new THREE.Vector3(fixtureCenter.x, room.box.max.y, floorZ) },
+            { side: 'left', value: clearances.left, from: new THREE.Vector3(clearanceBox.min.x, floorY, fixtureCenter.z), to: new THREE.Vector3(room.box.min.x, floorY, fixtureCenter.z) },
+            { side: 'right', value: clearances.right, from: new THREE.Vector3(clearanceBox.max.x, floorY, fixtureCenter.z), to: new THREE.Vector3(room.box.max.x, floorY, fixtureCenter.z) },
+            { side: 'front', value: clearances.front, from: new THREE.Vector3(fixtureCenter.x, floorY, clearanceBox.min.z), to: new THREE.Vector3(fixtureCenter.x, floorY, room.box.min.z) },
+            { side: 'rear', value: clearances.rear, from: new THREE.Vector3(fixtureCenter.x, floorY, clearanceBox.max.z), to: new THREE.Vector3(fixtureCenter.x, floorY, room.box.max.z) },
           ]
           for (const item of definitions) {
             if (item.value == null) continue
