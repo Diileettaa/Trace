@@ -297,6 +297,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [walkMap, setWalkMap] = useState({ x: 0, y: 0, yaw: 0 })
   const [helpOpen, setHelpOpen] = useState(false)
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
+  const [showcase, setShowcase] = useState(false)
+  const [showcaseDegraded, setShowcaseDegraded] = useState(false)
+  const showcaseLightsRef = useRef<THREE.Group | null>(null)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -467,6 +470,39 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       if (components) { try { components.dispose() } catch { /* best effort */ } }
     }
   }, [path])
+
+  useEffect(() => {
+    const current = engine.current
+    if (!current?.world.renderer) return
+    const scene = current.world.scene.three
+    showcaseLightsRef.current?.removeFromParent()
+    showcaseLightsRef.current = null
+    if (!showcase) {
+      scene.background = new THREE.Color('#F7F6F2')
+      current.world.renderer.three.shadowMap.enabled = false
+      current.world.renderer.needsUpdate = true
+      return
+    }
+    const group = new THREE.Group()
+    const fill = new THREE.AmbientLight('#718096', .55)
+    const hemi = new THREE.HemisphereLight('#9db9d1', '#121820', 1.1)
+    const key = new THREE.DirectionalLight('#fff1d5', 2.4)
+    key.position.set(18, -16, 28)
+    key.castShadow = !showcaseDegraded
+    key.shadow.mapSize.set(showcaseDegraded ? 512 : 1024, showcaseDegraded ? 512 : 1024)
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(200, 96), new THREE.MeshStandardMaterial({ color: '#15202c', roughness: .88, metalness: .05, transparent: true, opacity: .92 }))
+    disc.position.z = -0.04; disc.receiveShadow = true
+    group.add(fill, hemi, key, disc)
+    scene.add(group)
+    scene.background = new THREE.Color('#080d14')
+    current.world.renderer.three.shadowMap.enabled = !showcaseDegraded
+    current.world.renderer.three.shadowMap.type = THREE.PCFSoftShadowMap
+    current.world.renderer.needsUpdate = true
+    showcaseLightsRef.current = group
+    return () => { group.removeFromParent() }
+  }, [showcase, showcaseDegraded, modelReady])
+
+  useEffect(() => { setShowcaseDegraded(allLocalIds.length > 18000) }, [allLocalIds.length])
 
   useEffect(() => {
     const current = engine.current
@@ -1222,7 +1258,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
   const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
 
-  return <div className="viewer">
+  return <div className={`viewer ${showcase ? 'showcase-mode' : ''}`}>
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
       ? 'This model contains only plumbing (pipes and fixtures).'
       : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
@@ -1231,6 +1267,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <span className="catalog-label" title="Demo catalog">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
+      <button className={`showcase-toggle ${showcase ? 'on' : ''}`} title="Dark presentation lighting and soft shadows" disabled={!modelReady} onClick={() => setShowcase(value => !value)}>{showcase ? '✦ Showcase on' : '✦ Showcase'}</button>
+      {showcase && <span className="showcase-quality">{showcaseDegraded ? 'Performance lighting' : 'Soft-shadow lighting'}</span>}
       <button title="Fit the whole model in view" disabled={!modelReady} onClick={fitModel}>Fit</button>
       {walkMode
         ? <button className="walk-active" onClick={stopWalk}>Exit Walk · Esc</button>
