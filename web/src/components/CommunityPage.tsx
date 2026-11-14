@@ -8,6 +8,7 @@ import WorkTimeline from './WorkTimeline'
 import RoomMediaPanel from './RoomMediaPanel'
 import SharedPlanPanel from './SharedPlanPanel'
 import DocsLibrary from './DocsLibrary'
+import { DatasetBrowser, type CatalogItem } from './DatasetBrowser'
 import type { CollabState } from '../types'
 import type { ProjectDocument } from '../api'
 
@@ -32,6 +33,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   const [feedback, setFeedback] = useState('')
   const [modelDraft, setModelDraft] = useState(modelPath.toLowerCase().endsWith('.ifc') ? modelPath : '')
   const [selectedRoom, setSelectedRoom] = useState<{ id: string; name: string } | null>(null)
+  const [browseModel, setBrowseModel] = useState(false)
   let currentPerson = ''
   try { currentPerson = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* profile is registered in Project */ }
 
@@ -66,7 +68,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
       <section className="project-section shared-model-section">
         <div className="project-section-heading"><div><h2>Shared 3D model</h2><p className="sub">Select a room in the model to start its conversation.</p></div></div>
         <div className="row project-model-picker">
-          <input aria-label="Shared IFC model path" value={modelDraft} onChange={(event) => setModelDraft(event.target.value)} placeholder="data/ifc_models/model.ifc" />
+          <button type="button" className="dataset-picker-button" onClick={() => setBrowseModel(true)}>{modelDraft ? `▧ ${modelDraft.split('/').pop()}` : 'Browse 3D models…'}</button>
           <button className="primary" disabled={!modelDraft.trim().toLowerCase().endsWith('.ifc')} onClick={() => {
             setSelectedRoom(null); setRoomId(''); setRoomName(''); onModelPathChange(modelDraft.trim())
           }}>Load model</button>
@@ -109,5 +111,6 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
       <div className="project-section-heading"><div><h2>Shared files</h2><p className="sub">Project drawings, permits and reports</p></div></div>
       <DocsLibrary selectedDocumentId={selectedDocumentId} onAskDocument={onAskDocument} />
     </section>
+    <DatasetBrowser open={browseModel} kind="3d" onClose={() => setBrowseModel(false)} onSelect={(item: CatalogItem) => { setModelDraft(item.path); setSelectedRoom(null); setRoomId(''); setRoomName(''); onModelPathChange(item.path); setBrowseModel(false) }} />
   </main>
 }

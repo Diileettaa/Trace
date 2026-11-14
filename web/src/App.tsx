@@ -10,6 +10,7 @@ import SpaceTree, { type TreeEntry } from './components/SpaceTree'
 import UploadButton from './components/UploadButton'
 import VerifyBadge from './components/VerifyBadge'
 import { HowIGotThis } from './components/HowIGotThis'
+import { DatasetBrowser, CatalogProjects, type CatalogItem, type CatalogProject } from './components/DatasetBrowser'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
 
 const SOURCES = ['', 'cubicasa5k', 'swiss_dwellings', 'ifc_models', 'ifc_bench', 'opening_design']
@@ -80,6 +81,8 @@ export default function App() {
   const [renderImageUrl, setRenderImageUrl] = useState('')
   const [renderError, setRenderError] = useState('')
   const [renderBusy, setRenderBusy] = useState(false)
+  const [browserOpen, setBrowserOpen] = useState(false)
+  const [project, setProject] = useState<CatalogProject | null>(null)
 
   useEffect(() => {
     setSelectedSampleIndex('')
@@ -109,6 +112,7 @@ export default function App() {
   }, [busyAction])
 
   const evidence: Evidence[] = useMemo(() => [...(inv ? [inv] : []), ...(res?.evidence ?? [])], [inv, res])
+  const visibleSamples = useMemo(() => samples.filter(q => !path || q.path === path), [samples, path])
 
   // every box on the current drawing, paired with its item when the tool returned them in order
   const { sources, entries } = useMemo(() => {
@@ -371,14 +375,11 @@ export default function App() {
         </div>
         <div className="nav-actions"><button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
       </nav>
-      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'community' ? <CommunityPage
-        collab={collab}
-        onChange={setCollab}
+      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === '3d' ? item.path : null, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
+        collab={collab} onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
         onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }}
-        selectedDocumentId={selectedDocumentId}
-        onAskDocument={askAboutDocument}
-        modelPath={path}
+        selectedDocumentId={selectedDocumentId} onAskDocument={askAboutDocument} modelPath={path}
         drawingPath={path.toLowerCase().endsWith('.ifc') ? '' : path}
         onModelPathChange={(nextPath) => { setPath(nextPath); setViewMode('3d') }}
       /> : <div className="app">
@@ -411,10 +412,10 @@ export default function App() {
               <select value={selectedSampleIndex} onChange={(e) => {
                 const index = e.target.value
                 setSelectedSampleIndex(index)
-                if (index !== '' && samples[Number(index)]) pick(samples[Number(index)])
+                if (index !== '' && visibleSamples[Number(index)]) pick(visibleSamples[Number(index)])
               }}>
                 <option value="">Select a question…</option>
-                {samples.map((q, i) => <option key={i} value={i}>{q.question.slice(0, 70)}</option>)}
+                {visibleSamples.map((q, i) => <option key={i} value={i}>{q.question.slice(0, 70)}</option>)}
               </select>
             </div>
           </label>
@@ -430,16 +431,8 @@ export default function App() {
 
         <label>
           Drawing / model path
-          <input value={path} onChange={(e) => {
-            const p = e.target.value
-            setPath(p)
-            setInv(null)
-            setSelectedGuid(null)
-            if (p.toLowerCase().endsWith('.ifc')) setViewMode('3d')
-            else setViewMode('2d')
-          }}
-            placeholder="data/cubicasa5k/high_quality-108.png" />
-          <small className="control-help">Which drawing or 3D model to ask about. Pick one from Examples or upload your own.</small>
+          <button type="button" className="dataset-picker-button" onClick={() => setBrowserOpen(true)}>{path ? `▧ ${path.split('/').pop()}` : 'Browse drawings and models…'}</button>
+          <small className="control-help">Choose a file to preview it immediately.</small>
         </label>
         <UploadButton onUploaded={(u) => {
           setPath(u.path)
@@ -618,6 +611,7 @@ export default function App() {
               <img src={renderImageUrl} alt={`Mood render for ${renderRoomName || 'selected room'}`} />
               <a href={renderImageUrl} download="trace-mood-render.png">Download PNG</a>
             </div>}
+      <DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setInv(null); setSelectedGuid(null); setRes(null); setViewMode(item.kind === '3d' ? '3d' : '2d'); setBrowserOpen(false) }} />
           </section>
         )}
       </main>
