@@ -550,6 +550,7 @@ button.doc-status-pill { cursor: pointer; }
 
 /* Stable 3D viewport: prevent scrollbar/resize feedback at fractional DPR. */
 html { scrollbar-gutter: stable; }
+.element-world-tag { position:absolute; z-index:24; border:1px solid #202427; border-radius:3px; padding:3px 6px; background:#E9B949; color:#202427; font:700 11px/1 monospace; cursor:pointer; }.element-world-tag.issue { background:#b42318; border-color:#fee4e2; color:#fff; }
 .workbench-grid { grid-template-columns:220px minmax(480px,1fr) minmax(270px,330px); overflow:hidden; }
 .workbench-viewport { min-width:480px; height:calc(100vh - 140px); overflow:hidden; }
 .workbench-viewport .viewer { overflow:hidden; contain:layout paint; }
