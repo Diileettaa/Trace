@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { GeometryObject, GeometryScene, PlanPoint } from '../viewer3d/geometryScene'
+import type { GeometryObject, GeometryOpening, GeometryScene, PlanPoint } from '../viewer3d/geometryScene'
 
 interface Props {
   scene: GeometryScene
   onSelectObject?: (id: string) => void
+  onSelectRoom?: (room: { id: string; name: string }) => void
+  focusRoomId?: string | null
 }
 
 const roomMesh = (polygon: PlanPoint[], y: number, material: THREE.Material) => {
@@ -47,8 +49,17 @@ const symbol = (item: GeometryObject) => {
   return group
 }
 
+const openingSymbol = (opening: GeometryOpening) => {
+  const material = new THREE.MeshStandardMaterial({ color: opening.kind === 'door' ? '#e9b949' : '#9ec9d9', transparent: true, opacity: .82 })
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(opening.widthM, opening.heightM, .045), material)
+  mesh.position.set(opening.position[0], opening.position[1] + opening.heightM / 2, opening.position[2])
+  mesh.rotation.y = THREE.MathUtils.degToRad(opening.rotationDeg)
+  mesh.userData.objectId = opening.id
+  return mesh
+}
+
 /** Renders only calibrated metre-based data supplied by the scene endpoint. */
-export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
+export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, focusRoomId }: Props) {
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -74,6 +85,8 @@ export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
     for (const room of scene.rooms) {
       if (room.polygon.length < 3) continue
       const floor = roomMesh(room.polygon, room.floorYM ?? 0, floorMaterial)
+      floor.userData.roomId = room.id
+      floor.userData.roomName = room.name || room.number || room.id
       scene3.add(floor)
       bounds.expandByObject(floor)
       const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(room.polygon.map(([x, z]) => new THREE.Vector3(x, room.floorYM ?? .01, z))), roomLine)
@@ -91,6 +104,7 @@ export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
         scene3.add(mesh); bounds.expandByObject(mesh)
       }
     }
+    for (const opening of scene.openings) { const mesh = openingSymbol(opening); scene3.add(mesh); bounds.expandByObject(mesh) }
     for (const item of scene.objects) { const mesh = symbol(item); scene3.add(mesh); bounds.expandByObject(mesh) }
 
     const size = bounds.isEmpty() ? new THREE.Vector3(5, 3, 5) : bounds.getSize(new THREE.Vector3())
@@ -101,9 +115,12 @@ export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
       const north = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), reference, .75, '#202427', .16, .09)
       scene3.add(scaleLine, north)
     }
-    const distance = Math.max(size.x, size.z, 3) * 1.7
-    camera.position.set(center.x + distance, center.y + distance * .9, center.z + distance)
-    controls.target.copy(center); controls.update()
+    const focusedRoom = focusRoomId ? scene.rooms.find(room => room.id === focusRoomId) : null
+    const focusCenter = focusedRoom ? focusedRoom.polygon.reduce((total, [x, z]) => total.add(new THREE.Vector3(x, focusedRoom.floorYM ?? 0, z)), new THREE.Vector3()).multiplyScalar(1 / focusedRoom.polygon.length) : center
+    const focusSize = focusedRoom ? new THREE.Box3().setFromPoints(focusedRoom.polygon.map(([x, z]) => new THREE.Vector3(x, focusedRoom.floorYM ?? 0, z))).getSize(new THREE.Vector3()) : size
+    const distance = Math.max(focusSize.x, focusSize.z, 3) * 1.7
+    camera.position.set(focusCenter.x + distance, focusCenter.y + distance * .9, focusCenter.z + distance)
+    controls.target.copy(focusCenter); controls.update()
     const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2()
     const onClick = (event: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect()
@@ -111,19 +128,20 @@ export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
       raycaster.setFromCamera(pointer, camera)
       const hit = raycaster.intersectObjects(scene3.children, true).find(candidate => {
         let node: THREE.Object3D | null = candidate.object
-        while (node) { if (typeof node.userData.objectId === 'string') return true; node = node.parent }
+        while (node) { if (typeof node.userData.objectId === 'string' || typeof node.userData.roomId === 'string') return true; node = node.parent }
         return false
       })
       let node = hit?.object ?? null
-      while (node && typeof node.userData.objectId !== 'string') node = node.parent
+      while (node && typeof node.userData.objectId !== 'string' && typeof node.userData.roomId !== 'string') node = node.parent
       if (node?.userData.objectId) onSelectObject?.(node.userData.objectId as string)
+      else if (node?.userData.roomId) onSelectRoom?.({ id: node.userData.roomId as string, name: node.userData.roomName as string })
     }
     renderer.domElement.addEventListener('click', onClick)
     const resize = () => { const width = Math.max(1, element.clientWidth); const height = Math.max(1, element.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix() }
     const observer = new ResizeObserver(resize); observer.observe(element); resize()
     const animate = () => { if (disposed) return; controls.update(); renderer.render(scene3, camera); frame = requestAnimationFrame(animate) }; animate()
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
-  }, [onSelectObject, scene])
+  }, [focusRoomId, onSelectObject, onSelectRoom, scene])
 
   return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span></aside></div>
 }

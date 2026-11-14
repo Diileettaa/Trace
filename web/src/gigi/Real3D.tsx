@@ -106,7 +106,9 @@ export const Real3D: React.FC<Props> = ({
 
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
           {geometryScene ? (
-            <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling} />
+            <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling}
+              onSelectRoom={setPickedRoom}
+              focusRoomId={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : pickedRoom?.id) : null} />
           ) : model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
               onSelectRoom={setPickedRoom}
