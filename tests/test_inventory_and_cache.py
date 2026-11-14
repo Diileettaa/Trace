@@ -215,7 +215,7 @@ def test_ifc_plan_boxes_from_svg_guid_groups(monkeypatch):
             "sources": [{"file": "data/ifc_models/m.ifc"}]}
     monkeypatch.setattr(ea, "answer", lambda p, q: fake)
     r = engine_adapter.answer("data/ifc_models/m_plan.pdf", "How many doors?")
-    assert len(r["sources"]) == 1 and r["sources"][0]["label"] == "Door 1"
+    assert len(r["sources"]) == 1 and r["sources"][0]["label"] == r["items"][0]["label"]  # short plan tag, e.g. DR-1
     assert any("not on this floor plan" in w for w in r["warnings"])
 
 

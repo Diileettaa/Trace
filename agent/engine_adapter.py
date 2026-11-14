@@ -370,9 +370,10 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
     raw_items = r.get("items") or []
     enriched_items = _enrich_and_stabilize_items(path, raw_items, source)
     items, sources = [], []
-    for it in enriched_items:
-        label = it.get("label") or _label(it, 1)
+    for n, it in enumerate(enriched_items, 1):
+        label = it.get("label") or _label(it, n)
         item = {k: v for k, v in it.items() if k not in ("png_bbox", "pdf_bbox_pt")}
+        item["name"] = _label(it, n)  # display name ("Door 1 (D01)"); `label` is the short plan tag ("DR-208.1")
         items.append(item)
         box = None
         if is_pdf and it.get("pdf_bbox_pt"):
@@ -394,7 +395,7 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
         boxes = ifc_plan.boxes_for(path, [i["guid"] for i in guid_items])
         for i in guid_items:
             if i["guid"] in boxes:
-                sources.append({"file": path, "page": 1, "bbox": boxes[i["guid"]], "label": i["name"]})
+                sources.append({"file": path, "page": 1, "bbox": boxes[i["guid"]], "label": i.get("label") or i.get("name")})
         if guid_items and len(boxes) < len(guid_items):
             n = len(guid_items) - len(boxes)
             r.setdefault("warnings", [])
