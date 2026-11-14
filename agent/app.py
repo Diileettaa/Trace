@@ -173,7 +173,9 @@ def collab_direct_get(person: str, with_person: str):
 
 @app.post("/collab/direct")
 def collab_direct(body: DirectIn):
-    try: return collab.post_direct(body.recipient, body.text, body.author, body.attachment)
+    try:
+        collab.post_direct(body.recipient, body.text, body.author, body.attachment)
+        return collab.for_space(None, body.author)
     except ValueError as exc: raise HTTPException(400, str(exc))
 
 @app.get("/collab/bookings")

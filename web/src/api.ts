@@ -60,6 +60,15 @@ export const setRoomStatus = (space_id: string, status: RoomStatus, author = '')
 export const postRoomMessage = (space_id: string, text: string, role = '', notify: string[] = []) =>
   post('/collab/message', { space_id, text, role, notify })
 
+export const postRoomChat = (space_id: string, text: string, author: string, role: string, attachment = '') =>
+  post('/collab/message', { space_id, text, author, role, attachment })
+
+export async function postDirect(recipient: string, text: string, author: string, attachment = ''): Promise<CollabState> {
+  const response = await fetch(`${BASE}/collab/direct`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipient, text, author, attachment }) })
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+
 
 export interface MoodRenderRequest {
   image_base64: string

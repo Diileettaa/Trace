@@ -52,6 +52,7 @@ export type Role = '' | 'architect' | 'electrician' | 'plumber' | 'owner'
 export type RoomStatus = 'built' | 'missing_wall' | 'pending'
 
 export interface CollabMessage {
+  id?: string
   space_id: string
   text: string
   author?: string
