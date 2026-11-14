@@ -476,7 +476,8 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             <Real3D mode={viewMode === '3d-building' ? 'building' : 'room'} scenario={scenario} model={project.model} plan={project.plan}
               fixture={active3DFixture} siblingFixtures={scenarioFixtures}
               onSwitchMode={(m) => setViewMode(m === 'building' ? '3d-building' : '3d-room')}
-              onSelectSibling={(id) => { if (fixtures[id]) setSelectedFixtureId(id); }} onBackTo2D={() => setViewMode('2d')} />
+              onSelectSibling={(id) => { if (fixtures[id]) setSelectedFixtureId(id); }} onBackTo2D={() => setViewMode('2d')}
+              onAsk={(q) => void runPromptInCurrentChat(q)} />
           )}
         </div>
       </div>

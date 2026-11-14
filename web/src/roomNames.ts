@@ -18,3 +18,12 @@ export function englishRoomName(name: string) {
   const english = translated.join(' + ')
   return english !== name ? english : name  // English only on screen
 }
+
+/** "2.korrus", "1. Obergeschoss", "Erdgeschoss", "Katus" -> English storey names */
+export function storeyEnglish(name: string) {
+  if (!name) return name
+  const n = name.match(/(-?\d+)\s*\.?\s*(korrus|og|obergeschoss|floor|level|piano|étage|krs)/i) || name.match(/^(-?\d+)$/)
+  if (n) return `Floor ${n[1]}`
+  const map: Record<string, string> = { katus: 'Roof', vundament: 'Foundation', kelder: 'Basement', erdgeschoss: 'Ground floor', eg: 'Ground floor', keller: 'Basement', dachgeschoss: 'Attic', dachboden: 'Attic', 'piano terra': 'Ground floor', 'rez-de-chaussée': 'Ground floor' }
+  return map[name.trim().toLowerCase()] || name
+}

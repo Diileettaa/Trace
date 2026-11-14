@@ -1,7 +1,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as OBC from '@thatopen/components'
 import * as THREE from 'three'
-import { englishRoomName } from './roomNames'
+import { englishRoomName, storeyEnglish } from './roomNames'
 import { RenderedFaces } from '@thatopen/fragments'
 import { deleteScenePlacement, fileUrl, getScene, getRoomMedia, postRoomChat, saveScenePlacement, type ScenePlacement } from './api'
 import FurnitureCatalogModal, { type FurnitureProduct } from './components/FurnitureCatalogModal'
@@ -436,7 +436,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           ids.add(storey.localId)
           for (const id of storey.itemIds) ids.add(id)
         }
-        setStoreys(nextStoreys)
+        setStoreys(nextStoreys.map(storey => ({ ...storey, name: storeyEnglish(storey.name) })))
         setSelectedStoreyId(null)
         setTrades(nextTrades)
         setAllLocalIds([...ids])

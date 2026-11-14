@@ -1,7 +1,8 @@
 // Gigi's Detailed3DViewer frame (dark toolbar, Whole Building | Interior, fixture strip, clearance cards)
 // around our real 3D: the IFC model (IfcViewer) or, for 2D vector plans, rooms extruded from /api/plan/rooms.
-import React from 'react';
-import { ArrowLeft, Building2, Eye } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Building2, Eye, Info, MessageSquare, Minus } from 'lucide-react';
+import { roomEnglish } from '../roomNames';
 import IfcViewer from '../IfcViewer';
 import PlanRooms3D from '../components/PlanRooms3D';
 import type { FixtureVerification, QueryScenario } from './adapters';
@@ -16,6 +17,7 @@ interface Props {
   onSwitchMode: (mode: 'building' | 'room') => void;
   onSelectSibling: (id: string) => void;
   onBackTo2D: () => void;
+  onAsk?: (question: string) => void;   // ours: ask about the room the user clicked
 }
 
 const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
@@ -29,8 +31,10 @@ const ROWS: { key: string; label: string; accent?: boolean }[] = [
 ];
 
 export const Real3D: React.FC<Props> = ({
-  mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
+  mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D, onAsk,
 }) => {
+  const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
+  const [roomCardOpen, setRoomCardOpen] = useState(true);
   const guids = (scenario?.targetIds || []).filter(isGuid);
   const selectedGuid = mode === 'room' && fixture && isGuid(fixture.id) ? fixture.id : null;
   const roomLabel = scenario?.roomCode || 'Room';
@@ -98,7 +102,8 @@ export const Real3D: React.FC<Props> = ({
 
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
           {model ? (
-            <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)} />
+            <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
+              onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }} />
           ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (
             <PlanRooms3D path={plan} />
           ) : (
@@ -110,6 +115,33 @@ export const Real3D: React.FC<Props> = ({
               </span>
             </div>
           )}
+          {/* ours, in Gigi's style: the room the user clicked; collapses to a small chip in the corner */}
+          {model && pickedRoom && (roomCardOpen ? (
+            <div className="absolute top-3 left-3 z-10 w-64 rounded-xl bg-[#202427]/95 text-[#F7F6F2] border border-[#E9B949]/60 shadow-xl">
+              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-mono text-[#E9B949]">Room</div>
+                  <div className="text-sm font-semibold truncate">{roomEnglish(pickedRoom.name)}</div>
+                </div>
+                <button type="button" onClick={() => setRoomCardOpen(false)} aria-label="Minimise room card" title="Minimise"
+                  className="p-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] hover:bg-white/10 cursor-pointer"><Minus className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="px-3 py-2 space-y-1.5">
+                {onAsk && (
+                  <button type="button" onClick={() => onAsk(`What is in the ${roomEnglish(pickedRoom.name)}?`)}
+                    className="w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#E9B949] text-[#202427] text-[11px] font-semibold cursor-pointer">
+                    <MessageSquare className="w-3 h-3" /><span>What is in this room?</span>
+                  </button>
+                )}
+                <div className="text-[10px] text-[#A9AFB0] leading-snug">Click another room in the model to switch. Drag to orbit, scroll to zoom.</div>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setRoomCardOpen(true)} title={roomEnglish(pickedRoom.name)} aria-label="Open room card"
+              className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#202427]/90 border border-[#E9B949]/60 text-[#E9B949] text-[11px] font-semibold cursor-pointer">
+              <Info className="w-3.5 h-3.5" /><span className="max-w-[120px] truncate">{roomEnglish(pickedRoom.name)}</span>
+            </button>
+          ))}
         </div>
 
         {/* Exact Distance Breakdown for Selected Fixture */}

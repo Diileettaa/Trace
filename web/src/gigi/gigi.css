@@ -31,3 +31,6 @@
 .gigi-3d .viewer-main-row { height: 100%; }
 .gigi-3d { height: 430px; } .gigi-3d > div { height: 100%; }
 .gigi-3d .three { min-height: 0; flex: 1; }
+
+/* our viewer's light popup clashes with Gigi's frame: replaced by the dark room card in Real3D */
+.gigi-3d .ifc-action-popup { display: none !important; }
