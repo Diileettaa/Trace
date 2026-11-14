@@ -15,13 +15,23 @@ interface Props {
   selectedFixtureId: string | null;
   onSelectFixtureFor3D: (id: string) => void;
   onImageSize?: (size: [number, number]) => void;
+  // ours: interactive review (Xinran's /api/rv/*). In 'fix' mode a click toggles a mark off, a drag on empty paper adds one.
+  tool?: 'view' | 'fix' | 'measure';
+  removed?: Set<string>;
+  added?: { x: number; y: number; w: number; h: number }[];
+  measurePts?: [number, number][];
+  onToggleRemove?: (id: string) => void;
+  onAddBox?: (b: { x: number; y: number; w: number; h: number }) => void;
+  onMeasurePoint?: (p: [number, number]) => void;
 }
 
 const ZOOM: Record<ScaleOption, number> = { '1:200': 1, '1:100': 2, '1:50': 4, '1:20': 8 };
 
 export const RealPlan: React.FC<Props> = ({
   path, scenario, activeLayers, scale, activeFloor, fixtures, selectedFixtureId, onSelectFixtureFor3D, onImageSize,
+  tool = 'view', removed, added = [], measurePts = [], onToggleRemove, onAddBox, onMeasurePoint,
 }) => {
+  const [draft, setDraft] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [size, setSize] = useState<[number, number] | null>(null);
   const [failed, setFailed] = useState(false);
   const [hoveredFixtureId, setHoveredFixtureId] = useState<string | null>(null);
@@ -98,9 +108,15 @@ export const RealPlan: React.FC<Props> = ({
     setUserView(clampVb({ x: p.x - (p.x - vb.x) * f, y: p.y - (p.y - vb.y) * f, w: vb.w * f, h: vb.h * f }));
   };
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (tool === 'fix' && (e.target as Element).tagName === 'image') {
+      const p = toSvg(e.clientX, e.clientY); setDraft({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+      svgRef.current?.setPointerCapture(e.pointerId); return;
+    }
+    if (tool === 'measure') { const p = toSvg(e.clientX, e.clientY); onMeasurePoint?.([p.x, p.y]); return; }
     dragRef.current = { x: e.clientX, y: e.clientY, vb, moved: false };
   };
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (draft) { const p = toSvg(e.clientX, e.clientY); setDraft({ ...draft, x1: p.x, y1: p.y }); return; }
     const d = dragRef.current; const el = svgRef.current; if (!d || !el) return;
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) < 4) return;
@@ -109,6 +125,12 @@ export const RealPlan: React.FC<Props> = ({
     setUserView(clampVb({ ...d.vb, x: d.vb.x - dx / sc, y: d.vb.y - dy / sc }));
   };
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (draft) {
+      const b = { x: Math.min(draft.x0, draft.x1), y: Math.min(draft.y0, draft.y1), w: Math.abs(draft.x1 - draft.x0), h: Math.abs(draft.y1 - draft.y0) };
+      setDraft(null); try { svgRef.current?.releasePointerCapture(e.pointerId); } catch { /* */ }
+      if (b.w > 3 && b.h > 3) onAddBox?.(b);
+      return;
+    }
     const d = dragRef.current; dragRef.current = null;
     if (d?.moved) { try { svgRef.current?.releasePointerCapture(e.pointerId); } catch { /* not captured */ } }
   };
@@ -127,7 +149,7 @@ export const RealPlan: React.FC<Props> = ({
   return (
     <div className="relative bg-[#FCFCF9] blueprint-grid-bg">
       <svg ref={svgRef} viewBox={vbString} onPointerDown={onPointerDown} onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ touchAction: 'none', cursor: dragRef.current?.moved ? 'grabbing' : 'grab' }}
+        onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ touchAction: 'none', cursor: tool === 'fix' || tool === 'measure' ? 'crosshair' : dragRef.current?.moved ? 'grabbing' : 'grab' }}
         className="w-full h-[520px] select-none block" role="img"
         aria-label={`Floor plan ${activeFloor} at scale ${scale}`}>
         {!failed && (
@@ -180,7 +202,8 @@ export const RealPlan: React.FC<Props> = ({
             const tagTextColor = isUnverified ? '#FCA5A5' : notChecked ? '#E8E6DF' : '#E9B949';
             const pad = 6 * k;
             return (
-              <g key={fixture.id} onClick={() => onSelectFixtureFor3D(fixture.id)}
+              <g key={fixture.id} onClick={() => (tool === 'fix' ? onToggleRemove?.(fixture.id) : onSelectFixtureFor3D(fixture.id))}
+                opacity={removed?.has(fixture.id) ? 0.25 : 1}
                 onMouseEnter={() => handleMouseEnterFixture(fixture.id)} onMouseLeave={handleMouseLeaveFixture}
                 className="cursor-pointer" role="button" tabIndex={0} aria-label={`Inspect ${fixture.label} in 3D`}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectFixtureFor3D(fixture.id); } }}>
@@ -207,6 +230,21 @@ export const RealPlan: React.FC<Props> = ({
             );
           })}
         </g>
+
+        {/* ours: review edits */}
+        {added.map((b, i) => (
+          <g key={`add-${i}`}>
+            <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={3 * k} fill="#22C55E" fillOpacity={0.25} stroke="#15803D" strokeWidth={2 * k} strokeDasharray={`${5 * k} ${3 * k}`} />
+            <text x={b.x + b.w / 2} y={b.y - 4 * k} textAnchor="middle" fontSize={8 * k} fontFamily="IBM Plex Mono, monospace" fill="#15803D" fontWeight="700">+ added</text>
+          </g>
+        ))}
+        {draft && <rect x={Math.min(draft.x0, draft.x1)} y={Math.min(draft.y0, draft.y1)} width={Math.abs(draft.x1 - draft.x0)} height={Math.abs(draft.y1 - draft.y0)} fill="#22C55E" fillOpacity={0.15} stroke="#15803D" strokeWidth={1.5 * k} />}
+        {measurePts.length > 0 && (
+          <g>
+            <polyline points={measurePts.map((p) => p.join(',')).join(' ')} fill={measurePts.length > 2 ? '#E9B949' : 'none'} fillOpacity={0.15} stroke="#C98A12" strokeWidth={2 * k} />
+            {measurePts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={4 * k} fill="#C98A12" stroke="#FCFCF9" strokeWidth={1 * k} />)}
+          </g>
+        )}
       </svg>
 
       {failed && (

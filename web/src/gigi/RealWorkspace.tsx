@@ -99,6 +99,16 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [downloadToast, setDownloadToast] = useState<boolean>(false);
   const [howOpen, setHowOpen] = useState<Record<string, boolean>>({});
+  // ours: interactive review + measuring (Xinran's /api/rv/*)
+  const [tool, setTool] = useState<'view' | 'fix' | 'measure'>('view');
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [added, setAdded] = useState<{ x: number; y: number; w: number; h: number }[]>([]);
+  const [measurePts, setMeasurePts] = useState<[number, number][]>([]);
+  const [measureStep, setMeasureStep] = useState<'calibrate' | 'measure'>('calibrate');
+  const [calibLen, setCalibLen] = useState<string>('');
+  const [toolMsg, setToolMsg] = useState<string>('');
+  const [toolBusy, setToolBusy] = useState(false);
+  const isRaster = /\.(png|jpe?g|tiff?|webp|bmp)$/i.test(askPath);
 
   // ---------- data loading (ours) ----------
   useEffect(() => {
@@ -155,7 +165,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
     });
     void base;
   };
-  useEffect(() => { void refreshFixtures(scenario); /* eslint-disable-next-line */ }, [scenario?.id]);
+  useEffect(() => { void refreshFixtures(scenario); resetTools(); /* eslint-disable-next-line */ }, [scenario?.id]);
 
   const scenarioFixtures = (scenario?.targetIds || []).map((id) => fixtures[id]).filter(Boolean) as FixtureVerification[];
   const active3DFixture = (selectedFixtureId && fixtures[selectedFixtureId]) || scenarioFixtures[0] || null;
@@ -276,6 +286,59 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
     if (!q) return;
     void runPromptInCurrentChat(q);
     setQuestionInput('');
+  };
+
+  const resetTools = () => { setTool('view'); setRemoved(new Set()); setAdded([]); setMeasurePts([]); setToolMsg(''); };
+  const rvPost = (route: string, body: unknown) =>
+    fetch(`/api/rv/${route}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+  const applyReview = async () => {
+    if (!scenario || !activeChat) return;
+    const who = verifyAuthor.trim() || 'Reviewer';
+    setToolBusy(true);
+    try {
+      let answerId = (scenario as any).__rvId as string | undefined;
+      if (!answerId) {
+        const a = await rvPost('ask', { path: scenario.path, question: scenario.prompt });
+        if (!a.answer_id) throw new Error(a.error || (a.warnings || []).join('; ') || 'review not available for this answer');
+        answerId = a.answer_id; (scenario as any).__rvId = answerId;
+      }
+      const remove = scenario.targetIds.map((id, i) => (removed.has(id) ? i : -1)).filter((i) => i >= 0);
+      const add = added.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.x + b.w), Math.round(b.y + b.h)]);
+      const r = await rvPost('review', { answer_id: answerId, remove, add, user: who });
+      const before = scenario.foundCount ?? '—';
+      patchChat(activeChat.id, (c) => ({ ...c, messages: [...c.messages, {
+        id: `rv-${Date.now()}`, role: 'assistant', bigMetric: String(r.value ?? '—'),
+        text: `Model ${before} → reviewed by ${who}: ${r.value ?? '—'} (${remove.length} removed, ${add.length} added). Saved to the correction log.`,
+      }] }));
+      resetTools();
+    } catch (e) {
+      setToolMsg(`Could not apply: ${String((e as Error).message || e).slice(0, 160)}`);
+    } finally { setToolBusy(false); }
+  };
+  const runMeasure = async (kind: 'calibrate' | 'area' | 'length') => {
+    if (!imageSize || !activeChat) return;
+    const norm = measurePts.map(([x, y]) => [Math.round((x * 1000) / imageSize[0]), Math.round((y * 1000) / imageSize[1])]);
+    setToolBusy(true);
+    try {
+      if (kind === 'calibrate') {
+        const len = parseFloat(calibLen.replace(',', '.'));
+        if (norm.length !== 2 || !(len > 0)) { setToolMsg('Click both ends of a known dimension, then type its length in metres.'); return; }
+        const r = await rvPost('calibrate', { path: askPath, p1: norm[0], p2: norm[1], length_m: len, image_size: imageSize, page: 0 });
+        if (r.error) throw new Error(r.error);
+        setMeasureStep('measure'); setMeasurePts([]); setToolMsg('Scale set. Now click the corners of an area (or a line for a length).');
+        return;
+      }
+      const r = await rvPost('measure', { path: askPath, points: norm, kind, page: 0 });
+      if (r.error || r.value == null) throw new Error(r.error || 'no value');
+      const unit = r.unit === 'm2' ? 'm²' : r.unit || '';
+      patchChat(activeChat.id, (c) => ({ ...c, messages: [...c.messages, {
+        id: `ms-${Date.now()}`, role: 'assistant', bigMetric: `${Number(r.value).toFixed(2)} ${unit}`,
+        text: `Measured ${kind} on the drawing (${measurePts.length} points, scale from ${r.scale_from || 'calibration'}).`,
+      }] }));
+      setMeasurePts([]); setToolMsg('Measured. Click new points for another measurement.');
+    } catch (e) {
+      setToolMsg(`Could not measure: ${String((e as Error).message || e).slice(0, 160)}`);
+    } finally { setToolBusy(false); }
   };
 
   const toggleLayer = (layerId: LayerId) => setActiveLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
@@ -444,8 +507,58 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               </button>
             </div>
           </div>
-          <span className="text-xs font-mono text-[#202427]/60">{activeFloor} · M {scale}</span>
+          <div className="flex items-center gap-2">
+            {viewMode === '2d' && scenario && scenarioFixtures.length > 0 && (
+              <button type="button" onClick={() => (tool === 'fix' ? resetTools() : (resetTools(), setTool('fix')))}
+                className={`px-2.5 py-0.5 text-xs font-medium rounded-md border transition-colors cursor-pointer ${tool === 'fix' ? 'bg-[#202427] text-[#E9B949] border-[#202427]' : 'bg-white text-[#202427] border-[#A9AFB0]/50 hover:border-[#202427]'}`}>
+                Fix count
+              </button>
+            )}
+            {viewMode === '2d' && isRaster && (
+              <button type="button" onClick={() => (tool === 'measure' ? resetTools() : (resetTools(), setTool('measure'), setMeasureStep('calibrate')))}
+                className={`px-2.5 py-0.5 text-xs font-medium rounded-md border transition-colors cursor-pointer ${tool === 'measure' ? 'bg-[#202427] text-[#E9B949] border-[#202427]' : 'bg-white text-[#202427] border-[#A9AFB0]/50 hover:border-[#202427]'}`}>
+                Measure
+              </button>
+            )}
+            <span className="text-xs font-mono text-[#202427]/60">{activeFloor} · M {scale}</span>
+          </div>
         </div>
+        {tool !== 'view' && (
+          <div className="mb-3 px-3 py-2 rounded-lg bg-[#202427] text-[#F7F6F2] text-[11px] flex flex-wrap items-center gap-2">
+            {tool === 'fix' ? (
+              <>
+                <span className="text-[#E9B949] font-semibold">Fix count</span>
+                <span className="text-[#A9AFB0]">Click a wrong mark to remove it · drag on the sheet to add a missed one</span>
+                <span className="font-mono">−{removed.size} · +{added.length}</span>
+                <button type="button" disabled={toolBusy || (removed.size === 0 && added.length === 0)} onClick={() => void applyReview()}
+                  className="ml-auto px-2.5 py-1 rounded bg-[#E9B949] text-[#202427] font-semibold cursor-pointer disabled:opacity-50">{toolBusy ? 'Saving…' : 'Apply'}</button>
+                <button type="button" onClick={resetTools} className="px-2 py-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] cursor-pointer">Cancel</button>
+              </>
+            ) : measureStep === 'calibrate' ? (
+              <>
+                <span className="text-[#E9B949] font-semibold">Set scale</span>
+                <span className="text-[#A9AFB0]">Click both ends of a known dimension (or the scale bar), then type its length:</span>
+                <input value={calibLen} onChange={(e) => setCalibLen(e.target.value)} placeholder="m" className="w-16 px-2 py-0.5 rounded bg-white text-[#202427] font-mono" />
+                <span className="font-mono">{measurePts.length}/2 points</span>
+                <button type="button" disabled={toolBusy || measurePts.length !== 2} onClick={() => void runMeasure('calibrate')}
+                  className="ml-auto px-2.5 py-1 rounded bg-[#E9B949] text-[#202427] font-semibold cursor-pointer disabled:opacity-50">Set scale</button>
+                <button type="button" onClick={() => setMeasurePts([])} className="px-2 py-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] cursor-pointer">Clear</button>
+                <button type="button" onClick={resetTools} className="px-2 py-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] cursor-pointer">Close</button>
+              </>
+            ) : (
+              <>
+                <span className="text-[#E9B949] font-semibold">Measure</span>
+                <span className="text-[#A9AFB0]">Click the corners of a room (area) or along a wall (length, e.g. baseboard)</span>
+                <span className="font-mono">{measurePts.length} points</span>
+                <button type="button" disabled={toolBusy || measurePts.length < 3} onClick={() => void runMeasure('area')} className="ml-auto px-2.5 py-1 rounded bg-[#E9B949] text-[#202427] font-semibold cursor-pointer disabled:opacity-50">Area</button>
+                <button type="button" disabled={toolBusy || measurePts.length < 2} onClick={() => void runMeasure('length')} className="px-2.5 py-1 rounded bg-[#E9B949] text-[#202427] font-semibold cursor-pointer disabled:opacity-50">Length</button>
+                <button type="button" onClick={() => setMeasurePts([])} className="px-2 py-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] cursor-pointer">Clear</button>
+                <button type="button" onClick={resetTools} className="px-2 py-1 rounded text-[#A9AFB0] hover:text-[#F7F6F2] cursor-pointer">Close</button>
+              </>
+            )}
+            {toolMsg && <span className="basis-full text-[#E9B949]">{toolMsg}</span>}
+          </div>
+        )}
 
         {/* Keynotes Strip */}
         <div className="grid grid-cols-3 gap-2.5 mb-3">
@@ -474,6 +587,10 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             project.plan || !project.model ? (
               <RealPlan path={askPath} scenario={scenario} activeLayers={activeLayers} scale={scale} activeFloor={activeFloor}
                 fixtures={fixtures} selectedFixtureId={selectedFixtureId} onImageSize={setImageSize}
+                tool={tool} removed={removed} added={added} measurePts={measurePts}
+                onToggleRemove={(id) => setRemoved((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
+                onAddBox={(b) => setAdded((prev) => [...prev, b])}
+                onMeasurePoint={(p) => setMeasurePts((prev) => (measureStep === 'calibrate' && prev.length >= 2 ? [p] : [...prev, p]))}
                 onSelectFixtureFor3D={(id) => { setSelectedFixtureId(id); setViewMode('3d-room'); }} />
             ) : (
               <div className="h-[420px] flex flex-col items-center justify-center gap-2 bg-[#FCFCF9] blueprint-grid-bg text-center px-8">
