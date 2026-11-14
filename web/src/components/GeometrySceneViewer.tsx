@@ -23,7 +23,9 @@ const symbol = (item: GeometryObject) => {
   const depth = item.footprint?.depthM ?? .65
   const height = item.heightM ?? .42
   const group = new THREE.Group()
-  const material = new THREE.MeshStandardMaterial({ color: '#e9b949', roughness: .7 })
+  // Amber is a normal recognised symbol; muted red means the engine explicitly
+  // marked it below the review threshold. The UI never invents confidence.
+  const material = new THREE.MeshStandardMaterial({ color: item.confidence !== undefined && item.confidence < .7 ? '#b65b4f' : '#e9b949', roughness: .7 })
   const dark = new THREE.MeshStandardMaterial({ color: '#384044', roughness: .8 })
   const category = item.category.toLowerCase()
   if (/toilet|wc/.test(category)) {
@@ -38,6 +40,18 @@ const symbol = (item: GeometryObject) => {
     const bowl = new THREE.Mesh(new THREE.BoxGeometry(width * .7, height * .12, depth * .62), dark)
     bowl.position.y = height * .79
     group.add(base, bowl)
+  } else if (/shower/.test(category)) {
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(width, Math.max(.06, height * .12), depth), material)
+    tray.position.y = Math.max(.03, height * .06)
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(width, height * .72, .025), dark)
+    glass.position.set(0, height * .42, -depth / 2)
+    group.add(tray, glass)
+  } else if (/bath|tub/.test(category)) {
+    const tub = new THREE.Mesh(new THREE.BoxGeometry(width, height * .62, depth), material)
+    tub.position.y = height * .31
+    const well = new THREE.Mesh(new THREE.BoxGeometry(width * .68, height * .13, depth * .65), dark)
+    well.position.y = height * .65
+    group.add(tub, well)
   } else {
     const base = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material)
     base.position.y = height / 2
@@ -46,6 +60,8 @@ const symbol = (item: GeometryObject) => {
   group.position.set(item.position[0], item.position[1], item.position[2])
   group.rotation.y = THREE.MathUtils.degToRad(item.rotationDeg ?? 0)
   group.userData.objectId = item.id
+  group.userData.confidence = item.confidence
+  group.userData.assumed = item.assumed
   return group
 }
 
@@ -55,12 +71,18 @@ const openingSymbol = (opening: GeometryOpening) => {
   mesh.position.set(opening.position[0], opening.position[1] + opening.heightM / 2, opening.position[2])
   mesh.rotation.y = THREE.MathUtils.degToRad(opening.rotationDeg)
   mesh.userData.objectId = opening.id
+  mesh.userData.confidence = opening.confidence
+  mesh.userData.assumed = opening.assumed
   return mesh
 }
 
 /** Renders only calibrated metre-based data supplied by the scene endpoint. */
 export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, focusRoomId }: Props) {
   const host = useRef<HTMLDivElement>(null)
+  const reviewNeeded = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
+    .some(item => item.confidence !== undefined && item.confidence < .7)
+  const hasAssumedDimensions = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
+    .some(item => item.assumed)
 
   useEffect(() => {
     const element = host.current
@@ -143,5 +165,5 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
   }, [focusRoomId, onSelectObject, onSelectRoom, scene])
 
-  return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span></aside></div>
+  return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside></div>
 }

@@ -13,7 +13,15 @@ export interface GeometrySource {
   label?: string
 }
 
-export interface GeometryRoom {
+/** Recognition provenance supplied by the engine; never inferred in the UI. */
+export interface GeometryEvidence {
+  method?: string
+  confidence?: number
+  /** True when a dimension (normally a vertical height) is a documented default. */
+  assumed?: boolean
+}
+
+export interface GeometryRoom extends GeometryEvidence {
   id: string
   name?: string | null
   number?: string | null
@@ -25,7 +33,7 @@ export interface GeometryRoom {
   source?: GeometrySource
 }
 
-export interface GeometryWall {
+export interface GeometryWall extends GeometryEvidence {
   id: string
   storeyId?: string
   points: PlanPoint[]
@@ -35,7 +43,7 @@ export interface GeometryWall {
   source?: GeometrySource
 }
 
-export interface GeometryOpening {
+export interface GeometryOpening extends GeometryEvidence {
   id: string
   kind: 'door' | 'window'
   wallId?: string
@@ -46,7 +54,7 @@ export interface GeometryOpening {
   source?: GeometrySource
 }
 
-export interface GeometryObject {
+export interface GeometryObject extends GeometryEvidence {
   id: string
   category: string
   name?: string
@@ -56,7 +64,6 @@ export interface GeometryObject {
   rotationDeg?: number
   footprint?: { widthM: number; depthM: number }
   heightM?: number
-  confidence?: number
   source?: GeometrySource
 }
 
@@ -133,6 +140,14 @@ const source = (value: unknown): GeometrySource | undefined => {
   const bbox = Array.isArray(raw.bbox) && raw.bbox.length === 4 && raw.bbox.every(item => number(item) !== undefined) ? raw.bbox as [number, number, number, number] : undefined
   return { file, page: number(raw.page) ?? null, bbox, guid: text(raw.guid), label: text(raw.label) }
 }
+const assumed = (value: unknown): boolean | undefined => {
+  if (typeof value === 'boolean') return value
+  const flags = record(value)
+  return flags && Object.values(flags).some(flag => flag === true) ? true : undefined
+}
+const evidence = (item: JsonRecord): GeometryEvidence => ({
+  method: text(item.method), confidence: number(item.confidence), assumed: assumed(item.assumed),
+})
 const records = (value: unknown) => Array.isArray(value) ? value.map(record).filter((item): item is JsonRecord => item !== null) : []
 const defined = <T,>(value: T | null): value is T => value !== null
 
@@ -152,20 +167,20 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
   const rooms: GeometryRoom[] = records(raw.rooms).map((item): GeometryRoom | null => {
     const polygon = (Array.isArray(item.polygon) ? item.polygon.map(planarPoint).filter((point): point is PlanPoint => point !== null) : [])
     const id = text(item.id)
-    return id && polygon.length >= 3 ? { id, name: text(item.name) ?? null, number: text(item.number) ?? null, storeyId: text(item.storey_id) ?? text(item.storeyId), polygon, floorYM: number(item.floor_y_m) ?? number(item.floorYM), heightM: number(item.height_m) ?? number(item.heightM), areaM2: number(item.area_m2) ?? number(item.areaM2) ?? null, source: source(item.source) } as GeometryRoom : null
+    return id && polygon.length >= 3 ? { id, name: text(item.name) ?? null, number: text(item.number) ?? null, storeyId: text(item.storey_id) ?? text(item.storeyId), polygon, floorYM: number(item.floor_y_m) ?? number(item.floorYM), heightM: number(item.height_m) ?? number(item.heightM), areaM2: number(item.area_m2) ?? number(item.areaM2) ?? null, source: source(item.source), ...evidence(item) } as GeometryRoom : null
   }).filter(defined)
   const walls: GeometryWall[] = records(raw.walls).map((item): GeometryWall | null => {
     const points = (Array.isArray(item.points) ? item.points.map(planarPoint).filter((point): point is PlanPoint => point !== null) : [])
     const id = text(item.id); const thicknessM = number(item.thickness_m) ?? number(item.thicknessM); const baseYM = number(item.base_y_m) ?? number(item.baseYM); const heightM = number(item.height_m) ?? number(item.heightM)
-    return id && points.length >= 2 && thicknessM !== undefined && baseYM !== undefined && heightM !== undefined ? { id, storeyId: text(item.storey_id) ?? text(item.storeyId), points, thicknessM, baseYM, heightM, source: source(item.source) } as GeometryWall : null
+    return id && points.length >= 2 && thicknessM !== undefined && baseYM !== undefined && heightM !== undefined ? { id, storeyId: text(item.storey_id) ?? text(item.storeyId), points, thicknessM, baseYM, heightM, source: source(item.source), ...evidence(item) } as GeometryWall : null
   }).filter(defined)
   const openings: GeometryOpening[] = records(raw.openings).map((item): GeometryOpening | null => {
     const id = text(item.id); const kind = text(item.kind); const position = worldPoint(item.position); const rotationDeg = number(item.rotation_deg) ?? number(item.rotationDeg); const widthM = number(item.width_m) ?? number(item.widthM); const heightM = number(item.height_m) ?? number(item.heightM)
-    return id && (kind === 'door' || kind === 'window') && position && rotationDeg !== undefined && widthM !== undefined && heightM !== undefined ? { id, kind, wallId: text(item.wall_id) ?? text(item.wallId), position, rotationDeg, widthM, heightM, source: source(item.source) } as GeometryOpening : null
+    return id && (kind === 'door' || kind === 'window') && position && rotationDeg !== undefined && widthM !== undefined && heightM !== undefined ? { id, kind, wallId: text(item.wall_id) ?? text(item.wallId), position, rotationDeg, widthM, heightM, source: source(item.source), ...evidence(item) } as GeometryOpening : null
   }).filter(defined)
   const objects: GeometryObject[] = records(raw.objects).map((item): GeometryObject | null => {
     const id = text(item.id); const category = text(item.category); const position = worldPoint(item.position); const footprintRaw = record(item.footprint); const footprintWidth = number(footprintRaw?.width_m) ?? number(footprintRaw?.widthM); const footprintDepth = number(footprintRaw?.depth_m) ?? number(footprintRaw?.depthM)
-    return id && category && position ? { id, category, name: text(item.name), storeyId: text(item.storey_id) ?? text(item.storeyId), roomId: text(item.room_id) ?? text(item.roomId), position, rotationDeg: number(item.rotation_deg) ?? number(item.rotationDeg), footprint: footprintWidth !== undefined && footprintDepth !== undefined ? { widthM: footprintWidth, depthM: footprintDepth } : undefined, heightM: number(item.height_m) ?? number(item.heightM), confidence: number(item.confidence), source: source(item.source) } as GeometryObject : null
+    return id && category && position ? { id, category, name: text(item.name), storeyId: text(item.storey_id) ?? text(item.storeyId), roomId: text(item.room_id) ?? text(item.roomId), position, rotationDeg: number(item.rotation_deg) ?? number(item.rotationDeg), footprint: footprintWidth !== undefined && footprintDepth !== undefined ? { widthM: footprintWidth, depthM: footprintDepth } : undefined, heightM: number(item.height_m) ?? number(item.heightM), source: source(item.source), ...evidence(item) } as GeometryObject : null
   }).filter(defined)
   return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem: coordinateSystem as GeometryScene['coordinateSystem'], unit: unit as GeometryScene['unit'], warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], rooms, walls, openings, objects }
 }
