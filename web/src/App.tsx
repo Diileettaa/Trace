@@ -394,6 +394,7 @@ export default function App() {
           </div>
           <p className="sub">Ask a drawing anything. Every answer shows where it came from.</p>
         </header>
+        <section className="workspace-left-guide"><div className="workspace-left-title"><b>HISTORY</b><button onClick={() => { setQuestion(''); setRes(null); setInv(null) }}>＋</button></div><button className="history-item" onClick={() => questionRef.current?.focus()}>{question || 'New evidence conversation'}<small>{res ? '1 answer' : 'No answers yet'}</small></button><b>SCALE <small>zoom level</small></b><div className="scale-options">{['1:200','1:100','1:50','1:20'].map(scale => <button key={scale}>{scale}</button>)}</div><b>LAYER GUIDE</b><div className="layer-guide">{['Architecture & Walls','Sanitary & Plumbing','Ventilation','Electrical & Lighting','Dimension Chains'].map(layer => <label key={layer}><input type="checkbox" defaultChecked />{layer}</label>)}</div></section>
 
         <details className="examples-panel">
           <summary>Examples</summary>
