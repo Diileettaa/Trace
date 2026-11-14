@@ -303,6 +303,7 @@ async def collab_media_post(
     request: Request,
     space_id: str = "",
     item_id: str = "",
+    status: str = "",
     author: str = "",
     role: str = "",
     note: str = "",
@@ -316,11 +317,14 @@ async def collab_media_post(
     data = None
     fname = filename or ""
     item_id_val = item_id or ""
+    status_val = status or ""
     if "multipart/form-data" in ctype:
         try:
             form = await request.form()
             if "item_id" in form and not item_id_val:
                 item_id_val = str(form.get("item_id") or "")
+            if "status" in form and not status_val:
+                status_val = str(form.get("status") or "")
             for v in form.values():
                 if isinstance(v, UploadFile):
                     data = await v.read()
@@ -360,9 +364,36 @@ async def collab_media_post(
             author=author,
             role=role,
             note=note,
+            status=status_val,
         )
     except media.MediaError as e:
         raise HTTPException(400, str(e))
+
+
+class VerifyItemIn(BaseModel):
+    path: str = ""
+    item_id: str
+    space_id: str = ""
+    status: str
+    note: str = ""
+    author: str = ""
+
+
+@app.post("/verify/item")
+def verify_item_post(body: VerifyItemIn):
+    try:
+        return media.update_item_status(
+            item_id=body.item_id,
+            status=body.status,
+            path=body.path,
+            space_id=body.space_id,
+            note=body.note,
+            author=body.author,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @app.get("/verify/status")

@@ -73,6 +73,61 @@ def _save_records(records: list[dict]) -> None:
     f.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _item_status_file() -> Path:
+    return (config.CACHE_DIR / "item_status.json").resolve()
+
+
+def load_item_statuses() -> dict[str, dict]:
+    f = _item_status_file()
+    if f.exists():
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+        except (ValueError, OSError):
+            pass
+    return {}
+
+
+def _save_item_statuses(statuses: dict[str, dict]) -> None:
+    f = _item_status_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(statuses, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+VALID_STATUSES = {"Installed", "In Progress", "Issue Reported"}
+
+
+def update_item_status(
+    item_id: str,
+    status: str,
+    path: str = "",
+    space_id: str = "",
+    note: str = "",
+    author: str = "",
+) -> dict:
+    if not item_id:
+        raise ValueError("item_id is required")
+    if status not in VALID_STATUSES:
+        raise ValueError(f"invalid status '{status}', must be one of {sorted(VALID_STATUSES)}")
+
+    with _lock:
+        statuses = load_item_statuses()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        rec = {
+            "item_id": item_id,
+            "status": status,
+            "path": path or "",
+            "space_id": space_id or "",
+            "note": note or "",
+            "author": author or "",
+            "ts": now_iso,
+        }
+        statuses[item_id] = rec
+        _save_item_statuses(statuses)
+    return rec
+
+
 def save_media(
     filename: str,
     data: bytes,
@@ -81,6 +136,7 @@ def save_media(
     author: str = "",
     role: str = "",
     note: str = "",
+    status: str = "",
 ) -> dict:
     if not filename or not filename.strip():
         raise MediaError("filename is required")
@@ -106,22 +162,37 @@ def save_media(
     if not file_path.exists():
         file_path.write_bytes(data)
 
+    now_iso = datetime.now(timezone.utc).isoformat()
     record = {
         "id": uuid.uuid4().hex,
         "space_id": space_id or "",
         "item_id": item_id or "",
+        "status": status if status in VALID_STATUSES else "",
         "author": author or "",
         "role": role or "",
         "note": note or "",
         "file": file_name,
         "kind": kind,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": now_iso,
     }
 
     with _lock:
         records = load_records()
         records.append(record)
         _save_records(records)
+
+        # If item_id and status provided, also update item_status
+        if item_id and status in VALID_STATUSES:
+            statuses = load_item_statuses()
+            statuses[item_id] = {
+                "item_id": item_id,
+                "status": status,
+                "space_id": space_id or "",
+                "note": note or "",
+                "author": author or "",
+                "ts": now_iso,
+            }
+            _save_item_statuses(statuses)
 
     return record
 
@@ -144,6 +215,7 @@ def get_verify_status(path: str = "", ids: list[str] | None = None) -> dict[str,
     """Retrieve on-site verification status for a list of element IDs."""
     req_ids = [i.strip() for i in ids] if ids else []
     all_media = list_media()
+    item_statuses = load_item_statuses()
 
     from collections import defaultdict
     media_by_item: dict[str, list[dict]] = defaultdict(list)
@@ -159,20 +231,46 @@ def get_verify_status(path: str = "", ids: list[str] | None = None) -> dict[str,
         if not iid:
             continue
         m_list = media_by_item.get(iid, [])
-        is_verified = len(m_list) > 0
-        if is_verified:
-            verified_count += 1
+        has_photos = len(m_list) > 0
+        st_rec = item_statuses.get(iid)
+        has_status_set = st_rec is not None
+
+        is_verified = has_photos or has_status_set
+
+        latest_obj = None
+        if has_photos:
             latest_m = m_list[0]
             latest_obj = {
                 "url": f"/collab/media/file?id={latest_m['id']}",
                 "ts": latest_m.get("created_at"),
                 "author": latest_m.get("author") or "",
             }
+
+        if st_rec:
+            status_val = st_rec.get("status") or "In Progress"
+            note_val = st_rec.get("note") or None
+            author_val = st_rec.get("author") or None
+            ts_val = st_rec.get("ts")
+        elif has_photos:
+            status_val = m_list[0].get("status") or "In Progress"
+            note_val = m_list[0].get("note") or None
+            author_val = m_list[0].get("author") or None
+            ts_val = m_list[0].get("created_at")
         else:
-            latest_obj = None
+            status_val = "In Progress"
+            note_val = None
+            author_val = None
+            ts_val = None
+
+        if is_verified:
+            verified_count += 1
 
         res_ids[iid] = {
             "verified": is_verified,
+            "status": status_val,
+            "note": note_val,
+            "author": author_val,
+            "ts": ts_val,
             "photos": len(m_list),
             "latest": latest_obj,
         }

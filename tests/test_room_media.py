@@ -205,29 +205,58 @@ def test_media_rejects_too_large(client, monkeypatch):
 
 
 def test_verify_status_flow(client):
-    # Check initial status for item_1 and item_2
+    # Check initial status for item_1 and item_2: unverified defaults to "In Progress"
     r0 = client.get("/verify/status?ids=item_1,item_2").json()
     assert r0["total"] == 2
     assert r0["verified"] == 0
     assert r0["ids"]["item_1"]["verified"] is False
+    assert r0["ids"]["item_1"]["status"] == "In Progress"
     assert r0["ids"]["item_1"]["photos"] == 0
     assert r0["ids"]["item_1"]["latest"] is None
 
-    # POST a photo attached to item_1
+    # POST a photo attached to item_1 with status="Installed"
     r_post = client.post(
-        "/collab/media?item_id=item_1&author=Bob&filename=toilet_verified.jpg",
+        "/collab/media?item_id=item_1&status=Installed&author=Bob&filename=toilet_verified.jpg",
         content=SAMPLE_JPG,
     )
     assert r_post.status_code == 200
     assert r_post.json()["item_id"] == "item_1"
+    assert r_post.json()["status"] == "Installed"
 
     # Status after upload: verified increases from 0 to 1, item_1 is verified
     r1 = client.get("/verify/status?ids=item_1,item_2").json()
     assert r1["total"] == 2
     assert r1["verified"] == 1
     assert r1["ids"]["item_1"]["verified"] is True
+    assert r1["ids"]["item_1"]["status"] == "Installed"
     assert r1["ids"]["item_1"]["photos"] == 1
     assert r1["ids"]["item_1"]["latest"]["author"] == "Bob"
     assert "/collab/media/file" in r1["ids"]["item_1"]["latest"]["url"]
     assert r1["ids"]["item_2"]["verified"] is False
+
+
+def test_verify_item_status_without_photo(client):
+    # Change status without uploading photo via POST /verify/item
+    r = client.post("/verify/item", json={
+        "item_id": "elem_X",
+        "status": "Issue Reported",
+        "author": "K. Korhonen",
+        "note": "transfer zone 865 mm, 35 mm short",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["item_id"] == "elem_X"
+    assert data["status"] == "Issue Reported"
+
+    # GET /verify/status reflects the new status and verified=True
+    r_st = client.get("/verify/status?ids=elem_X").json()
+    assert r_st["verified"] == 1
+    info = r_st["ids"]["elem_X"]
+    assert info["verified"] is True
+    assert info["status"] == "Issue Reported"
+    assert info["author"] == "K. Korhonen"
+    assert info["note"] == "transfer zone 865 mm, 35 mm short"
+    assert info["photos"] == 0
+    assert info["latest"] is None
+
 
