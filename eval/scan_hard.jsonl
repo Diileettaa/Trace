@@ -1,7 +1,7 @@
 {"path": "eval/scans_synth/school_L00_scan.jpg", "question": "How many door leaves (door swings) are drawn on this plan?", "answer": 129, "note": "vector ground truth: swing arcs"}
 {"path": "eval/scans_synth/school_L00_scan.jpg", "question": "How many windows are drawn in the walls of this plan?", "answer": 66, "note": "vector ground truth: window symbols"}
 {"path": "eval/scans_synth/school_L00_scan.jpg", "question": "How many group rooms are there?", "answer": 10, "note": "labels"}
-{"path": "eval/scans_synth/piping_M101A_scan.jpg", "question": "The large filled dots on piping indicate pipe support locations. How many pipe supports are shown?", "answer": 44, "note": "vector ground truth"}
+{"path": "eval/scans_synth/piping_M101A_scan.jpg", "question": "The large filled dots on piping indicate pipe support locations. How many pipe supports are shown?", "answer": 46, "note": "vector ground truth (46 dots)"}
 {"path": "eval/scans_synth/piping_M101A_scan.jpg", "question": "How many fueling pumps are shown?", "answer": 5, "note": "tags FP-1..5"}
 {"path": "eval/scans_synth/piping_M101A_scan.jpg", "question": "How many filter separators are shown?", "answer": 7, "note": "FSI-1..5 + FSR-1..2"}
 {"path": "eval/scans_synth/piping_M101A_scan.pdf", "question": "How many check valves are shown?", "answer": 5, "note": "CV-1..5; scanned PDF route"}

@@ -1,0 +1,20 @@
+{"path": "eval/stoa_samples/school_L00.jpg", "question": "How many doors are shown on this floor plan?", "expected": "107 door sets / 129 leaves (vector)"}
+{"path": "eval/stoa_samples/school_L00.jpg", "question": "How many windows are shown on this floor plan?", "expected": "66 (vector)"}
+{"path": "eval/stoa_samples/school_L00.jpg", "question": "What is the floor area of the Kitchen?", "expected": "not printed: expect warning to calibrate; traced ~34 m2"}
+{"path": "eval/stoa_samples/school_L00.jpg", "question": "What is the baseboard length in the Library?", "expected": "not printed: expect warning to calibrate"}
+{"path": "eval/stoa_samples/school_L00.jpg", "question": "How many group rooms are there?", "expected": "10"}
+{"path": "eval/stoa_samples/slab_S100F.jpg", "question": "How many different slab types (thickness and reinforcement) are shown?", "expected": "3"}
+{"path": "eval/stoa_samples/slab_S100F.jpg", "question": "What is the area of the 150 mm slab-on-grade with D13 @ 300?", "expected": "~61.7 m2 (6200 x 9950), hand reading"}
+{"path": "eval/stoa_samples/slab_S100F.jpg", "question": "What is the top of slab elevation of the 300 slab with D16 bars?", "expected": "9400"}
+{"path": "eval/stoa_samples/slab_S100F.jpg", "question": "What is the motor control center trench length?", "expected": "4275"}
+{"path": "eval/stoa_samples/slab_S100F.jpg", "question": "How many doors are shown on this plan?", "expected": "none drawn (slab plan)"}
+{"path": "eval/stoa_samples/dorm_A2.jpg", "question": "How many dorms are on the second floor?", "expected": "48"}
+{"path": "eval/stoa_samples/dorm_A2.jpg", "question": "What is the total second floor area?", "expected": "26,562 SF"}
+{"path": "eval/stoa_samples/dorm_A2.jpg", "question": "What is the area of the west wing dormitory?", "expected": "6,095 SF"}
+{"path": "eval/stoa_samples/dorm_A2.jpg", "question": "What is the overall length of the building?", "expected": "323'-4\""}
+{"path": "eval/stoa_samples/dorm_A2.jpg", "question": "How many accessible (ABA) dormitory rooms are shown?", "expected": "unknown (count green rooms)"}
+{"path": "eval/stoa_samples/piping_M101A.jpg", "question": "The large filled dots on piping indicate pipe support locations. How many pipe supports are shown?", "expected": "46"}
+{"path": "eval/stoa_samples/piping_M101A.jpg", "question": "How many fueling pumps are shown?", "expected": "5"}
+{"path": "eval/stoa_samples/piping_M101A.jpg", "question": "How many filter separators are shown?", "expected": "7"}
+{"path": "eval/stoa_samples/piping_M101A.jpg", "question": "How many non-surge check valves are there?", "expected": "5"}
+{"path": "eval/stoa_samples/piping_M101A.jpg", "question": "What is the size of the suction header?", "expected": "16\""}

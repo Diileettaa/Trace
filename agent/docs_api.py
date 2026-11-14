@@ -13,6 +13,10 @@ Routes (all JSON unless noted):
   GET  /docs/mailbox         poll the live mailbox now (needs DOCS_IMAP_* env), returns receipts
   POST /docs/tool            {"name":..., "args":{...}}  agent tool call (see docs_tools.TOOLS)
   GET  /docs/tools           the tool declarations
+  GET  /project/sheets?project=P   every sheet with its kind / level / sheet number / title / building (indexed once)
+  POST /project/building     {"id": N, "building": "A"}   (or send field 'building' with the upload)
+  POST /project/ask          {"project": P, "question": ".."} -> total + per-sheet breakdown (each with its answer_id)
+  POST /ask                  {"id": N | "path": "data/..." | "uploads/...", "question": ".."}   (also /calibrate, /measure)
   POST /ask                  {"id": N, "question": ".."} -> answer with answer_id, item ids (boxes), alternatives
   GET  /answer?id=A          a stored answer (after reviews)
   POST /review               {"answer_id": A, "remove": [item ids], "add": [[x0,y0,x1,y1], ...], "choose": k, "user": ".."}
@@ -49,6 +53,19 @@ def _multipart(headers, body):
         elif name: fields[name] = data.decode("utf-8", "replace")
     return fields, files
 
+def _resolve_path(p):
+    """'data/...' -> under JUNCTION_DATA, 'uploads/...' -> under CACHE_DIR/uploads (JUNCTION_UPLOADS overrides).
+    -> (absolute file, path for engine.answer) or (None, None). Nothing outside those two folders is reachable."""
+    p = p.replace("\\", "/").lstrip("/")
+    data = os.path.realpath(os.environ.get("JUNCTION_DATA", os.path.expanduser("~/work/junction-dataset")))
+    up = os.path.realpath(os.environ.get("JUNCTION_UPLOADS", os.path.join(os.environ.get("CACHE_DIR", os.path.expanduser("~/.cache/junction")), "uploads")))
+    if p.startswith("data/"): base, rest, rel = data, p, None
+    elif p.startswith("uploads/"): base, rest, rel = up, p[len("uploads/"):], None
+    else: return None, None
+    f = os.path.realpath(os.path.join(base, rest))
+    if not (f == base or f.startswith(base + os.sep)) or not os.path.isfile(f): return None, None
+    return f, (p if p.startswith("data/") else f)
+
 def handle(method, path, query, headers, body, S=None):
     S = S or docs_tools.store()
     if not _authorised(headers): return _j(401, {"error": "missing or wrong token"})
@@ -64,6 +81,7 @@ def handle(method, path, query, headers, body, S=None):
             for _, fn, data in files:
                 r = S.add(data, fn, actor=fields.get("uploaded_by", "web"), source="web",
                           project=fields.get("project", proj), title=fields.get("title"), revision=fields.get("revision"))
+                if fields.get("building") and r.get("document"): docs_tools.set_building(r["document"]["id"], fields["building"], S)
                 out.append({"status": r["status"], "reason": r["reason"], "document": docs_tools._pub(r["document"]),
                             "superseded": r["superseded"]})
             return _j(200, {"results": out})
@@ -96,12 +114,28 @@ def handle(method, path, query, headers, body, S=None):
         if path == "/docs/mailbox" and method == "GET":
             try: return _j(200, {"receipts": mail_ingest.poll_imap(S)})
             except RuntimeError as e: return _j(503, {"error": str(e)})
+        if path.startswith("/project/"):
+            a = json.loads(body or b"{}") if method == "POST" else {}
+            if path == "/project/building": return _j(200, docs_tools.set_building(int(a["id"]), str(a["building"]), S))
+            pj = a.get("project") or proj
+            if path == "/project/sheets": return _j(200, {"project": pj, "sheets": docs_tools.project_sheets(pj, S)})
+            if path == "/project/ask": return _j(200, docs_tools.ask_project(pj, a.get("question", ""), S))
         if path in ("/ask", "/review", "/calibrate", "/measure", "/answer"):
             from engine import review as R
             a = json.loads(body or b"{}") if method == "POST" else {}
             if path == "/answer": r = R.get(q.get("id", "")); return _j(200 if r else 404, r or {"error": "no such answer"})
             if path == "/review":
                 return _j(200, R.review(a.get("answer_id", ""), a.get("remove") or [], a.get("add") or [], a.get("choose"), a.get("user", "web")))
+            if a.get("path") and not a.get("id"):            # dataset or upload path instead of a filed document
+                f, rel = _resolve_path(str(a["path"]))
+                if f is None: return _j(400, {"error": "path must be under data/ or uploads/ and exist"})
+                if path == "/ask":
+                    from engine import answer as A
+                    r = A.answer(rel, a.get("question", ""))
+                    return _j(200, R.register(r, f, a.get("question", "")))
+                if path == "/calibrate":
+                    return _j(200, R.calibrate(f, a["p1"], a["p2"], float(a["length_m"]), int(a.get("page", 0)), a.get("image_size")))
+                return _j(200, R.measure(f, a.get("points") or [], a.get("kind", "area"), int(a.get("page", 0))))
             d = S.get(int(a.get("id", 0)))
             if not d: return _j(404, {"error": "no such document"})
             if path == "/ask":

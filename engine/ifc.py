@@ -245,3 +245,43 @@ def load(path):
     m = build(path)
     with open(cp, "wb") as f: pickle.dump(m, f)
     return m
+
+# ---------- walls around one room (3D room view) ----------
+_SB = re.compile(r"#(\d+)\s*=\s*(IFCRELSPACEBOUNDARY\w*)\s*\(", re.I)
+
+def room_walls(path, space_guid):
+    """Walls bounding one IfcSpace, from IfcRelSpaceBoundary (no geometry guessing).
+    -> {"walls": [{"guid", "name", "length_m", "thickness_m", "height_m", "side"}], "room": {"L", "B", "H", "area_m2"},
+        "method", "warnings"}. Wall sizes come from the wall's own base quantities (Qto_WallBaseQuantities); a size the
+    model does not carry is None, never estimated."""
+    m = load(path)
+    sp = next((s for s in m["spaces"] if s["guid"] == space_guid), None)
+    if sp is None: return {"walls": [], "room": None, "method": "ifc:room_walls", "warnings": [f"no IfcSpace with GlobalId {space_guid}"]}
+    with open(path, encoding="latin-1") as f: txt = f.read()
+    data = txt[txt.find("DATA;"):]
+    bounds = []
+    for mm in _SB.finditer(data):
+        try: a, _ = parse_args(data, mm.end() - 1)
+        except Exception: continue
+        if len(a) > 5 and _r(a[4]) == sp["id"]:
+            side = a[8][1] if len(a) > 8 and isinstance(a[8], tuple) and a[8][0] == "enum" else None
+            bounds.append((_r(a[5]), side))
+    q = sp["q"]
+    room = {"H": q.get("Height") or q.get("FinishCeilingHeight") or q.get("GrossHeight"),
+            "area_m2": q.get("NetFloorArea") or sp.get("geom_area"), "L": q.get("Length"), "B": q.get("Width")}
+    warn = []
+    if not bounds:
+        return {"walls": [], "room": room, "method": "ifc:room_walls", "warnings": [
+            "this model has no IfcRelSpaceBoundary for the room, so its walls are not linked to it; not estimated"]}
+    els = {e["id"]: e for e in m["elements"]}
+    walls, seen = [], set()
+    for eid, side in bounds:
+        e = els.get(eid)
+        if not e or not e["cls"].startswith(("IFCWALL", "IFCCURTAINWALL")) or eid in seen: continue
+        seen.add(eid); wq = e["q"]
+        walls.append({"guid": e["guid"], "name": e["name"], "class": e["cls"],
+                      "length_m": wq.get("Length"), "thickness_m": wq.get("Width"), "height_m": wq.get("Height"),
+                      "side": {"EXTERNAL": "external", "INTERNAL": "internal"}.get(str(side).upper().strip("."), side)})
+    if any(w["length_m"] is None for w in walls): warn.append("some walls carry no base quantities (length / width / height): left empty")
+    if not walls: warn.append("the room's boundaries reference no walls (only slabs, doors or virtual boundaries)")
+    return {"walls": walls, "room": room, "method": "ifc:room_walls[IfcRelSpaceBoundary]", "warnings": warn}

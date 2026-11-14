@@ -1,0 +1,28 @@
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "How many fueling pumps are shown on this piping plan?", "answer": 5, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "How many non-surge check valves are there?", "answer": 5, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "How many filter separators are shown?", "answer": 7, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "How many pipe support locations are indicated on the piping?", "answer": 46, "confidence": "checked: 46 dots (2 drawn 0.1 pt smaller were missed at first)"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "How many filter separator control valves (FSCV) are there?", "answer": 7, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "What is the size of the suction header?", "answer": "16\"", "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "What is the size of the pump discharge header?", "answer": "12\"", "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "What is the drawing scale?", "answer": "1/4\" = 1'-0\"", "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-28_march_2020_p096.pdf", "question": "What size is the surge tank?", "answer": "40 gallon", "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "What is the scale of the foundation and slab plan?", "answer": "1:50", "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "How many different slab types (thickness and reinforcement) are shown?", "answer": 3, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "What is the top of slab elevation of the 300 mm slab reinforced with D16 bars?", "answer": 9400, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "What is the motor control center trench length?", "answer": 4275, "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "What are the dimensions of the sump?", "answer": "600 x 600 x 300 deep", "confidence": "checked"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "What is the area of the 300 mm slab-on-grade with D16 @ 300?", "answer": 214.5, "confidence": "my_reading: 3 bays (5800+7400+6300) x (5500+5500) mm"}
+{"path": "eval/sheets/us_aw_078-24-33_p056.pdf", "question": "What is the area of the 150 mm slab-on-grade with D13 @ 300?", "answer": 61.69, "confidence": "my_reading: 6200 x 9950 mm"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "How many doors are shown on this plan?", "answer": 107, "confidence": "computed: door sets with a swing arc; arc-less doors not included"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "How many group rooms are there?", "answer": 10, "confidence": "checked labels"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "How many secondary classrooms are there, not counting severe-needs classrooms?", "answer": 6, "confidence": "checked labels"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "What is the drawing scale?", "answer": "1:200", "confidence": "checked"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "What is the revision of this drawing?", "answer": "C01", "confidence": "checked"}
+{"path": "eval/sheets/us_daf_dorm_sd_drawings_april_2026_p003.jpg", "question": "What is the area of the west wing dormitory?", "answer": "6,095 SF", "confidence": "checked"}
+{"path": "eval/sheets/us_daf_dorm_sd_drawings_april_2026_p003.jpg", "question": "What is the total second floor area?", "answer": "26,562 SF", "confidence": "checked"}
+{"path": "eval/sheets/us_daf_dorm_sd_drawings_april_2026_p003.jpg", "question": "How many dorms are on the second floor?", "answer": 48, "confidence": "checked"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "How many windows are shown on this plan?", "answer": 66, "confidence": "computed: window symbols between solid wall pieces, checked visually"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "What is the total baseboard length in all Group Rooms, in metres?", "answer": null, "confidence": "computed by the engine; no hand-checked answer"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "What is the floor area of the Kitchen?", "answer": null, "confidence": "computed by the engine (traced rooms); no hand-checked answer"}
+{"path": "eval/sheets/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf", "question": "What is the floor area of the Fitness Room?", "answer": null, "confidence": "computed by the engine (traced rooms); no hand-checked answer"}
