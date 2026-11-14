@@ -1,6 +1,6 @@
 // Gigi's 3D frame around our real IFC or drawing-derived 2.5D scene.
 // around our real 3D: the IFC model (IfcViewer) or, for 2D vector plans, rooms extruded from /api/plan/rooms.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Eye } from 'lucide-react';
 import IfcViewer from '../IfcViewer';
 import PlanRooms3D from '../components/PlanRooms3D';
@@ -34,6 +34,7 @@ export const Real3D: React.FC<Props> = ({
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
   const [geometryError, setGeometryError] = useState<string | null>(null);
+  const announcedGeometryStoreys = useRef<string>('');
   useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
   useEffect(() => {
     const source = model || plan;
@@ -50,7 +51,11 @@ export const Real3D: React.FC<Props> = ({
   }, [model, plan]);
   useEffect(() => {
     if (geometryScene?.storeys.length) {
-      onStoreys?.(geometryScene.storeys.map((storey) => ({ id: storey.id, name: storey.name, elevation: storey.elevationM })));
+      const signature = geometryScene.storeys.map((storey) => `${storey.id}:${storey.elevationM}`).join('|');
+      if (signature !== announcedGeometryStoreys.current) {
+        announcedGeometryStoreys.current = signature;
+        onStoreys?.(geometryScene.storeys.map((storey) => ({ id: storey.id, name: storey.name, elevation: storey.elevationM })));
+      }
     }
   }, [geometryScene, onStoreys]);
   const guids = (scenario?.targetIds || []).filter(isGuid);
