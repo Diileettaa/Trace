@@ -220,6 +220,17 @@ def clear_demo_data() -> dict[str, int]:
     data["people"] = new_people
     people_cleared = orig_people_count - len(new_people)
 
+    orig_bookings_count = len(data.get("bookings", []))
+    new_bookings = [
+        b
+        for b in data.get("bookings", [])
+        if not str(b.get("what", "")).startswith(DEMO_PREFIX)
+        and not str(b.get("person", "")).startswith(DEMO_PREFIX)
+        and b.get("space_id") not in all_demo_sids
+    ]
+    data["bookings"] = new_bookings
+    bookings_cleared = orig_bookings_count - len(new_bookings)
+
     collab._save(data)
 
     # 2. Scene store
@@ -267,11 +278,12 @@ def clear_demo_data() -> dict[str, int]:
                 store.db.execute(f"DELETE FROM events WHERE doc_id IN ({q_marks})", doc_ids)
                 store.db.execute(f"DELETE FROM docs_fts WHERE rowid IN ({q_marks})", doc_ids)
 
-            if mids:
-                m_marks = ",".join("?" for _ in mids)
-                store.db.execute(f"DELETE FROM mail_seen WHERE message_id IN ({m_marks})", mids)
-
-            store.db.execute("DELETE FROM mail_seen WHERE subject LIKE '%[project:demo]%'")
+            has_mail_seen = store.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mail_seen'").fetchone()
+            if has_mail_seen:
+                if mids:
+                    m_marks = ",".join("?" for _ in mids)
+                    store.db.execute(f"DELETE FROM mail_seen WHERE message_id IN ({m_marks})", mids)
+                store.db.execute("DELETE FROM mail_seen WHERE subject LIKE '%[project:demo]%'")
             store.db.commit()
     except Exception as e:
         logger.warning("Failed to clear demo docs store: %s", e)
@@ -329,8 +341,27 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
     collab.register_person("Demo: Alice Architect", "architect", "alice@demo.trace.local", "+358 40 1000001")
     collab.register_person("Demo: Bob Plumber", "plumber", "bob@demo.trace.local", "+358 40 1000002")
     collab.register_person("Demo: Charlie Electrician", "electrician", "charlie@demo.trace.local", "+358 40 1000003")
+    collab.register_person("Demo: Dave Electrician", "electrician", "dave@demo.trace.local", "+358 40 1000004")
+    collab.register_person("Demo: Frank Plumber", "plumber", "frank@demo.trace.local", "+358 40 1000005")
+    collab.register_person("Demo: Grace Floor", "floor", "grace@demo.trace.local", "+358 40 1000006")
 
     now = time.time()
+
+    # Seed demo past and active bookings for contractor recommendation
+    collab_check = collab.load()
+    existing_b = collab_check.get("bookings", [])
+    if not any(str(b.get("person", "")).startswith("Demo:") for b in existing_b) or reset:
+        collab.book("2.03", "plumber", "Demo: Bob Plumber", now - 86400 * 5, now - 86400 * 5 + 7200, "Demo: Rough-in sanitary pipes")
+        collab.book("3nzbtvC0UUFkkrjEvNjcXt", "plumber", "Demo: Bob Plumber", now - 86400 * 2, now - 86400 * 2 + 7200, "Demo: Install sink supply valves")
+        collab.book("2.01", "plumber", "Demo: Frank Plumber", now - 86400 * 10, now - 86400 * 10 + 3600, "Demo: Radiator valve check")
+
+        collab.book("1mz8vdH3SNWu6rQ3uwkLXL", "electrician", "Demo: Charlie Electrician", now - 86400 * 3, now - 86400 * 3 + 7200, "Demo: Sub-panel wiring")
+        collab.book("2.01", "electrician", "Demo: Charlie Electrician", now - 86400, now - 86400 + 7200, "Demo: Power outlet installation")
+        collab.book("1hRdD63Mo$FJyGECMZH6V_", "electrician", "Demo: Dave Electrician", now - 86400 * 4, now - 86400 * 4 + 3600, "Demo: Conduits")
+        # Active booking right now for Dave (making Dave currently busy)
+        collab.book("3nzbtvC0UUFkkrjEvNjcXt", "electrician", "Demo: Dave Electrician", now - 1800, now + 1800, "Demo: Urgent circuit breaker replacement")
+
+        collab.book("2.01", "floor", "Demo: Grace Floor", now - 86400 * 1, now - 86400 * 1 + 14400, "Demo: Parquet floor leveling")
     room_count = 0
     msg_count = 0
 

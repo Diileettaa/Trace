@@ -38,6 +38,7 @@ from . import (
     files,
     media,
     plan_rooms,
+    recommend,
     render as render_service,
     scene,
     uploads,
@@ -771,4 +772,35 @@ def project_settings_post(body: ProjectSettingsIn):
         raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+# ---------------------------------------------------------------------
+# Recommendations (Modules 7, 9)
+# ---------------------------------------------------------------------
+
+@app.get("/recommend/products")
+def recommend_products_get(
+    space_id: str = "",
+    need: str = "",
+    model: str = "",
+    budget_eur: float | None = None,
+):
+    try:
+        return recommend.recommend_products(
+            need=need,
+            space_id=space_id,
+            model=model,
+            budget_eur=budget_eur,
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/recommend/people")
+def recommend_people_get(trade: str = "", space_id: str = ""):
+    try:
+        return {"people": recommend.recommend_people(trade=trade, space_id=space_id)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 
