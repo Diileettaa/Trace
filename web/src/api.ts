@@ -330,4 +330,34 @@ export async function getCalendar(from = '', to = ''): Promise<{ events: Calenda
   return r.json()
 }
 
+export interface TradeNotification {
+  id: string
+  trade: string
+  text: string
+  order_id?: string
+  space_id?: string
+  created_at: number
+  read: boolean
+  is_reminder?: boolean
+}
+
+export async function getNotifications(trade = ''): Promise<{ notifications: TradeNotification[] }> {
+  const params = new URLSearchParams()
+  if (trade) params.set('trade', trade)
+  const r = await fetch(`${BASE}/notifications${params.size ? `?${params}` : ''}`)
+  if (!r.ok) return { notifications: [] }
+  return r.json()
+}
+
+export async function markNotificationRead(id: string): Promise<{ ok: boolean; id: string }> {
+  const r = await fetch(`${BASE}/notifications/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  })
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
+  return r.json()
+}
+
+
 

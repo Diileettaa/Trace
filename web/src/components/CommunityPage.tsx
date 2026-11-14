@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
-import { checkWorkflow, getScene, postDirect, postRoomChat, setRoomStatus, type ScenePlacement } from '../api'
+import {
+  checkWorkflow,
+  getNotifications,
+  getScene,
+  markNotificationRead,
+  postDirect,
+  postRoomChat,
+  setRoomStatus,
+  type ScenePlacement,
+  type TradeNotification,
+} from '../api'
 import IfcViewer from '../IfcViewer'
 import ContactRegistration from './ContactRegistration'
 import DirectMessages from './DirectMessages'
@@ -40,6 +50,8 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   const [roomTab, setRoomTab] = useState<'Overview' | 'Chat' | 'Photos' | 'Schedule'>('Overview')
   const [dmOpen, setDmOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
+  const [notifications, setNotifications] = useState<TradeNotification[]>([])
   const [orderModalOpen, setOrderModalOpen] = useState(false)
   const [modelPlacements, setModelPlacements] = useState<ScenePlacement[]>([])
   const [guideStep, setGuideStep] = useState(() => localStorage.getItem('trace-project-guide-dismissed') === '1' ? -1 : 0)
@@ -50,6 +62,20 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   try { currentPerson = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* profile is registered in Project */ }
 
   useEffect(() => { if (!profile) setProfileOpen(true) }, [])
+
+  useEffect(() => {
+    const userTrade = profile?.trade || ''
+    let cancelled = false
+    async function fetchNotifs() {
+      try {
+        const res = await getNotifications(userTrade)
+        if (!cancelled) setNotifications(res.notifications || [])
+      } catch { /* ignore polling error */ }
+    }
+    void fetchNotifs()
+    const timer = setInterval(() => { void fetchNotifs() }, 10000)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [profile?.trade])
 
   useEffect(() => {
     if (modelPath) {
@@ -91,7 +117,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   }
 
   return <main className="project-workbench">
-    <header className="workbench-header"><div className="workbench-project-title"><button className="workbench-back" onClick={onSwitchProject}>‹ Switch project</button><div><h1>{projectName}</h1><span title={modelPath}>{modelPath.split('/').pop() || 'No model selected'}</span></div></div><div className="workbench-header-actions"><button className="workbench-model-select" onClick={() => setBrowseModel(true)}>Change model</button><button className="workbench-envelope" aria-label="Private messages" onClick={() => setDmOpen(true)}>✉<span>{collab.messages.filter(m => m.thread === 'direct').length || ''}</span></button><button className="workbench-avatar" title="Edit your identity" onClick={() => setProfileOpen(true)}>{profile?.name?.slice(0, 1).toUpperCase() || '?'}</button><span className="workbench-trade">{profile?.trade || 'Set up profile'}</span></div></header>
+    <header className="workbench-header"><div className="workbench-project-title"><button className="workbench-back" onClick={onSwitchProject}>‹ Switch project</button><div><h1>{projectName}</h1><span title={modelPath}>{modelPath.split('/').pop() || 'No model selected'}</span></div></div><div className="workbench-header-actions"><button className="workbench-model-select" onClick={() => setBrowseModel(true)}>Change model</button><button className="workbench-envelope" aria-label="Private messages" onClick={() => setDmOpen(true)}>✉<span>{collab.messages.filter(m => m.thread === 'direct').length || ''}</span></button><div style={{ position: 'relative' }}><button className="workbench-bell" aria-label="Trade notifications" onClick={() => setBellOpen(open => !open)}>🔔{notifications.filter(n => !n.read).length > 0 && <span className="workbench-bell-badge">{notifications.filter(n => !n.read).length}</span>}</button>{bellOpen && <><div className="notifications-dropdown-backdrop" onClick={() => setBellOpen(false)} /><div className="notifications-dropdown"><header className="notifications-dropdown-header"><span>Notifications ({notifications.length})</span><small style={{ color: '#718096' }}>{profile?.trade || 'all'}</small></header><div className="notifications-list">{notifications.length === 0 ? <p className="dim small" style={{ padding: '12px', margin: 0 }}>No notifications yet.</p> : notifications.map(n => <button key={n.id} type="button" className={`notification-item ${!n.read ? 'unread' : ''} ${n.is_reminder ? 'reminder' : ''}`} onClick={async () => { if (!n.read) { try { await markNotificationRead(n.id); setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) } catch { /* proceed */ } } if (n.space_id) selectRoom({ id: n.space_id, name: n.space_id }); if (n.order_id) setMainTab('Calendar'); setBellOpen(false) }}><span>{n.is_reminder ? '⚠ ' : ''}{n.text}</span><span className="notification-item-time">{new Date(n.created_at * 1000).toLocaleString([], { dateStyle: 'short', hour: '2-digit', minute: '2-digit' })}</span></button>)}</div></div></>}</div><button className="workbench-avatar" title="Edit your identity" onClick={() => setProfileOpen(true)}>{profile?.name?.slice(0, 1).toUpperCase() || '?'}</button><span className="workbench-trade">{profile?.trade || 'Set up profile'}</span></div></header>
     <div className="workbench-grid">
       <aside className="workbench-room-tree"><h2>Building</h2>{modelPath ? <><p className="workbench-tree-node">⌄ {modelPath.split('/').pop()}</p><p className="workbench-tree-group">Rooms</p>{selectedRoom ? <button className="workbench-room-node selected" onClick={() => setRoomTab('Overview')}><i className={`room-status-dot ${collab.status[selectedRoom.id]?.status || ''}`} />{selectedRoom.name}<small>{collab.messages.filter(item => item.space_id === selectedRoom.id).length || ''}</small></button> : <p className="workbench-empty">Select a room in the model to see its details here.</p>}</> : <p className="workbench-empty">Choose a model to browse its rooms.</p>}</aside>
       <section className="workbench-center"><nav className="workbench-tabs" aria-label="Project workspace tabs">{(['3D', '2D plan', 'Files', 'Schedule', 'Calendar'] as const).map(tab => <button key={tab} className={mainTab === tab ? 'active' : ''} onClick={() => setMainTab(tab)}>{tab}</button>)}</nav>
