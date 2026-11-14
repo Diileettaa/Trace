@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { GeometryObject, GeometryOpening, GeometryScene, GeometrySource, PlanPoint } from '../viewer3d/geometryScene'
+import type { GeometryObject, GeometryOpening, GeometryScene, GeometrySource, GeometrySystem, PlanPoint } from '../viewer3d/geometryScene'
+
+type SceneLayer = 'architecture' | 'sanitary' | 'hvac' | 'electrical'
 
 interface Props {
   scene: GeometryScene
@@ -9,7 +11,19 @@ interface Props {
   onSelectRoom?: (room: { id: string; name: string }) => void
   onSelectSource?: (source: GeometrySource) => void
   focusRoomId?: string | null
+  storeyId?: string | null
+  visibleLayers?: Partial<Record<SceneLayer, boolean>>
 }
+
+const layerFor = (kind: string): SceneLayer => {
+  const value = kind.toLowerCase()
+  if (/electric|light|socket|power|cable/.test(value)) return 'electrical'
+  if (/hvac|vent|duct|air/.test(value)) return 'hvac'
+  if (/toilet|wc|sink|basin|wash|shower|bath|water|drain|plumb|pipe/.test(value)) return 'sanitary'
+  return 'architecture'
+}
+const layerVisible = (layer: SceneLayer, visibleLayers?: Partial<Record<SceneLayer, boolean>>) => visibleLayers?.[layer] !== false
+const matchesStorey = (item: { storeyId?: string }, storeyId?: string | null) => !storeyId || !item.storeyId || item.storeyId === storeyId
 
 const roomMesh = (polygon: PlanPoint[], y: number, material: THREE.Material) => {
   const shape = new THREE.Shape(polygon.map(([x, z]) => new THREE.Vector2(x, z)))
@@ -77,8 +91,18 @@ const openingSymbol = (opening: GeometryOpening) => {
   return mesh
 }
 
+const systemSymbol = (system: GeometrySystem) => {
+  const curve = new THREE.CatmullRomCurve3(system.points.map(([x, y, z]) => new THREE.Vector3(x, y, z)))
+  const layer = layerFor(system.kind)
+  const color = layer === 'electrical' ? '#e9b949' : layer === 'hvac' ? '#86b7c8' : '#579c87'
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, system.points.length * 5), system.diameterM ? Math.max(.008, system.diameterM / 2) : .018, 7, false), new THREE.MeshStandardMaterial({ color, roughness: .55 }))
+  mesh.userData.objectId = system.id
+  mesh.userData.source = system.source
+  return mesh
+}
+
 /** Renders only calibrated metre-based data supplied by the scene endpoint. */
-export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, onSelectSource, focusRoomId }: Props) {
+export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, onSelectSource, focusRoomId, storeyId, visibleLayers }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const reviewNeeded = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
     .some(item => item.confidence !== undefined && item.confidence < .7)
@@ -105,7 +129,8 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
     const bounds = new THREE.Box3()
     const floorMaterial = new THREE.MeshStandardMaterial({ color: '#e7e7e2', roughness: 1, side: THREE.DoubleSide })
     const roomLine = new THREE.LineBasicMaterial({ color: '#6b7376' })
-    for (const room of scene.rooms) {
+    const architectureVisible = layerVisible('architecture', visibleLayers)
+    for (const room of scene.rooms.filter(room => architectureVisible && matchesStorey(room, storeyId))) {
       if (room.polygon.length < 3) continue
       const floor = roomMesh(room.polygon, room.floorYM ?? 0, floorMaterial)
       floor.userData.roomId = room.id
@@ -117,7 +142,8 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
       scene3.add(outline)
     }
     const wallMaterial = new THREE.MeshStandardMaterial({ color: '#434b4e', roughness: .8 })
-    for (const wall of scene.walls) {
+    const renderedWallIds = new Set<string>()
+    for (const wall of scene.walls.filter(wall => architectureVisible && matchesStorey(wall, storeyId))) {
       for (let index = 1; index < wall.points.length; index++) {
         const [ax, az] = wall.points[index - 1]; const [bx, bz] = wall.points[index]
         const length = Math.hypot(bx - ax, bz - az)
@@ -127,11 +153,12 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
         mesh.rotation.y = Math.atan2(bz - az, bx - ax)
         mesh.userData.objectId = wall.id
         mesh.userData.source = wall.source
-        scene3.add(mesh); bounds.expandByObject(mesh)
+        scene3.add(mesh); bounds.expandByObject(mesh); renderedWallIds.add(wall.id)
       }
     }
-    for (const opening of scene.openings) { const mesh = openingSymbol(opening); mesh.userData.source = opening.source; scene3.add(mesh); bounds.expandByObject(mesh) }
-    for (const item of scene.objects) { const mesh = symbol(item); mesh.userData.source = item.source; scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const opening of scene.openings.filter(opening => architectureVisible && (!opening.wallId || renderedWallIds.has(opening.wallId)))) { const mesh = openingSymbol(opening); mesh.userData.source = opening.source; scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const item of scene.objects.filter(item => matchesStorey(item, storeyId) && layerVisible(layerFor(item.category), visibleLayers))) { const mesh = symbol(item); mesh.userData.source = item.source; scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const system of scene.systems.filter(system => matchesStorey(system, storeyId) && layerVisible(layerFor(system.kind), visibleLayers))) { const mesh = systemSymbol(system); scene3.add(mesh); bounds.expandByObject(mesh) }
 
     const size = bounds.isEmpty() ? new THREE.Vector3(5, 3, 5) : bounds.getSize(new THREE.Vector3())
     const center = bounds.isEmpty() ? new THREE.Vector3() : bounds.getCenter(new THREE.Vector3())
@@ -171,7 +198,7 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
     const observer = new ResizeObserver(resize); observer.observe(element); resize()
     const animate = () => { if (disposed) return; controls.update(); renderer.render(scene3, camera); frame = requestAnimationFrame(animate) }; animate()
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
-  }, [focusRoomId, onSelectObject, onSelectRoom, onSelectSource, scene])
+  }, [focusRoomId, onSelectObject, onSelectRoom, onSelectSource, scene, storeyId, visibleLayers])
 
   return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside></div>
 }

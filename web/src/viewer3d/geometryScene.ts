@@ -33,6 +33,15 @@ export interface GeometryRoom extends GeometryEvidence {
   source?: GeometrySource
 }
 
+export interface GeometryStorey extends GeometryEvidence {
+  id: string
+  name: string
+  elevationM: number
+  heightM?: number
+  outline?: PlanPoint[]
+  source?: GeometrySource
+}
+
 export interface GeometryWall extends GeometryEvidence {
   id: string
   storeyId?: string
@@ -67,6 +76,18 @@ export interface GeometryObject extends GeometryEvidence {
   source?: GeometrySource
 }
 
+/** A routed MEP line; it is rendered only when the engine supplies real points. */
+export interface GeometrySystem extends GeometryEvidence {
+  id: string
+  kind: string
+  storeyId?: string
+  points: WorldPoint[]
+  diameterM?: number
+  fromId?: string
+  toId?: string
+  source?: GeometrySource
+}
+
 export interface GeometryScene {
   projectId: string
   sourceKind: SceneSourceKind
@@ -75,10 +96,12 @@ export interface GeometryScene {
   coordinateSystem: 'x-right,y-up,z-plan-north' | 'drawing-pixels'
   unit: 'm' | 'px'
   warnings: string[]
+  storeys: GeometryStorey[]
   rooms: GeometryRoom[]
   walls: GeometryWall[]
   openings: GeometryOpening[]
   objects: GeometryObject[]
+  systems: GeometrySystem[]
 }
 
 /** A failed scene is never rendered as a plausible-looking measured model. */
@@ -107,6 +130,7 @@ export function illustrativeSceneFromPlanRooms(result: PlanRoomsResult): Geometr
       ...(result.warnings ?? []),
       'Drawing outlines are displayed in source pixels until a calibrated metric scene is supplied.',
     ],
+    storeys: [],
     rooms: result.rooms.filter(hasPolygon).map(room => ({
       id: room.space_id,
       name: room.name,
@@ -118,6 +142,7 @@ export function illustrativeSceneFromPlanRooms(result: PlanRoomsResult): Geometr
     walls: [],
     openings: [],
     objects: [],
+    systems: [],
   }
 }
 
@@ -169,6 +194,11 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const id = text(item.id)
     return id && polygon.length >= 3 ? { id, name: text(item.name) ?? null, number: text(item.number) ?? null, storeyId: text(item.storey_id) ?? text(item.storeyId), polygon, floorYM: number(item.floor_y_m) ?? number(item.floorYM), heightM: number(item.height_m) ?? number(item.heightM), areaM2: number(item.area_m2) ?? number(item.areaM2) ?? null, source: source(item.source), ...evidence(item) } as GeometryRoom : null
   }).filter(defined)
+  const storeys: GeometryStorey[] = records(raw.storeys).map((item): GeometryStorey | null => {
+    const id = text(item.id); const name = text(item.name); const elevationM = number(item.elevation_m) ?? number(item.elevationM)
+    const outline = Array.isArray(item.outline) ? item.outline.map(planarPoint).filter((point): point is PlanPoint => point !== null) : undefined
+    return id && name && elevationM !== undefined ? { id, name, elevationM, heightM: number(item.height_m) ?? number(item.heightM), outline, source: source(item.source), ...evidence(item) } : null
+  }).filter(defined)
   const walls: GeometryWall[] = records(raw.walls).map((item): GeometryWall | null => {
     const points = (Array.isArray(item.points) ? item.points.map(planarPoint).filter((point): point is PlanPoint => point !== null) : [])
     const id = text(item.id); const thicknessM = number(item.thickness_m) ?? number(item.thicknessM); const baseYM = number(item.base_y_m) ?? number(item.baseYM); const heightM = number(item.height_m) ?? number(item.heightM)
@@ -182,7 +212,12 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const id = text(item.id); const category = text(item.category); const position = worldPoint(item.position); const footprintRaw = record(item.footprint); const footprintWidth = number(footprintRaw?.width_m) ?? number(footprintRaw?.widthM); const footprintDepth = number(footprintRaw?.depth_m) ?? number(footprintRaw?.depthM)
     return id && category && position ? { id, category, name: text(item.name), storeyId: text(item.storey_id) ?? text(item.storeyId), roomId: text(item.room_id) ?? text(item.roomId), position, rotationDeg: number(item.rotation_deg) ?? number(item.rotationDeg), footprint: footprintWidth !== undefined && footprintDepth !== undefined ? { widthM: footprintWidth, depthM: footprintDepth } : undefined, heightM: number(item.height_m) ?? number(item.heightM), source: source(item.source), ...evidence(item) } as GeometryObject : null
   }).filter(defined)
-  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem: coordinateSystem as GeometryScene['coordinateSystem'], unit: unit as GeometryScene['unit'], warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], rooms, walls, openings, objects }
+  const systems: GeometrySystem[] = records(raw.systems).map((item): GeometrySystem | null => {
+    const id = text(item.id); const kind = text(item.kind); const points = Array.isArray(item.points) ? item.points.map(worldPoint).filter((point): point is WorldPoint => point !== null) : []
+    const diameterM = number(item.diameter_m) ?? number(item.diameterM)
+    return id && kind && points.length >= 2 ? { id, kind, storeyId: text(item.storey_id) ?? text(item.storeyId), points, diameterM, fromId: text(item.from_id) ?? text(item.fromId), toId: text(item.to_id) ?? text(item.toId), source: source(item.source), ...evidence(item) } : null
+  }).filter(defined)
+  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem: coordinateSystem as GeometryScene['coordinateSystem'], unit: unit as GeometryScene['unit'], warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
 }
 
 export function isGeometryScene(value: unknown): value is GeometryScene {

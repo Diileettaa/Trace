@@ -48,6 +48,11 @@ export const Real3D: React.FC<Props> = ({
     });
     return () => { active = false; };
   }, [model, plan]);
+  useEffect(() => {
+    if (geometryScene?.storeys.length) {
+      onStoreys?.(geometryScene.storeys.map((storey) => ({ id: storey.id, name: storey.name, elevation: storey.elevationM })));
+    }
+  }, [geometryScene, onStoreys]);
   const guids = (scenario?.targetIds || []).filter(isGuid);
   const selectedGuid = mode === 'room' && fixture && isGuid(fixture.id) ? fixture.id : null;
   const roomLabel = scenario?.roomCode || 'Room';
@@ -122,6 +127,7 @@ export const Real3D: React.FC<Props> = ({
             <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling}
               onSelectRoom={setPickedRoom}
               onSelectSource={onOpenSource}
+              storeyId={mode === 'room' ? storeyId : null} visibleLayers={visibleLayers}
               focusRoomId={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : pickedRoom?.id) : null} />
           ) : model ? (
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
