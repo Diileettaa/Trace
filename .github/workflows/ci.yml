@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # CPU torch first: ultralytics would otherwise pull the 2 GB CUDA build
+      - run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r agent/requirements.txt
       # tests use tiny fixtures and fake model clients: no data, no API keys needed
       - run: python -m pytest -q

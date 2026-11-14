@@ -1,74 +1,113 @@
 # Trace
 
-Ask a construction drawing a question and inspect the evidence behind the answer.
+Ask a construction drawing a question. Get the number, the numbered boxes it came from, and how it was computed.
 
-Team **Montree** · Junction 2026 · Stoa challenge “Make Blueprints Talk”
+Team **Montree** · Junction 2026 · Stoa challenge "Make Blueprints Talk"
+
+## What it does
+
+- **Ask** – free-form questions about a floor plan (PDF, PNG, DXF) or BIM model (IFC), in any language.
+  Every number in the answer comes from a tool result; a code check rejects any number that does not.
+- **Evidence** – each counted item is an orange numbered box on the drawing (or a highlighted GUID in 3D).
+- **How I got this** – the source (geometry / detector / vision LLM / prior), the method, evidence count,
+  engine and LLM time, tokens and cost, and a consistency badge from an independent second model.
+- **Project** – a shared 3D model with trade layers, storey cut, furniture placement visible to everyone,
+  a Room Board (status per room, notes per trade), photos and videos per room, and a file area.
+
+## How answers are computed
+
+| Drawing | Answer comes from | LLM tokens |
+| --- | --- | ---: |
+| Swiss DXF plans | exact geometry from DXF layers | 0 |
+| IFC models | exact geometry / quantity sets, GUID per element | 0 |
+| Raster plans: doors, windows, toilets, sinks, showers/tubs | YOLO11 detector trained on CubiCasa5k (Verda A100) | 0 |
+| Raster plans: kitchens | statistical prior (beats vision: 96% vs 93%) | 0 |
+| Raster plans: rooms (bedrooms, sauna, WC rooms, balconies, storeys) | Gemini vision, one cached call per plan | 1 call |
+
+Gemini (function calling) only routes the question and writes the sentence; it never produces a number itself.
+Nemotron 3.5 Super VL gives an independent second count on raster plans; it is shown as a badge
+(agree / disagree) and never replaces the engine value, because on disagreement the detector is right 3–8× more often.
+
+On the preview dataset **78% of all questions are answered with zero LLM tokens** (all swiss + IFC, and 60% of raster questions).
+
+## Accuracy
+
+Full dataset, engine only (cubicasa on the 20% held-out split never used for training):
+
+| Source | Questions | Accuracy |
+| --- | ---: | ---: |
+| swiss_dwellings | 37,584 | 98.6% |
+| ifc_models | 3,062 | 98.0% |
+| cubicasa5k (held-out) | 16,694 | 83.5% |
+
+Per-category numbers and a reproducible re-run on the preview set: [`docs/eval-results.md`](docs/eval-results.md).
 
 ## Run
 
-Windows: double-click `start.bat`. It starts the FastAPI backend on port 8000 and the Vite frontend on port 5173.
+Windows: double-click `start.bat` (backend on :8000, web on :5173).
 
-Linux (run these in separate terminals):
+Linux:
 
 ```bash
-uvicorn agent.app:app --reload --port 8000
-cd web && npm run dev
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install -r agent/requirements.txt
+uvicorn agent.app:app --reload --port 8000      # terminal 1
+cd web && npm install && npm run dev            # terminal 2
 ```
 
-Set `DATA_DIR` to the unzipped dataset location. `GEMINI_API_KEY` enables the Gemini agent and vision calls. Nemotron review also requires `NVIDIA_API_KEY` and `NEMOTRON_MODEL`. Tests use fixtures and mocked model clients; they do not need dataset files or API keys.
+`.env` (see `.env.example`): `DATA_DIR` = unzipped dataset; `GEMINI_API_KEY`, `GEMINI_MODEL`;
+optional `NVIDIA_API_KEY` + `NEMOTRON_MODEL` for the second count. Tests need no data and no keys: `python -m pytest -q`.
+
+Deploy (one container, web + API): [`docs/deploy.md`](docs/deploy.md).
 
 ## Architecture
 
-Trace has four layers:
-
-1. **Data indexing** — `agent/tools.py` dispatches drawing/model questions to the available tool functions. The planned `engine.tools` data index and exact DXF/IFC solvers are not present in this checkout; until then, available mock results are used for those tools.
-2. **Query tools** — drawing rendering and raster counts are implemented in `agent/drawings.py` and `agent/vision.py`. Tool results carry sources and pixel bounding boxes. The other model query tools are planned pending the data engine.
-3. **Gemini agent** — `agent/agent.py` uses Gemini function calling with a five-step limit, then checks that answer numbers occur in tool results or the question. `agent/vision.py` uses Gemini to find and box instances on raster drawings. Calls are cached on disk.
-4. **Web page** — `web/` is a React/Vite interface for asking questions and viewing answers and drawing evidence. A 3D IFC viewer is planned.
+```
+web/ (React, Vite, three.js / web-ifc)
+  └─ /api ─ agent/app.py (FastAPI)
+              ├─ agent/agent.py          Gemini function-calling loop + number check + trace
+              ├─ agent/engine_adapter.py routes engine answers by method, boxes, badge, timings
+              ├─ engine/                 exact DXF / IFC solvers, YOLO detector, structured query API
+              ├─ agent/vision.py         Gemini / Nemotron vision for plans without vector data
+              └─ agent/collab.py, media.py, files.py, scene.py   Room Board, media, files, shared 3D scene
+```
 
 ## Tech challenges
 
 ### Gemini API
-
-Implemented in `agent/agent.py` for tool selection and answer generation, and in `agent/vision.py` for raster drawing detection and inventory. The model uses temperature zero and at most five tool steps. Disk caching avoids repeating identical vision calls.
+`agent/agent.py`: function calling picks the tool and writes the answer (temperature 0, max 5 steps); answers
+whose numbers are not in any tool result are rewritten once, then flagged. `engine/cubicasa.py` + `agent/vision.py`:
+Gemini vision for room questions on raster plans, cached on disk. Token use and cost are shown per answer.
 
 ### Nemotron
-
-`agent/vision.py` runs `_nemotron_count` as an independent second count for raster vision answers when `NVIDIA_API_KEY` and `NEMOTRON_MODEL` are configured. A mismatch is returned as a warning. It is skipped when configuration is missing.
+Nemotron 3.5 Super VL (NVIDIA Build) gives an independent count on raster plans, run in parallel with the engine.
+The UI shows green "2 independent methods agree" or yellow "methods disagree – check boxes"; geometry answers skip it.
 
 ### Verda
-
-`scripts/verda_batch_warmup.py` locally pre-renders selected dataset drawings through `agent.drawings.page_png` and records per-drawing timings in `docs/verda-benchmark.md`. It makes no online API calls. This is a local preprocessing benchmark, not a Verda deployment or cloud-compute run; using Verda infrastructure is planned. The process log structure is in [`docs/verda-log.md`](docs/verda-log.md).
+The YOLO11 floor-plan symbol detector was trained on one Verda A100 80 GB (60 epochs, 3,604 CubiCasa5k plans, ~1 h).
+On held-out plans it lifts exact door counts from 37% (vision LLM) to 73%, at ~7 ms per plan on GPU, with a box per item.
+Process log: [`docs/verda-log.md`](docs/verda-log.md).
 
 ### Codex
-
-This repository update was made with Codex. The commit for this work is listed below under **Built with OpenAI Codex**.
+The web app (Ask page, 3D viewer, provenance panel, Project page, room media) was built with OpenAI Codex;
+its commits are prefixed `feat(codex):`.
 
 ### CRACI
-
-`.github/workflows/ci.yml` configures backend tests and the web build on runners labelled `craci`, on pushes and pull requests. Actual execution depends on a configured CRACI runner.
-
-### Gemma
-
-Planned; no Gemma integration is present in this checkout.
+`.github/workflows/ci.yml` runs backend tests and the web build on `craci` runners for every push (2/2 jobs green).
 
 ## Useful endpoints
 
-- `GET /health` — backend health and data directory status.
-- `GET /models` — Gemini model names available to the configured key.
-- `POST /ask` — ask a question, optionally with a dataset-relative drawing path and role.
-- `GET /drawing?path=&page=` — render or return a drawing page as PNG.
-- `GET /questions?source=&limit=` — sample dataset questions.
+| Endpoint | |
+| --- | --- |
+| `POST /ask` | question + drawing path + role → answer, evidence, trace, summary, usage |
+| `GET /drawing?path=&page=` | drawing page as PNG |
+| `GET /questions?source=` | dataset sample questions |
+| `POST /upload` | your own drawing (PDF, PNG, JPG, DXF, IFC) |
+| `GET/POST /collab/...` | Room Board, messages, people, bookings, room media |
+| `GET/POST /files` | project file area |
+| `GET /scene?model=&since_version=`, `POST /scene/placement` | shared 3D furniture, polled every 3 s |
 
 ## Data and attribution
 
-Keep datasets out of git. `DATA_DIR` points to the unzipped dataset directory. Preserve each source's attribution and license when displaying its drawings.
-
-## Built with OpenAI Codex
-
-- `feat(codex): add Verda warmup and document Trace challenges` — this change.
-- `feat(codex): add offline engine evaluation` — T-18 sample results and evaluator.
-
-## Engine evaluation
-
-Run `python scripts/eval_engine.py` to sample up to 50 questions from each of `swiss_dwellings`, `ifc_models`, and `cubicasa5k` and write `docs/eval-results.md`. Use `--n N` to change the per-source sample size and `--seed N` to make sampling repeatable. The evaluator calls the local `agent.engine_adapter.answer(path, question)` only and makes no online API calls. Counts are correct only when they match exactly; area, length, and volume answers pass when their relative error is at most 2%. The report also shows the share of results with at least one four-coordinate evidence bounding box and up to five failed examples per source.
+Datasets stay out of git (`DATA_DIR`). Each drawing shown in the app carries its source licence
+(e.g. CubiCasa5k © 2019 CubiCasa, CC BY-NC-SA 4.0, via the Stoa Junction 2026 dataset).
