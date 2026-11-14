@@ -235,6 +235,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [explorerReady, setExplorerReady] = useState(false)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
+  const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
+  const onlyTrade = presentTrades.length === 1 ? presentTrades[0] : null
 
   useEffect(() => {
     let cancelled = false
@@ -281,6 +283,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         world.camera = new OBC.SimpleCamera(components)
         components.init()
         world.camera.controls.minDistance = 0.02
+        world.camera.controls.dollyToCursor = true
         world.camera.controls.mouseButtons.wheel = world.camera.controls.mouseButtons.middle
         const grid = components.get(OBC.Grids).create(world)
         grid.visible = false
@@ -822,6 +825,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       onToggleTrade={toggleTrade}
       disabled={!modelReady || !explorerReady}
     />
+    {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
+      ? 'This model contains only plumbing (pipes and fixtures).'
+      : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
     <div className="viewer-bar furniture-bar">
       <span className="path">{path}</span>
       <span className="catalog-label" title="Demo catalog">Demo catalog</span>

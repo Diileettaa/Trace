@@ -5,11 +5,11 @@ import type { TradesState, TradeKey } from './types'
 export type IfcClassItems = Record<string, number[]>
 
 export const TRADE_COLORS: Record<TradeKey, string> = {
-  plumbing: '#1F6FEB',
-  electrical: '#E9B949',
-  structure: '#6B7174',
-  architecture: '#C8CDD0',
-  furniture: '#8B5E3C',
+  plumbing: '#0756B9',
+  electrical: '#C18A00',
+  structure: '#50585C',
+  architecture: '#B8C0C3',
+  furniture: '#754321',
 }
 
 export const ARCHITECTURE_OPACITY = 0.3
@@ -96,5 +96,6 @@ export async function applyTradeColors(model: FragmentsModel, trades: TradesStat
     if (!trade.itemIds.length) return
     await model.setColor(trade.itemIds, new THREE.Color(TRADE_COLORS[trade.key as TradeKey]))
     if (trade.key === 'architecture') await model.setOpacity(trade.itemIds, ARCHITECTURE_OPACITY)
+    else await model.setOpacity(trade.itemIds, 1)
   }))
 }
