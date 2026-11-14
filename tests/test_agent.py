@@ -199,3 +199,34 @@ def test_follow_ups_are_offered(monkeypatch):
         "interpreted": {"intent": "count", "category": "toilet", "scope": "whole drawing"}})
     out = agent.ask("How many toilets?", "data/demo/plan.png", client=object())
     assert 1 <= len(out["follow_ups"]) <= 3 and all(isinstance(q, str) for q in out["follow_ups"])
+
+
+def test_evidence_items_stable_id_and_space(monkeypatch):
+    from agent import engine_adapter
+
+    raw_result = {
+        "value": 2,
+        "unit": "count",
+        "method": "swiss_dxf:wc",
+        "warnings": [],
+        "sources": [],
+        "items": [
+            {"category": "wc", "bbox_m": [5.5, -4.9, 6.0, -4.4]},
+            {"category": "wc", "bbox_m": [-0.4, 16.3, 0.1, 16.8]},
+        ],
+    }
+    monkeypatch.setattr("engine.answer.answer", lambda p, q: raw_result)
+
+    res1 = engine_adapter.answer("data/swiss_dwellings/site1000_bldg2082_floor9385.pdf", "How many toilets?")
+    res2 = engine_adapter.answer("data/swiss_dwellings/site1000_bldg2082_floor9385.pdf", "How many toilets?")
+
+    items1 = res1["items"]
+    items2 = res2["items"]
+    assert len(items1) == 2
+    assert [i["id"] for i in items1] == [i["id"] for i in items2]
+    for item in items1:
+        assert item["id"].startswith("data/swiss_dwellings/site1000_bldg2082_floor9385.pdf#wc-")
+        assert item["label"].startswith("WC-")
+        assert "space_id" in item
+        assert "room_name" in item
+

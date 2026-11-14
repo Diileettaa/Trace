@@ -8,6 +8,8 @@ pixel space of the drawing the user is looking at (PDFs are shown rendered at 15
 from __future__ import annotations
 
 import os
+import re
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
 from . import config, drawings, ifc_plan, vision
@@ -19,6 +21,43 @@ _NICE = {"wc": "WC", "washbasin": "Washbasin", "bathtub": "Bathtub", "shower": "
          "window": "Window", "room": "Room", "apartment": "Apartment", "IFCSPACE": "Space", "IFCDOOR": "Door",
          "IFCWINDOW": "Window", "IFCSANITARYTERMINAL": "Sanitary", "IFCWALL": "Wall", "IFCSTAIR": "Stair",
          "IFCCOLUMN": "Column", "IFCBEAM": "Beam", "IFCSLAB": "Slab", "IFCLIGHTFIXTURE": "Light"}
+
+ABBREV = {
+    "wc": "WC",
+    "toilet": "WC",
+    "washbasin": "SK",
+    "sink": "SK",
+    "bathtub": "BT",
+    "shower": "SH",
+    "door": "DR",
+    "ifcdoor": "DR",
+    "window": "WN",
+    "ifcwindow": "WN",
+    "stove": "ST",
+    "kitchen": "KT",
+    "radiator": "RAD",
+    "socket": "SKT",
+    "light": "LT",
+    "lamp": "LT",
+    "ifclightfixture": "LT",
+    "room": "RM",
+    "space": "SP",
+    "ifcspace": "SP",
+    "apartment": "APT",
+    "stair": "STR",
+    "ifcstair": "STR",
+    "column": "COL",
+    "ifccolumn": "COL",
+    "beam": "BM",
+    "ifcbeam": "BM",
+    "slab": "SLB",
+    "ifcslab": "SLB",
+    "wall": "WL",
+    "ifcwall": "WL",
+    "ifcsanitaryterminal": "SAN",
+    "ifcflowterminal": "SAN",
+    "ifcfurnishingelement": "FURN",
+}
 
 
 def available() -> bool:
@@ -208,17 +247,132 @@ def answer(path: str, question: str) -> dict:
     return out
 
 
+def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -> list[dict]:
+    if not raw_items:
+        return []
+
+    # 1. Match spaces if not already present
+    # 1.1 Swiss DXF
+    if "swiss" in path.lower() or path.lower().endswith(".dxf"):
+        try:
+            from engine import swiss
+            from shapely.geometry import Point, Polygon
+
+            full = drawings.resolve(path)
+            dxf = full if full.suffix.lower() == ".dxf" else full.with_suffix(".dxf")
+            if dxf.is_file():
+                f_swiss = swiss.parse(str(dxf))
+                rooms = [r for r in f_swiss.get("rooms", []) if r.get("poly") and len(r["poly"]) >= 3]
+                polys = [(r, Polygon(r["poly"])) for r in rooms]
+                for it in raw_items:
+                    if it.get("space_id") is None:
+                        bb = it.get("bbox_m") or it.get("bbox")
+                        if bb:
+                            cx = (bb[0] + bb[2]) / 2.0
+                            cy = (bb[1] + bb[3]) / 2.0
+                            pt = Point(cx, cy)
+                            for r, poly in polys:
+                                if poly.contains(pt) or poly.distance(pt) < 0.3:
+                                    it["space_id"] = r.get("number")
+                                    it["room_name"] = r.get("name") or r.get("number")
+                                    break
+        except Exception:
+            pass
+
+    # 1.2 IFC models
+    elif path.lower().endswith(".ifc") or "ifc" in path.lower():
+        try:
+            from . import room_contents
+
+            full = drawings.resolve(path)
+            ifc_file = full if full.suffix.lower() == ".ifc" else full.with_suffix(".ifc")
+            if not ifc_file.is_file():
+                cand = config.DATA_DIR / "data" / "ifc_models" / f"{full.stem.split('_plan-')[0]}.ifc"
+                if cand.is_file():
+                    ifc_file = cand
+            if ifc_file.is_file():
+                idx = room_contents._build_ifc_spatial_index(ifc_file)
+                space_map = {s["guid"]: s for s in idx.get("spaces", [])}
+                guid_to_space = {}
+                for s_guid, els in idx.get("elements_by_space", {}).items():
+                    for el in els:
+                        guid_to_space[el["guid"]] = s_guid
+                for it in raw_items:
+                    g = it.get("guid")
+                    if g and g in guid_to_space and it.get("space_id") is None:
+                        sg = guid_to_space[g]
+                        it["space_id"] = sg
+                        sp = space_map.get(sg, {})
+                        it["room_name"] = sp.get("long") or sp.get("name") or sg
+        except Exception:
+            pass
+
+    # 2. Deterministic sorting for stable IDs
+    def _sort_key(it: dict):
+        if it.get("guid"):
+            return (str(it.get("storey", "")), str(it.get("category", "")), str(it.get("name", "")), str(it["guid"]))
+        bb = it.get("bbox_m") or it.get("bbox") or it.get("pdf_bbox_pt")
+        if bb:
+            return (round(bb[0], 2), round(bb[1], 2), str(it.get("category", "")))
+        box = it.get("box_2d") or it.get("png_bbox")
+        if box:
+            return (round(box[0], 1), round(box[1], 1), str(it.get("category", "")))
+        return (0, 0, str(it.get("category", "")))
+
+    sorted_raw = sorted(raw_items, key=_sort_key)
+
+    # 3. Assign stable ID and label
+    cat_counters: dict[str, int] = defaultdict(int)
+    room_counters: dict[tuple[str, str], int] = defaultdict(int)
+    global_counters: dict[str, int] = defaultdict(int)
+
+    enriched = []
+    is_det = source in ("detector", "vision") or "cubicasa" in path.lower()
+
+    for it in sorted_raw:
+        item = dict(it)
+        cat = str(item.get("category") or "item").lower()
+        cat_counters[cat] += 1
+        n = cat_counters[cat]
+
+        # Stable ID
+        if item.get("guid"):
+            item_id = item["guid"]
+        elif is_det:
+            item_id = f"{path}#det-{cat}-{n}"
+        else:
+            item_id = f"{path}#{cat}-{n}"
+        item["id"] = item_id
+
+        # Label (e.g. WC-208.1 or WC-1)
+        abbr = ABBREV.get(cat, cat.upper()[:3])
+        sid = item.get("space_id")
+        if sid:
+            clean_sid = re.sub(r"[^\w\-.]", "", str(sid))
+            room_counters[(abbr, clean_sid)] += 1
+            idx = room_counters[(abbr, clean_sid)]
+            label = f"{abbr}-{clean_sid}.{idx}"
+        else:
+            global_counters[abbr] += 1
+            idx = global_counters[abbr]
+            label = f"{abbr}-{idx}"
+
+        item["label"] = label
+        item.setdefault("space_id", None)
+        item.setdefault("room_name", None)
+        enriched.append(item)
+
+    return enriched
+
+
 def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict:
     is_pdf = path.lower().endswith(".pdf")
-    counters: dict[str, int] = {}
+    raw_items = r.get("items") or []
+    enriched_items = _enrich_and_stabilize_items(path, raw_items, source)
     items, sources = [], []
-    for it in r.get("items") or []:
-        cat = str(it.get("category") or "item")
-        counters[cat] = counters.get(cat, 0) + 1
-        label = _label(it, counters[cat])
+    for it in enriched_items:
+        label = it.get("label") or _label(it, 1)
         item = {k: v for k, v in it.items() if k not in ("png_bbox", "pdf_bbox_pt")}
-        item["name"] = label
-        item.setdefault("id", it.get("guid") or f"{path}#{cat}-{counters[cat]}")
         items.append(item)
         box = None
         if is_pdf and it.get("pdf_bbox_pt"):
