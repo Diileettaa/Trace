@@ -1711,7 +1711,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         {isolateSpaceGuid && elementTags.slice(0, 12).map((tag) => {
           const position = elementTagPositions[tag.guid]
           if (!position) return null
-          return <button key={tag.guid} type="button" className={`element-world-tag ${tag.issue || !tag.verified ? 'issue' : ''}`} style={{ left: position.x, top: position.y }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>
+          const tagKind = tag.issue ? 'issue' : tag.verified ? 'verified' : 'unverified'
+          return <button key={tag.guid} type="button" className={`element-world-tag ${tagKind}`} style={{ left: position.x, top: position.y }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>
         })}
         {!walkMode && !hideRoomLabels && rooms.filter(room => !selectedStoreyId || room.storeyId === selectedStoreyId).filter((room, index, list) => list.findIndex(candidate => englishRoomName(candidate.name) === englishRoomName(room.name)) === index).map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
