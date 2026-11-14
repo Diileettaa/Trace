@@ -1,3 +1,6 @@
+/* legacy app styles live in a cascade layer so the Gigi workspace (Tailwind) wins inside .gigi-root */
+@layer legacy, theme, base, components, utilities;
+@layer legacy {
 :root {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: #202427;
@@ -551,3 +554,5 @@ html { scrollbar-gutter: stable; }
 .workbench-viewport { min-width:480px; height:calc(100vh - 140px); overflow:hidden; }
 .workbench-viewport .viewer { overflow:hidden; contain:layout paint; }
 @media (max-width:1199px) { .workbench-grid { grid-template-columns:minmax(480px,1fr) minmax(270px,330px); }.workbench-room-tree { display:none; } }
+
+}

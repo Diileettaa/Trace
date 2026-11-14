@@ -12,7 +12,7 @@ import VerifyBadge from './components/VerifyBadge'
 import { HowIGotThis } from './components/HowIGotThis'
 import { DatasetBrowser, CatalogProjects, type CatalogItem, type CatalogProject } from './components/DatasetBrowser'
 import PlanRooms3D from './components/PlanRooms3D'
-import GigiWorkspace from './gigi/GigiWorkspace'
+import RealWorkspace from './gigi/RealWorkspace'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
 
 const SOURCES = ['', 'cubicasa5k', 'swiss_dwellings', 'ifc_models', 'ifc_bench', 'opening_design']
@@ -380,7 +380,7 @@ export default function App() {
         </div>
         <div className="nav-actions">{activePage === 'ask' && <><span className="desktop-project">PROJECT 01</span><button className="desktop-level" onClick={() => setViewMode(viewMode === '2d' ? '3d' : '2d')}>LEVEL 02 ▾</button></>}<button className="nav-how" onClick={showHowItWorks}>How it works</button><button className="nav-launch" onClick={() => setActivePage('ask')}>Launch Demo</button></div>
       </nav>}
-      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'ask' && !legacyAsk ? <GigiWorkspace /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || ''); setProjectPlanPath(next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProjectPlanPath(item.kind === 'plan' ? item.path : ''); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === 'plan' ? null : item.path, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
+      {activePage === 'home' ? <LandingPage onLaunch={() => setActivePage('ask')} onHowItWorks={showHowItWorks} /> : activePage === 'ask' && !legacyAsk ? <RealWorkspace onHome={() => setActivePage('home')} /> : activePage === 'community' && !project ? <><CatalogProjects onBrowse={() => setBrowserOpen(true)} onOpen={(next) => { setProject(next); setPath(next.model || next.plan || ''); setProjectPlanPath(next.plan || '') }} /><DatasetBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={(item: CatalogItem) => { setPath(item.path); setProjectPlanPath(item.kind === 'plan' ? item.path : ''); setProject({ id: 'browse', title: item.label, subtitle: item.kind === '3d' ? 'Selected IFC model' : 'Selected drawing', description: '', model: item.kind === 'plan' ? null : item.path, plan: item.kind === 'plan' ? item.path : null, demo_data: false }); setBrowserOpen(false) }} /></> : activePage === 'community' ? <CommunityPage
         collab={collab} onChange={setCollab}
         screenshot={renderSource ? { dataUrl: renderSource, roomName: renderRoomName, note: renderNote } : null}
         onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }}

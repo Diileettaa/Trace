@@ -1,3 +1,4 @@
+@layer legacy {
 /* drawing.css - 2D Drawing Viewer UX enhancements (T-24) */
 
 .viewer-hint {
@@ -198,3 +199,5 @@
 .box.unverified { stroke: #D84B45; stroke-dasharray: 7 4; }
 .ask-plan-room.evidence-room polygon { fill: #E9B949; fill-opacity: .20; stroke: #E9B949; }
 .verify-on-site { display:flex; align-items:center; gap:10px; padding:9px 12px; background:#202427; color:#F7F6F2; border-top:3px solid #E9B949; }.verify-on-site div { display:grid; gap:1px; margin-right:auto; }.verify-on-site span,.verify-on-site small { color:#D9DDDE; font-size:11px; }.verify-on-site button { border:0; border-radius:4px; padding:7px 10px; background:#E9B949; color:#202427; font-weight:800; }.verify-on-site .verify-close { background:transparent; color:#F7F6F2; font-size:18px; }
+
+}
