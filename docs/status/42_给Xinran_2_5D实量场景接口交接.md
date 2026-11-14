@@ -191,3 +191,39 @@ GET /api/geometry/scene?path=<source path>&page=<optional page>
 3. WC / sink / door / window 的最小类别字典和统一图标。
 4. 哪些扫描图有可信比例，哪些只能展示为示意。
 5. 交付 1 的 JSON 与原图人工叠加核对通过后，才扩大到整层和机电。
+
+## 15 Nov Plan 11 对接补充（已确认）
+
+`scene_pdf` / `scene_scan` 可以是引擎内部函数名；浏览器端的公开路由仍使用
+`GET /api/geometry/scene?path=&page=`，避免与已有的协作摆放状态 `/api/scene` 冲突。
+
+每个由规则、模型或人工识别得到的 `rooms / walls / openings / objects / systems` 元素可额外带：
+
+```json
+{"method": "vector-symbol-cluster", "confidence": 0.91, "assumed": false}
+```
+
+- `method` 是实际采用的方法，例如 `vector-symbol-cluster`、`scan-wall-mask` 或
+  `cubicassa-fallback`，不是前端猜测的文字。
+- `confidence` 只能是 `0..1`；低于 `0.7` 的构件会显示为待复核符号。
+- 平面图没有提供高度时，使用 2.7m / 2.1m 等默认值必须将相关元素标为
+  `assumed: true`；前端会显示 “default height”。
+- `systems` 是可选数组。只有有可靠路径点时才输出 `water / drain / electrical / hvac`
+  路径；前端会按已有图层开关渲染，绝不补画未识别的管线。
+- `storeys` 是可选数组；有时输出 `id / name / elevation_m / height_m / outline / source`，
+  前端将把它接入现有楼层选择器。
+
+### 证据 bbox 的不可变规则
+
+Plan 11 提到 PDF point 与 norm1000，它们可以保留为引擎内部调试字段，但 `source.bbox`
+必须最终换算成 `GET /drawing?path=&page=` 所显示 PNG（150 dpi）的像素坐标。这是 Trace
+所有问答和 2D 高亮共用的格式；若没有该换算，前端只会保留 3D 选择，不会跳转一个可能错位的
+原图框。
+
+### 已接好前端范围
+
+- 实量场景校验：缺坐标、单位、尺寸、数组或有非法置信度时拒绝展示为 measured。
+- WC、sink、shower、bathtub、door、window 的统一低模会采用 `position / rotation_deg /
+  footprint / height_m`；该图标不是识别结果本身。
+- 低置信度与默认高度会明确标注；用户点击带有 PNG bbox 的构件会回到该页原图并高亮框。
+- `architecture / sanitary / electrical / hvac` 开关、`storeys` 和真实 `systems` 路径已可读取。
