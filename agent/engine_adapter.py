@@ -257,34 +257,6 @@ def answer(path: str, question: str) -> dict:
         r = _cubicasa_fast(path, question)
     if r is None:
         r = ea.answer(path, question)
-    if r.get("value") is None and any(w in question.lower() for w in ("toilet", "wc", "water closet")):
-        try:
-            from . import plan_rooms
-
-            pr = plan_rooms.get_plan_rooms(path)
-            wc_rms = [rm for rm in pr.get("rooms", []) if any(k in (rm.get("name") or "").lower() for k in ("tualett", "wc", "toilet"))]
-            if wc_rms:
-                r = {
-                    "value": len(wc_rms),
-                    "unit": "count",
-                    "method": "ifc_plan:wc_spaces",
-                    "items": [
-                        {
-                            "category": "toilet",
-                            "name": f"Toilet in {rm.get('number') or rm.get('name')}",
-                            "guid": f"{rm['space_id']}_wc",
-                            "space_id": rm["space_id"],
-                            "room_name": rm.get("name"),
-                            "room_number": rm.get("number"),
-                            "png_bbox": rm.get("bbox_px"),
-                        }
-                        for rm in sorted(wc_rms, key=lambda x: str(x.get("number") or x.get("space_id")))
-                    ],
-                    "sources": [{"file": path, "page": 1, "bbox": rm.get("bbox_px")} for rm in wc_rms if rm.get("bbox_px")],
-                    "warnings": [],
-                }
-        except Exception:
-            pass
     engine_ms = round((time.perf_counter() - t0) * 1000, 1)
     source = route(r.get("method"), r.get("warnings") or ())
     out = _convert(path, question, r, source, early)
