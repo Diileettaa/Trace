@@ -1,0 +1,17 @@
+[
+  {"id":"dining-table","category":"table","name":"Oak dining table","width_mm":1600,"depth_mm":900,"height_mm":750,"price_eur":549,"material":"oak veneer","color_hex":"#9a6b43","variants":["natural oak","walnut","black stain"],"mount":"floor"},
+  {"id":"dining-chair","category":"chair","name":"Dining chair","width_mm":460,"depth_mm":520,"height_mm":840,"price_eur":149,"material":"ash wood and fabric","color_hex":"#b8a58e","variants":["sand","charcoal","sage"],"mount":"floor"},
+  {"id":"pendant-lamp","category":"lamp","name":"Pendant lamp","width_mm":380,"depth_mm":380,"height_mm":320,"price_eur":229,"material":"powder-coated steel","color_hex":"#d8d1c2","variants":["warm white","black","brass"],"mount":"ceiling"},
+  {"id":"floor-lamp","category":"lamp","name":"Arc floor lamp","width_mm":420,"depth_mm":420,"height_mm":1650,"price_eur":319,"material":"steel and linen","color_hex":"#b7a98a","variants":["linen","black","brass"],"mount":"floor"},
+  {"id":"toilet","category":"toilet","name":"Wall-hung toilet","width_mm":370,"depth_mm":560,"height_mm":400,"price_eur":389,"material":"ceramic","color_hex":"#f1f0eb","variants":["white","warm white"],"mount":"wall"},
+  {"id":"washbasin","category":"sink","name":"Washbasin with vanity","width_mm":800,"depth_mm":480,"height_mm":850,"price_eur":629,"material":"ceramic and oak","color_hex":"#d9d0c2","variants":["oak","white","dark walnut"],"mount":"wall"},
+  {"id":"shower","category":"shower","name":"Glass shower enclosure","width_mm":900,"depth_mm":900,"height_mm":2100,"price_eur":799,"material":"tempered glass and steel","color_hex":"#b9d5d6","variants":["clear glass","smoked glass","black frame"],"mount":"wall"},
+  {"id":"bathtub","category":"bathtub","name":"Freestanding bathtub","width_mm":1700,"depth_mm":750,"height_mm":600,"price_eur":1290,"material":"acrylic","color_hex":"#eeeae2","variants":["white","stone white"],"mount":"floor"},
+  {"id":"bed","category":"bed","name":"Queen bed","width_mm":1600,"depth_mm":2100,"height_mm":1050,"price_eur":1190,"material":"wood and upholstery","color_hex":"#a88e78","variants":["natural","oat","slate"],"mount":"floor"},
+  {"id":"sofa","category":"sofa","name":"Three-seat sofa","width_mm":2200,"depth_mm":920,"height_mm":850,"price_eur":1890,"material":"upholstery","color_hex":"#7c887d","variants":["sage","sand","navy"],"mount":"floor"},
+  {"id":"kitchen-island","category":"kitchen","name":"Kitchen island","width_mm":1800,"depth_mm":900,"height_mm":920,"price_eur":2490,"material":"oak and quartz","color_hex":"#b5a184","variants":["oak / ivory","walnut / white","black / stone"],"mount":"floor"},
+  {"id":"coffee-table","category":"table","name":"Coffee table","width_mm":1000,"depth_mm":600,"height_mm":420,"price_eur":329,"material":"solid oak","color_hex":"#a5794f","variants":["oak","walnut","black"],"mount":"floor"},
+  {"id":"work-desk","category":"table","name":"Work desk","width_mm":1400,"depth_mm":700,"height_mm":750,"price_eur":499,"material":"birch plywood","color_hex":"#d0b78f","variants":["birch","oak","white"],"mount":"floor"},
+  {"id":"wall-cabinet","category":"cabinet","name":"Wall cabinet","width_mm":900,"depth_mm":350,"height_mm":720,"price_eur":579,"material":"laminated birch","color_hex":"#d5c3a1","variants":["birch","white","sage"],"mount":"wall"},
+  {"id":"wall-lamp","category":"lamp","name":"Wall sconce","width_mm":220,"depth_mm":180,"height_mm":320,"price_eur":179,"material":"brass and glass","color_hex":"#d8c49b","variants":["brass","black","chrome"],"mount":"wall"}
+]

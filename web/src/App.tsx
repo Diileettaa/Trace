@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ask, getCollab, inventory, sampleQuestions } from './api'
 import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
-import IfcViewer from './IfcViewer'
+import IfcViewer, { type PlacedProduct } from './IfcViewer'
 import RoomCollabPanel from './components/RoomCollabPanel'
 import SpaceTree, { type TreeEntry } from './components/SpaceTree'
 import VerifyBadge from './components/VerifyBadge'
@@ -34,6 +34,7 @@ export default function App() {
   const [collab, setCollab] = useState<CollabState>({ status: {}, messages: [] })
   const [space, setSpace] = useState<{ id: string; name: string } | null>(null)
   const [flashSpace, setFlashSpace] = useState<string | null>(null)
+  const [placedProducts, setPlacedProducts] = useState<PlacedProduct[]>([])
 
   useEffect(() => {
     sampleQuestions(source || undefined).then(setSamples)
@@ -353,7 +354,7 @@ export default function App() {
         {modelFile && !isIfc && (
           <div className="viewer-tabs">
             <button className={viewMode === '2d' ? 'on' : ''} onClick={() => setViewMode('2d')}>2D Drawing</button>
-            <button className={viewMode === '3d' ? 'on' : ''} onClick={() => setViewMode('3d')}>3D Model ({modelFile.split('/').pop()})</button>
+            <button className={viewMode === '3d' ? 'on' : ''} onClick={() => setViewMode('3d')}>3D Model ({modelFile.split('/').pop()}){placedProducts.length ? ` · ${placedProducts.length} placed` : ''}</button>
           </div>
         )}
         {(isIfc || viewMode === '3d') && activeIfcPath ? (
@@ -362,6 +363,7 @@ export default function App() {
             guids={guids}
             selectedGuid={selectedGuid}
             onSelectGuid={setSelectedGuid}
+            onPlacementsChange={setPlacedProducts}
           />
         ) : (
           <DrawingViewer
