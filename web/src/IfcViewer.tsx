@@ -364,6 +364,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const roomSectionBoundsRef = useRef<THREE.Box3 | null>(null)
   const clampingTargetRef = useRef(false)
   const keyLightRef = useRef<THREE.DirectionalLight | null>(null)
+  const selectionOutlineRef = useRef<THREE.Box3Helper | null>(null)
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
   const onlyTrade = presentTrades.length === 1 ? presentTrades[0] : null
   // Real3D unmounts these props when returning to Whole Building. Keep the
@@ -632,6 +633,29 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     current.world.renderer.three.shadowMap.enabled = Boolean(isolateSpaceGuid || showcase)
     current.world.renderer.needsUpdate = true
   }, [isolateSpaceGuid, showcase])
+
+  useEffect(() => {
+    const current = engine.current
+    const model = modelRef.current
+    const guid = selectedGuid || selectedElement?.guid
+    selectionOutlineRef.current?.removeFromParent()
+    selectionOutlineRef.current = null
+    if (!current || !model || !guid || !allLocalIds.length) return
+    let cancelled = false
+    void (async () => {
+      const [guidsById, boxes] = await Promise.all([model.getGuidsByLocalIds(allLocalIds), model.getBoxes(allLocalIds)])
+      const index = guidsById.findIndex(item => item === guid)
+      const selectedBox = index >= 0 ? boxes[index] : undefined
+      if (cancelled || !selectedBox || selectedBox.isEmpty()) return
+      const outline = new THREE.Box3Helper(selectedBox.clone().expandByScalar(.015), new THREE.Color('#E9B949'))
+      const outlineMaterial = outline.material as THREE.LineBasicMaterial
+      outlineMaterial.transparent = true
+      outlineMaterial.opacity = .95
+      current.world.scene.three.add(outline)
+      selectionOutlineRef.current = outline
+    })().catch(error => console.warn('[Trace] could not outline selected element', error))
+    return () => { cancelled = true; selectionOutlineRef.current?.removeFromParent(); selectionOutlineRef.current = null }
+  }, [allLocalIds, selectedElement?.guid, selectedGuid])
 
   useEffect(() => { setShowcaseDegraded(allLocalIds.length > 18000) }, [allLocalIds.length])
 
