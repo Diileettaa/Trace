@@ -11,6 +11,13 @@ export function TradeLayersPanel({ trades, onToggleTrade, disabled = false }: Tr
   const noMep = trades.plumbing.count === 0 && trades.electrical.count === 0
   const tradeList = Object.values(trades).filter((trade) => trade.count > 0)
   const onlyTrade = tradeList.length === 1 ? tradeList[0] : null
+  const descriptions: Record<TradeKey, string> = {
+    architecture: 'walls, doors, windows and roofs',
+    structure: 'slabs, columns and beams',
+    plumbing: 'pipes, sanitary fixtures and plumbing equipment',
+    electrical: 'cables, lights, outlets and electrical equipment',
+    furniture: 'furniture that is part of the IFC model',
+  }
 
   return (
     <div className="explorer-row">
@@ -24,6 +31,7 @@ export function TradeLayersPanel({ trades, onToggleTrade, disabled = false }: Tr
               onChange={(event) => onToggleTrade(trade.key, event.target.checked)} />
             <span>{trade.label}</span>
             <span className="trade-count">({trade.count})</span>
+            <small className="trade-description">{descriptions[trade.key as TradeKey]}</small>
           </label>
         ))}
         {!onlyTrade && tradeList.length > 0 && noMep && <span className="trade-none no-mep">No plumbing/electrical in this model</span>}

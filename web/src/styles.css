@@ -78,6 +78,17 @@ pre { white-space: pre-wrap; font-size: 11px; background: #f5f5f3; padding: 8px;
 .box text { fill: var(--accent); font-weight: 700; cursor: pointer; }
 .box.on rect { fill: rgba(228, 87, 46, .35); stroke-width: 4; }
 .three { flex: 1; min-height: 0; position: relative; }
+.three canvas { touch-action: none; }
+.ifc-info-card { position: absolute; z-index: 5; top: 14px; right: 14px; width: min(320px, calc(100% - 28px)); padding: 14px; color: var(--ink); background: rgba(247,246,242,.97); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(32,36,39,.18); }
+.ifc-info-heading { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.ifc-info-heading span { display: inline-block; color: #72570f; background: rgba(233,185,73,.3); padding: 3px 7px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+.ifc-info-heading h3 { margin: 7px 0 0; font-size: 16px; }
+.ifc-info-heading button { padding: 2px 8px; font-size: 20px; line-height: 1; }
+.ifc-info-card dl { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 6px 8px; margin: 12px 0 8px; font-size: 11px; }
+.ifc-info-card dt { color: #687174; }
+.ifc-info-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.ifc-info-card .ifc-guid { font-family: ui-monospace, monospace; font-size: 10px; font-weight: 400; }
+.ifc-info-card > small { color: #687174; }
 .status { padding: 8px 12px; font-size: 13px; color: #555; background: #fff8e6; border-bottom: 1px solid var(--line); }
 .small { font-size: 12px; }
 .panel h3 { font-size: 12px; color: #555; margin: 8px 0 6px; }

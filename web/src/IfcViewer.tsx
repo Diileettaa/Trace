@@ -69,6 +69,34 @@ interface RoomOption {
   box: THREE.Box3
 }
 
+interface IfcElementInfo {
+  localId: number
+  guid: string
+  category: string
+  name: string
+  type: string
+  storey: string
+  room: string
+  dimensions: [number, number, number]
+}
+
+function readProperty(data: Record<string, unknown>, key: string): string {
+  const raw = data[key]
+  if (raw && typeof raw === 'object' && 'value' in raw) return String((raw as { value: unknown }).value ?? '')
+  return raw === undefined || raw === null ? '' : String(raw)
+}
+
+function friendlyIfcCategory(category: string): string {
+  const name = category.replace(/^Ifc/i, '').replace(/StandardCase$/i, '')
+  const known: Record<string, string> = {
+    Wall: 'Wall', Slab: 'Slab', Column: 'Column', Beam: 'Beam', Door: 'Door', Window: 'Window',
+    Roof: 'Roof', Space: 'Room', Furniture: 'Furniture', FurnishingElement: 'Furniture',
+    PipeSegment: 'Pipe', PipeFitting: 'Pipe fitting', FlowTerminal: 'Fixture', SanitaryTerminal: 'Sanitary fixture',
+    LightFixture: 'Light fixture', Outlet: 'Electrical outlet', Stair: 'Stair', Railing: 'Railing',
+  }
+  return known[name] || name.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Building element'
+}
+
 type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>
 type ViewerEngine = { components: OBC.Components; world: World; fragments: OBC.FragmentsManager }
 
@@ -201,12 +229,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [selectedProductId, setSelectedProductId] = useState('')
   const [placed, setPlaced] = useState<PlacedProduct[]>([])
   const [selectedPlacementId, setSelectedPlacementId] = useState('')
+  const [selectedElement, setSelectedElement] = useState<IfcElementInfo | null>(null)
   const [storeys, setStoreys] = useState<StoreyInfo[]>([])
   const [selectedStoreyId, setSelectedStoreyId] = useState<string | null>(null)
   const [trades, setTrades] = useState<TradesState>(createInitialTrades)
   const [allLocalIds, setAllLocalIds] = useState<number[]>([])
   const [explorerReady, setExplorerReady] = useState(false)
   const modelRef = useRef<FragmentsModel | null>(null)
+  const classByLocalIdRef = useRef(new Map<number, string>())
 
   useEffect(() => {
     let cancelled = false
@@ -222,6 +252,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     setModelReady(false)
     setRooms([])
     setSelectedRoomKey('')
+    setSelectedElement(null)
     setPlaced([])
     setStoreys([])
     setSelectedStoreyId(null)
@@ -294,6 +325,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           loadStoreys(loadedModel),
         ])
         if (cancelled) return
+        classByLocalIdRef.current = new Map(Object.entries(allByClass).flatMap(([className, ids]) => ids.map((id) => [id, className] as const)))
         const nextTrades = classifyModelTrades(loadedModel, allByClass)
         await applyTradeColors(loadedModel, nextTrades)
         const ids = new Set(allModelLocalIds(allByClass))
@@ -359,7 +391,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     if (!current || !model || !explorerReady) return
     const selectedStorey = selectedStoreyId ? storeys.find((item) => item.id === selectedStoreyId) ?? null : null
     applyStoreyCut(current.components, current.world, model, selectedStorey)
-    void applyBuildingVisibility(model, storeys, selectedStoreyId, trades, allLocalIds)
+    void (async () => {
+      await applyTradeColors(model, trades)
+      await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, allLocalIds)
+    })()
   }, [allLocalIds, explorerReady, selectedStoreyId, storeys, trades])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
@@ -384,18 +419,21 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           const items = await e.fragments.guidsToModelIdMap(guids)
           if (Object.keys(items).length) await e.fragments.highlight(HIGHLIGHT, items)
         }
-        if (selectedGuid) {
-          const selected = await e.fragments.guidsToModelIdMap([selectedGuid])
+        const elementGuid = selectedGuid || selectedElement?.guid
+        if (elementGuid) {
+          const selected = await e.fragments.guidsToModelIdMap([elementGuid])
           if (Object.keys(selected).length) {
             await e.fragments.highlight(FOCUS_HIGHLIGHT, selected)
-            await e.world.camera.fitToItems(selected)
-            e.world.camera.enabled = true
-            e.world.camera.controls.enabled = true
-            await e.fragments.core.update(true)
-            return
+            if (selectedGuid) {
+              await e.world.camera.fitToItems(selected)
+              e.world.camera.enabled = true
+              e.world.camera.controls.enabled = true
+              await e.fragments.core.update(true)
+              return
+            }
           }
         }
-        if (guids.length) {
+        if (guids.length && !selectedElement) {
           const items = await e.fragments.guidsToModelIdMap(guids)
           if (Object.keys(items).length) {
             await e.world.camera.fitToItems(items)
@@ -407,7 +445,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       } catch (error) { console.warn('Failed to update 3D highlights:', error) }
     })()
     return () => { cancelled = true }
-  }, [guids, selectedGuid, status, modelReady])
+  }, [guids, selectedGuid, selectedElement?.guid, status, modelReady])
 
   function notifyPlacementChange(next: PlacedProduct[]) {
     placedRef.current = next
@@ -613,6 +651,36 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     if (!e || !renderer || !canvas || !modelReady) return
     const raycaster = new THREE.Raycaster()
     const point = new THREE.Vector2()
+    let lastHoverAt = 0
+    const inspectElement = async (model: FragmentsModel, localId: number, focus = false) => {
+      try {
+        const [rawData, boxes, guids] = await Promise.all([
+          model.getItemsData([localId]), model.getBoxes([localId]), model.getGuidsByLocalIds([localId]),
+        ])
+        const data = (rawData[0] || {}) as Record<string, unknown>
+        const category = classByLocalIdRef.current.get(localId) || readProperty(data, 'type') || readProperty(data, 'ifcClass') || 'IfcBuildingElement'
+        const friendly = friendlyIfcCategory(category)
+        const name = readProperty(data, 'Name') || readProperty(data, 'LongName') || `${friendly} ${localId}`
+        const type = readProperty(data, 'ObjectType') || readProperty(data, 'PredefinedType') || readProperty(data, 'ElementType') || friendly
+        const bounds = boxes[0]
+        const size = bounds && !bounds.isEmpty() ? bounds.getSize(new THREE.Vector3()) : new THREE.Vector3()
+        const center = bounds && !bounds.isEmpty() ? bounds.getCenter(new THREE.Vector3()) : new THREE.Vector3()
+        const room = rooms.find((candidate) => candidate.modelId === model.modelId && (candidate.localId === localId || candidate.box.containsPoint(center)))
+        const storey = storeys.find((candidate) => candidate.itemIds.includes(localId))
+        const guid = guids[0] || ''
+        setSelectedElement({ localId, guid, category: friendly, name, type,
+          storey: storey?.name || 'Unknown', room: room?.name || 'Unknown',
+          dimensions: [size.x, size.y, size.z] })
+        if (room && room.key !== selectedRoomKey) selectRoom(room.key)
+        if (focus && bounds && !bounds.isEmpty()) {
+          const target = bounds.getCenter(new THREE.Vector3())
+          const distance = Math.max(bounds.getSize(new THREE.Vector3()).length() * 1.8, 0.12)
+          const offset = new THREE.Vector3(1, -1, 0.8).normalize().multiplyScalar(distance)
+          await e.world.camera.controls.setLookAt(target.x + offset.x, target.y + offset.y, target.z + offset.z,
+            target.x, target.y, target.z, true)
+        }
+      } catch (error) { console.warn('Could not inspect IFC element:', error) }
+    }
     const onPointerDown = (event: PointerEvent) => {
       const rect = canvas.getBoundingClientRect()
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
@@ -631,7 +699,29 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     }
     const onPointerMove = (event: PointerEvent) => {
       const drag = dragRef.current
-      if (!drag) return
+      if (!drag) {
+        const now = performance.now()
+        if (now - lastHoverAt < 180) return
+        lastHoverAt = now
+        const rect = canvas.getBoundingClientRect()
+        point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
+        raycaster.setFromCamera(point, e.world.camera.three)
+        const hoverPoint = point.clone()
+        void (async () => {
+          for (const model of e.fragments.list.values()) {
+            try {
+              const hit = await model.raycast({ camera: e.world.camera.three, mouse: hoverPoint, dom: canvas })
+              if (!hit) continue
+              const data = (await model.getItemsData([hit.localId]))[0] as Record<string, unknown> | undefined
+              const category = classByLocalIdRef.current.get(hit.localId) || 'IfcBuildingElement'
+              canvas.title = `${friendlyIfcCategory(category)} · ${readProperty(data || {}, 'Name') || 'Unnamed element'}`
+              return
+            } catch { /* No hover hit is a normal pointer position. */ }
+          }
+          canvas.title = ''
+        })()
+        return
+      }
       const rect = canvas.getBoundingClientRect()
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(point, e.world.camera.three)
@@ -664,14 +754,29 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       const rect = canvas.getBoundingClientRect()
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(point, e.world.camera.three)
+      const clickPoint = point.clone()
       if (raycaster.intersectObjects([...placementsRef.current.values()], true).length) return
       for (const model of e.fragments.list.values()) {
         try {
-          const hit = await model.raycast({ camera: e.world.camera.three, mouse: point, dom: canvas })
+          const hit = await model.raycast({ camera: e.world.camera.three, mouse: clickPoint, dom: canvas })
           if (!hit) continue
-          const room = rooms.find((candidate) => candidate.modelId === model.modelId && candidate.localId === hit.localId)
-          if (room) { selectRoom(room.key); break }
+          await inspectElement(model, hit.localId)
+          break
         } catch { /* A click outside model geometry is not a room selection. */ }
+      }
+    }
+    const onDoubleClick = async (event: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
+      raycaster.setFromCamera(point, e.world.camera.three)
+      const doubleClickPoint = point.clone()
+      for (const model of e.fragments.list.values()) {
+        try {
+          const hit = await model.raycast({ camera: e.world.camera.three, mouse: doubleClickPoint, dom: canvas })
+          if (!hit) continue
+          await inspectElement(model, hit.localId, true)
+          return
+        } catch { /* Ignore empty double-clicks. */ }
       }
     }
     canvas.addEventListener('pointerdown', onPointerDown, true)
@@ -679,12 +784,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     canvas.addEventListener('pointerup', onPointerUp, true)
     canvas.addEventListener('pointercancel', onPointerUp, true)
     canvas.addEventListener('click', onClick)
+    canvas.addEventListener('dblclick', onDoubleClick)
     return () => {
       canvas.removeEventListener('pointerdown', onPointerDown, true)
       canvas.removeEventListener('pointermove', onPointerMove, true)
       canvas.removeEventListener('pointerup', onPointerUp, true)
       canvas.removeEventListener('pointercancel', onPointerUp, true)
       canvas.removeEventListener('click', onClick)
+      canvas.removeEventListener('dblclick', onDoubleClick)
     }
   }, [modelReady, onSelectRoom, rooms])
 
@@ -720,7 +827,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     </div>
     {status && <div className="status">{status}</div>}
     {selectedRoomKey && <div className="status room-hint">Selected room: {rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'IfcSpace'} · click a room in the model to change selection</div>}
-    <div className="three" ref={box} />
+    <div className="three" ref={box}>
+      {selectedElement && <aside className="ifc-info-card" aria-label="Selected IFC element details">
+        <div className="ifc-info-heading"><div><span>{selectedElement.category}</span><h3>{selectedElement.name}</h3></div>
+          <button aria-label="Close element details" onClick={() => setSelectedElement(null)}>×</button></div>
+        <dl>
+          <dt>Type</dt><dd>{selectedElement.type}</dd>
+          <dt>Storey</dt><dd>{selectedElement.storey}</dd>
+          <dt>Room</dt><dd>{selectedElement.room}</dd>
+          <dt>Dimensions</dt><dd>{selectedElement.dimensions.map((value) => `${value.toFixed(2)} m`).join(' × ')}</dd>
+          <dt>GUID</dt><dd className="ifc-guid">{selectedElement.guid || 'Unavailable'}</dd>
+        </dl>
+        <small>Double-click the element to zoom in.</small>
+      </aside>}
+    </div>
   </div>
 }
 
