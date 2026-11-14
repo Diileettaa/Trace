@@ -1,0 +1,18 @@
+# gcloud run deploy --source uses this instead of .gitignore (data/ must be uploaded)
+.git
+.env
+.env.*
+!.env.example
+.venv
+**/__pycache__
+.pytest_cache
+cache
+web/node_modules
+web/dist
+docs
+tests
+eval
+train
+tools
+*.zip
+*.bundle
