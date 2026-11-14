@@ -7,6 +7,7 @@ import RoomCollabPanel from './RoomCollabPanel'
 import WorkTimeline from './WorkTimeline'
 import RoomMediaPanel from './RoomMediaPanel'
 import SharedPlanPanel from './SharedPlanPanel'
+import DocsLibrary from './DocsLibrary'
 import type { CollabState } from '../types'
 
 interface Props {
@@ -101,7 +102,7 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
 
         <section className="project-section project-files-section">
           <div className="project-section-heading"><div><h2>Files</h2><p className="sub">Shared project documents</p></div></div>
-          <div className="files-placeholder"><strong>Files area coming soon</strong><p>Project file sharing is being connected to the shared files service.</p></div>
+          <DocsLibrary />
         </section>
       </div>
     </div>

@@ -181,3 +181,33 @@ export async function uploadDrawing(file: File): Promise<UploadResult> {
   }
   return r.json()
 }
+
+export interface ProjectDocument { id: number; project: string; doc_key: string; title?: string; filename: string; rev_label?: string; status: string; discipline?: string; permit?: string; uploaded_by?: string; uploaded_at?: string; source?: string; email_subject?: string; size?: number; url?: string }
+export interface DocEvent { action?: string; actor?: string; ts?: number; detail?: string; [key: string]: unknown }
+async function docsJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE}${url}`, init)
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+export async function listProjectDocs(query = ''): Promise<ProjectDocument[]> {
+  const params = new URLSearchParams(query ? { q: query, all: '1' } : {})
+  const body = await docsJson<{ documents?: ProjectDocument[]; results?: ProjectDocument[] }>(`/docs${params.size ? `?${params}` : ''}`)
+  return body.documents || body.results || []
+}
+export async function getDocVersions(docKey: string): Promise<ProjectDocument[]> {
+  const body = await docsJson<{ versions: ProjectDocument[] }>(`/docs/versions?${new URLSearchParams({ doc_key: docKey })}`)
+  return body.versions
+}
+export async function getDocEvents(id: number): Promise<DocEvent[]> {
+  const body = await docsJson<{ events: DocEvent[] }>(`/docs/events?${new URLSearchParams({ id: String(id) })}`)
+  return body.events
+}
+export async function uploadProjectDoc(file: File, title: string, revision: string, uploadedBy: string) {
+  const data = new FormData(); data.append('file', file); if (title) data.append('title', title); if (revision) data.append('revision', revision); data.append('uploaded_by', uploadedBy)
+  return docsJson<{ results: { document: ProjectDocument; status: string; reason: string }[] }>('/docs', { method: 'POST', body: data })
+}
+export async function resolveProjectDoc(id: number, action: 'approve' | 'make_latest' | 'reject'): Promise<ProjectDocument> {
+  const body = await docsJson<{ document: ProjectDocument }>('/docs/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action }) })
+  return body.document
+}
+export const projectDocFileUrl = (id: number) => `${BASE}/docs/file?${new URLSearchParams({ id: String(id) })}`
