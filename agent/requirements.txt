@@ -13,3 +13,6 @@ ultralytics
 pypdf  # document store: text from PDFs (search ranking, tests)
 ifcopenshell
 
+pdfplumber  # engine.sheet / docqa: vector PDF sheets and schedule tables
+pypdfium2  # engine.docqa: render PDF pages for the vision model
+Pillow
