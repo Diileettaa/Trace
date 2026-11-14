@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { drawingUrl, type PlanRoom } from './api'
+import { drawingUrl, uploadRoomMedia, type PlanRoom } from './api'
 import LicenseBadge from './components/LicenseBadge'
 import type { AreaEvidence, AreaEvidenceRoom, Source } from './types'
 import './drawing.css'
@@ -39,6 +39,9 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
   const [hovered, setHovered] = useState<number | null>(null)
   const [hoveredPlanRoom, setHoveredPlanRoom] = useState<string | null>(null)
   const [isPanning, setIsPanning] = useState(false)
+  const [verifyRoom, setVerifyRoom] = useState<PlanRoom | null>(null)
+  const [verifyMessage, setVerifyMessage] = useState('')
+  const verifyInput = useRef<HTMLInputElement>(null)
 
   const wrap = useRef<HTMLDivElement>(null)
   const stackRef = useRef<HTMLDivElement>(null)
@@ -235,6 +238,18 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
     })
     return indices
   }, [sources, selected, hovered])
+  const roomHasEvidence = (room: PlanRoom) => sources.some(source => {
+    const [x0, y0, x1, y1] = source.bbox; const [rx0, ry0, rx1, ry1] = room.bbox_px
+    const x = (x0 + x1) / 2; const y = (y0 + y1) / 2
+    return x >= rx0 && x <= rx1 && y >= ry0 && y <= ry1
+  })
+  async function verifyOnSite(file?: File) {
+    if (!verifyRoom || !file) return
+    let profile: { id?: string; trade?: string } = {}
+    try { profile = JSON.parse(localStorage.getItem('trace-collab-profile') || '{}') } catch { /* demo upload */ }
+    try { await uploadRoomMedia(verifyRoom.space_id, profile.id || 'demo-site-visit', profile.trade || 'architect', 'Verified on site from plan evidence', file); setVerifyMessage('Verification photo added.') }
+    catch { setVerifyMessage('Could not upload this verification photo.') }
+  }
 
   if (!path) return <div className="viewer empty">Select a question or enter a drawing path to preview here</div>
 
@@ -253,6 +268,7 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
         <span>Orange boxes = items found. Click a number to see it. Scroll to zoom, drag to move.</span>
         {roomOutlineUnavailable && <span className="room-outline-hint" title="Room outlines are available for vector plans (Swiss, IFC)">ⓘ Room outlines unavailable</span>}
       </div>
+      {verifyRoom && <div className="verify-on-site"><div><strong>Verify on Site</strong><span>{verifyRoom.name || verifyRoom.number || 'Selected room'}</span>{verifyMessage && <small>{verifyMessage}</small>}</div><input ref={verifyInput} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden onChange={event => void verifyOnSite(event.target.files?.[0])} /><button onClick={() => verifyInput.current?.click()}>Add photo</button><button className="verify-close" onClick={() => { setVerifyRoom(null); setVerifyMessage('') }}>×</button></div>}
 
       {error && <div className="error">{error}</div>}
 
@@ -290,7 +306,8 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
                   const h = Math.abs(y1 - y0)
                   const on = i === selected
                   const isHovered = i === hovered
-                  const cls = `box${on ? ' on' : ''}${isHovered ? ' hover' : ''}${flash?.has(i) ? ' flash' : ''}`
+                  const verified = planRooms.some(room => Boolean(room.media_count) && roomHasEvidence(room))
+                  const cls = `box${on ? ' on' : ''}${isHovered ? ' hover' : ''}${flash?.has(i) ? ' flash' : ''}${verified ? '' : ' unverified'}`
                   return (
                     <rect
                       key={`rect-${i}`}
@@ -318,9 +335,10 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
                   const [x, y] = room.bbox_px
                   const title = `${room.name || 'Room'}${room.number ? ` · ${room.number}` : ''}${room.area_m2 == null ? '' : ` · ${room.area_m2.toFixed(2)} m²`}`
                   const hoveredRoom = hoveredPlanRoom === room.space_id
-                  return <g key={room.space_id} className={`ask-plan-room${hoveredRoom ? ' hovered' : ''}`}
+                  const hit = roomHasEvidence(room)
+                  return <g key={room.space_id} className={`ask-plan-room${hoveredRoom ? ' hovered' : ''}${hit ? ' evidence-room' : ''}`}
                     onMouseEnter={() => setHoveredPlanRoom(room.space_id)} onMouseLeave={() => setHoveredPlanRoom(null)}
-                    onClick={event => { event.stopPropagation(); if (!justDraggedRef.current && !hasMovedRef.current) onSelectPlanRoom?.(room) }}>
+                    onClick={event => { event.stopPropagation(); if (!justDraggedRef.current && !hasMovedRef.current) { onSelectPlanRoom?.(room); setVerifyRoom(room); setVerifyMessage('') } }}>
                     <title>{title}</title>
                     <polygon points={points} vectorEffect="non-scaling-stroke" />
                     {hoveredRoom && <g className="ask-plan-room-label"><rect x={x} y={y - 26} width={Math.max(150, title.length * 8)} height="22" rx="4" vectorEffect="non-scaling-stroke" /><text x={x + 8} y={y - 11}>{title}</text></g>}
