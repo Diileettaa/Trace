@@ -60,6 +60,7 @@ interface RoomOption {
 
 interface IfcElementInfo {
   localId: number
+  modelId: string
   guid: string
   category: string
   name: string
@@ -592,15 +593,20 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   async function zoomToSelection() {
     const e = engine.current
     if (!e) return
-    if (selectedGuid) {
-      const items = await e.fragments.guidsToModelIdMap([selectedGuid])
+    const focusGuid = selectedGuid || selectedElement?.guid
+    if (focusGuid) {
+      const items = await e.fragments.guidsToModelIdMap([focusGuid])
       if (Object.keys(items).length) { await e.world.camera.fitToItems(items); return }
     }
     const selectedGroup = placementsRef.current.get(selectedPlacementId)
     const room = rooms.find((candidate) => candidate.key === selectedRoomKey)
-    const bounds = selectedGroup
+    let bounds = selectedGroup
       ? new THREE.Box3().setFromObject(selectedGroup)
       : room?.box
+    if (!selectedGroup && selectedElement) {
+      const model = [...e.fragments.list.values()].find((candidate) => candidate.modelId === selectedElement.modelId)
+      if (model) bounds = (await model.getBoxes([selectedElement.localId]))[0] || bounds
+    }
     if (!bounds || bounds.isEmpty()) return
     const center = bounds.getCenter(new THREE.Vector3())
     const size = bounds.getSize(new THREE.Vector3())
@@ -662,7 +668,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         const room = rooms.find((candidate) => candidate.modelId === model.modelId && (candidate.localId === localId || candidate.box.containsPoint(center)))
         const storey = storeys.find((candidate) => candidate.itemIds.includes(localId))
         const guid = guids[0] || ''
-        setSelectedElement({ localId, guid, category: friendly, name, type,
+        setSelectedElement({ localId, modelId: model.modelId, guid, category: friendly, name, type,
           storey: storey?.name || 'Unknown', room: room?.name || 'Unknown',
           dimensions: [size.x, size.y, size.z] })
         if (room && room.key !== selectedRoomKey) selectRoom(room.key)
@@ -804,7 +810,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
       <button disabled={!modelReady} onClick={fitModel}>Fit</button>
-      <button disabled={!modelReady || (!selectedGuid && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
+      <button disabled={!modelReady || (!selectedGuid && !selectedElement && !selectedPlacementId && !selectedRoomKey)} onClick={() => void zoomToSelection()}>Zoom to selection</button>
       <label className="furniture-room-select">Room
         <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
           <option value="">Select a room…</option>
