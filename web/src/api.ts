@@ -252,3 +252,82 @@ export async function getWorkflowBlockers(): Promise<{ blockers: BookingViolatio
   return r.json()
 }
 
+export interface OrderItem {
+  instanceId?: string
+  catalogId?: string
+  name?: string
+  price_eur?: number
+  space_id?: string
+}
+
+export interface Order {
+  id: string
+  model: string
+  items: OrderItem[]
+  total_price_eur: number
+  supplier: string
+  delivery_date: string
+  deliver_to_space_id: string
+  notify_trades: string[]
+  author: string
+  status: 'ordered' | 'shipped' | 'delivered'
+  created_at: number
+}
+
+export interface CalendarEvent {
+  date: string
+  kind: 'delivery' | 'work'
+  title: string
+  space_id: string
+  trades: string[]
+  order_id?: string
+  booking_id?: string
+}
+
+export async function createOrder(data: {
+  model: string
+  items: string[] | 'all'
+  supplier: string
+  delivery_date: string
+  deliver_to_space_id: string
+  notify_trades: string[]
+  author: string
+}): Promise<Order> {
+  const r = await fetch(`${BASE}/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
+  return r.json()
+}
+
+export async function getOrders(model = '', status = ''): Promise<{ orders: Order[] }> {
+  const params = new URLSearchParams()
+  if (model) params.set('model', model)
+  if (status) params.set('status', status)
+  const r = await fetch(`${BASE}/orders${params.size ? `?${params}` : ''}`)
+  if (!r.ok) return { orders: [] }
+  return r.json()
+}
+
+export async function updateOrderStatus(id: string, status: 'ordered' | 'shipped' | 'delivered'): Promise<Order> {
+  const r = await fetch(`${BASE}/orders/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, status }),
+  })
+  if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
+  return r.json()
+}
+
+export async function getCalendar(from = '', to = ''): Promise<{ events: CalendarEvent[] }> {
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const r = await fetch(`${BASE}/calendar${params.size ? `?${params}` : ''}`)
+  if (!r.ok) return { events: [] }
+  return r.json()
+}
+
+
