@@ -73,7 +73,7 @@ export default function App() {
   const [selectedGuid, setSelectedGuid] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [collab, setCollab] = useState<CollabState>({ status: {}, messages: [] })
-  const [activePage, setActivePage] = useState<'home' | 'ask' | 'community'>('home')
+  const [activePage, setActivePage] = useState<'home' | 'ask' | 'community'>(window.location.hash === '#ask' ? 'ask' : 'community')
   const [space, setSpace] = useState<{ id: string; name: string } | null>(null)
   const [flashSpace, setFlashSpace] = useState<string | null>(null)
   const [placedProducts, setPlacedProducts] = useState<PlacedProduct[]>([])
