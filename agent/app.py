@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import agent, collab, config, drawings, vision
+from . import agent, collab, config, drawings, render as render_service, vision
 
 app = FastAPI(title="Trace API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -151,3 +151,26 @@ def collab_message(body: MessageIn):
         return collab.post_message(body.space_id, body.text, body.author, body.role, body.notify)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+class RenderIn(BaseModel):
+    image_base64: str
+    room_name: str
+    products: list[dict]
+    style: str
+
+
+@app.post("/render")
+def render(body: RenderIn):
+    try:
+        output = render_service.render_mood_image(
+            body.image_base64, body.room_name, body.products, body.style,
+            cache_dir=config.CACHE_DIR / "renders",
+        )
+    except render_service.RenderModelNotConfigured as exc:
+        raise HTTPException(400, str(exc))
+    except render_service.RenderInputError as exc:
+        raise HTTPException(400, str(exc))
+    except render_service.RenderGenerationError as exc:
+        raise HTTPException(502, str(exc))
+    return FileResponse(output, media_type="image/png", filename="trace-mood-render.png")
