@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import './gigi.css'
 import { ArrowLeft, Monitor, Smartphone, Tablet } from 'lucide-react'
 import { api, layerOf, toScenario, type FixtureVerification, type LayerId, type QueryScenario } from './adapters'
+import { TraceWorkspace } from './TraceWorkspace'
 import IfcViewer from '../IfcViewer'
 
 const TALLINN_PLAN = 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf'
