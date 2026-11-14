@@ -405,6 +405,16 @@ def verify_status_get(path: str = "", ids: str = ""):
         raise HTTPException(500, str(e))
 
 
+@app.get("/element/info")
+def element_info_get(path: str, id: str):
+    from . import element_info
+
+    try:
+        return element_info.get_element_info(path=path, element_id=id)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
 @app.get("/collab/media")
 def collab_media_list(space_id: str | None = None):
     return media.list_media(space_id=space_id)

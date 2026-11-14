@@ -262,3 +262,39 @@ def test_ifc_items_label_uses_room_name_and_retains_guid_space_id(monkeypatch):
     assert items[1]["space_id"] is None
 
 
+def test_element_info_clinic_ifc_and_swiss(monkeypatch):
+    from fastapi.testclient import TestClient
+    from agent.app import app
+    from agent import config
+
+    preview_dir = Path("E:/Download/junction-dataset-preview")
+    if preview_dir.is_dir():
+        monkeypatch.setattr(config, "DATA_DIR", preview_dir)
+
+    c = TestClient(app)
+    # 1. Clinic IFC toilet
+    r_clinic = c.get("/element/info", params={
+        "path": "data/ifc_models/bsc-clinic_clinic-plumbing.ifc",
+        "id": "32xCMlMsb8h8u4rXrjrV4D",
+    })
+    assert r_clinic.status_code == 200
+    info_c = r_clinic.json()
+    assert info_c["id"] == "32xCMlMsb8h8u4rXrjrV4D"
+    assert info_c["type"] == "flowterminal"
+    assert info_c["bbox_m"]["L"] > 0
+    assert "clearances" in info_c
+
+    # 2. Swiss WC
+    r_swiss = c.get("/element/info", params={
+        "path": "data/swiss_dwellings/site1000_bldg2082_floor9385.pdf",
+        "id": "data/swiss_dwellings/site1000_bldg2082_floor9385.pdf#wc-1",
+    })
+    assert r_swiss.status_code == 200
+    info_s = r_swiss.json()
+    assert info_s["type"] == "wc"
+    assert info_s["space"] == "2.18"
+    assert info_s["bbox_m"]["L"] > 0
+    assert info_s["clearances"]["left_wall"] is not None
+
+
+
