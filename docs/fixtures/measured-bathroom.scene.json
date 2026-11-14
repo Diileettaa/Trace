@@ -1,0 +1,14 @@
+{
+  "project_id": "CONTRACT-EXAMPLE-ONLY",
+  "source_kind": "vector-drawing",
+  "unit": "m",
+  "coordinate_system": "x-right,y-up,z-plan-north",
+  "quality": "measured",
+  "warnings": ["MOCK DATA — contract fixture only; it is not a real building or recognition result."],
+  "storeys": [{"id": "L02", "name": "Level 02", "elevation_m": 3.2, "height_m": 2.7}],
+  "rooms": [{"id": "R-208", "name": "Bathroom 208", "storey_id": "L02", "polygon": [[0, 0], [3.2, 0], [3.2, 2.4], [0, 2.4]], "floor_y_m": 3.2, "height_m": 2.7, "area_m2": 7.68, "source": {"file": "data/example/plan.pdf", "page": 2, "bbox": [100, 180, 400, 410]}}],
+  "walls": [{"id": "W-208-N", "storey_id": "L02", "points": [[0, 2.4], [3.2, 2.4]], "thickness_m": 0.15, "base_y_m": 3.2, "height_m": 2.7, "assumed": true, "method": "vector-wall-pair", "confidence": 0.94, "source": {"file": "data/example/plan.pdf", "page": 2, "bbox": [100, 180, 400, 200]}}],
+  "openings": [{"id": "D-208", "kind": "door", "wall_id": "W-208-N", "position": [1.1, 3.2, 2.4], "rotation_deg": 0, "width_m": 0.9, "height_m": 2.1, "assumed": true, "source": {"file": "data/example/plan.pdf", "page": 2, "bbox": [200, 180, 290, 205]}}],
+  "objects": [{"id": "WC-208.1", "category": "toilet", "name": "WC 208.1", "storey_id": "L02", "room_id": "R-208", "position": [0.8, 3.2, 0.7], "rotation_deg": 90, "footprint": {"width_m": 0.38, "depth_m": 0.7}, "height_m": 0.42, "method": "vector-symbol-cluster", "confidence": 0.96, "source": {"file": "data/example/plan.pdf", "page": 2, "bbox": [165, 290, 205, 360], "label": "WC-208.1"}}],
+  "systems": [{"id": "WATER-208", "kind": "water", "storey_id": "L02", "points": [[0.8, 3.6, 0.7], [0.8, 3.6, 1.6]], "diameter_m": 0.025, "method": "vector-line", "confidence": 0.91, "source": {"file": "data/example/plumbing.pdf", "page": 4, "bbox": [150, 250, 230, 370]}}]
+}
