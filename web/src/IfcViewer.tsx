@@ -2,7 +2,7 @@ import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as OBC from '@thatopen/components'
 import * as THREE from 'three'
 import { RenderedFaces } from '@thatopen/fragments'
-import { fileUrl } from './api'
+import { deleteScenePlacement, fileUrl, getScene, saveScenePlacement, type ScenePlacement } from './api'
 import catalogUrl from './catalog.json?url'
 import {
   BuildingExplorer,
@@ -42,6 +42,8 @@ export interface PlacedProduct {
   color_hex: string
   mount: 'floor' | 'ceiling' | 'wall'
   rotationDeg: number
+  position?: [number, number, number]
+  space_id?: string | null
 }
 
 interface CatalogProduct {
@@ -186,6 +188,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
+  const placedRef = useRef<PlacedProduct[]>([])
+  const sceneVersionRef = useRef(0)
   const dragRef = useRef<{ id: string; plane: THREE.Plane } | null>(null)
   const draggedRef = useRef(false)
   const [status, setStatus] = useState('')
@@ -226,6 +230,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     setExplorerReady(false)
     modelRef.current = null
     placementsRef.current.clear()
+    placedRef.current = []
+    sceneVersionRef.current = 0
     onPlacementsChange?.([])
 
     try {
@@ -399,9 +405,81 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   }, [guids, selectedGuid, status, modelReady])
 
   function notifyPlacementChange(next: PlacedProduct[]) {
+    placedRef.current = next
     setPlaced(next)
     onPlacementsChange?.(next)
   }
+
+  function sceneRecord(placement: PlacedProduct, group: THREE.Group): ScenePlacement {
+    let author = ''; let role = ''
+    try { const person = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null'); author = person?.id || ''; role = person?.trade || '' } catch { /* anonymous demo placement */ }
+    return { ...placement, position: [group.position.x, group.position.y, group.position.z],
+      space_id: group.userData.spaceId || null, author, role }
+  }
+
+  async function persistPlacement(placement: PlacedProduct, group: THREE.Group) {
+    try {
+      const result = await saveScenePlacement(path, sceneRecord(placement, group))
+      sceneVersionRef.current = Math.max(sceneVersionRef.current, result.version)
+    } catch (error) { console.warn('Could not save shared 3D placement:', error) }
+  }
+
+  function drawScenePlacements(records: ScenePlacement[]) {
+    const e = engine.current
+    if (!e) return
+    for (const group of placementsRef.current.values()) {
+      e.world.scene.three.remove(group)
+      group.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.geometry.dispose()
+          if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose())
+          else object.material.dispose()
+        }
+      })
+    }
+    placementsRef.current.clear()
+    const next: PlacedProduct[] = []
+    for (const record of records) {
+      const product = catalog.find((candidate) => candidate.id === record.catalogId)
+      if (!product) continue
+      const group = makePlaceholder(product, record.instanceId)
+      const position = record.position || [0, 0, 0]
+      group.position.set(position[0], position[1], position[2])
+      group.rotation.z = (record.rotationDeg || 0) * Math.PI / 180
+      group.userData.floorZ = position[2]
+      group.userData.spaceId = record.space_id || ''
+      group.userData.roomName = record.space_id || ''
+      e.world.scene.three.add(group)
+      placementsRef.current.set(record.instanceId, group)
+      const placedProduct: PlacedProduct = {
+        instanceId: record.instanceId, catalogId: record.catalogId, name: record.name,
+        width_mm: record.width_mm, depth_mm: record.depth_mm, height_mm: record.height_mm,
+        price_eur: record.price_eur ?? product.price_eur, material: record.material || product.material,
+        color_hex: record.color_hex || product.color_hex, mount: record.mount, rotationDeg: record.rotationDeg || 0,
+        position: [position[0], position[1], position[2]], space_id: record.space_id,
+      }
+      next.push(placedProduct)
+    }
+    notifyPlacementChange(next)
+    setSelectedPlacementId((current) => next.some((placement) => placement.instanceId === current) ? current : '')
+  }
+
+  useEffect(() => {
+    if (!modelReady || !catalog.length) return
+    let cancelled = false
+    let timer: number | undefined
+    const poll = async (initial = false) => {
+      try {
+        const snapshot = await getScene(path, initial ? undefined : sceneVersionRef.current)
+        if (cancelled) return
+        if (initial || snapshot.changed) drawScenePlacements(snapshot.placements || [])
+        sceneVersionRef.current = snapshot.version
+      } catch (error) { if (!cancelled) console.warn('Could not load shared 3D scene:', error) }
+      if (!cancelled) timer = window.setTimeout(() => { void poll(false) }, 3000)
+    }
+    void poll(true)
+    return () => { cancelled = true; if (timer !== undefined) window.clearTimeout(timer) }
+  }, [catalog, modelReady, path])
 
   function addProduct() {
     const e = engine.current
@@ -420,16 +498,18 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     else group.position.set(centerX, centerY, z)
     group.userData.floorZ = min.z + height / 2
     group.userData.roomName = room.name
+    group.userData.spaceId = room.name
     e.world.scene.three.add(group)
     placementsRef.current.set(instanceId, group)
     const placement: PlacedProduct = {
       instanceId, catalogId: product.id, name: product.name,
       width_mm: product.width_mm, depth_mm: product.depth_mm, height_mm: product.height_mm,
       price_eur: product.price_eur, material: product.material, color_hex: product.color_hex,
-      mount: product.mount, rotationDeg: 0,
+      mount: product.mount, rotationDeg: 0, position: [group.position.x, group.position.y, group.position.z], space_id: room.name,
     }
     setSelectedPlacementId(instanceId)
     notifyPlacementChange([...placed, placement])
+    void persistPlacement(placement, group)
   }
 
   function removeProduct() {
@@ -441,6 +521,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         if (object instanceof THREE.Mesh) { object.geometry.dispose(); if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose()); else object.material.dispose() }
       })
       placementsRef.current.delete(selectedPlacementId)
+      const instanceId = selectedPlacementId
+      let author = ''
+      try { author = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* anonymous demo placement */ }
+      void deleteScenePlacement(path, instanceId, author).then((result) => { sceneVersionRef.current = Math.max(sceneVersionRef.current, result.version) })
+        .catch((error) => console.warn('Could not delete shared 3D placement:', error))
       const next = placed.filter((item) => item.instanceId !== selectedPlacementId)
       notifyPlacementChange(next)
       setSelectedPlacementId('')
@@ -454,6 +539,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     const next = placed.map((item) => item.instanceId === selectedPlacementId
       ? { ...item, rotationDeg: (item.rotationDeg + 90) % 360 } : item)
     notifyPlacementChange(next)
+    const product = next.find((item) => item.instanceId === selectedPlacementId)
+    if (product) void persistPlacement(product, group)
   }
 
   function screenshot() {
@@ -520,7 +607,21 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         renderer.needsUpdate = true
       }
     }
-    const onPointerUp = () => { dragRef.current = null; setTimeout(() => { draggedRef.current = false }, 0) }
+    const onPointerUp = () => {
+      const drag = dragRef.current
+      dragRef.current = null
+      if (drag && draggedRef.current) {
+        const group = placementsRef.current.get(drag.id)
+        const product = placedRef.current.find((item) => item.instanceId === drag.id)
+        if (group && product) {
+          const next = placedRef.current.map((item) => item.instanceId === drag.id
+            ? { ...item, position: [group.position.x, group.position.y, group.position.z] as [number, number, number] } : item)
+          notifyPlacementChange(next)
+          void persistPlacement(product, group)
+        }
+      }
+      setTimeout(() => { draggedRef.current = false }, 0)
+    }
     const onClick = async (event: MouseEvent) => {
       if (draggedRef.current) return
       const rect = canvas.getBoundingClientRect()

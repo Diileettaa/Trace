@@ -26,6 +26,42 @@ export const drawingUrl = (path: string, page = 1) =>
 // raw dataset file (e.g. an .ifc model for the 3D viewer)
 export const fileUrl = (path: string) => `${BASE}/file?${new URLSearchParams({ path })}`
 
+export interface ScenePlacement {
+  instanceId: string
+  catalogId: string
+  name: string
+  width_mm: number
+  depth_mm: number
+  height_mm: number
+  price_eur?: number
+  material?: string
+  color_hex?: string
+  mount: 'floor' | 'ceiling' | 'wall'
+  rotationDeg: number
+  position: [number, number, number]
+  space_id?: string | null
+  author?: string
+  role?: string
+}
+export interface SceneSnapshot { model: string; version: number; changed?: boolean; placements?: ScenePlacement[] }
+export async function getScene(model: string, sinceVersion?: number): Promise<SceneSnapshot> {
+  const query = new URLSearchParams({ model, ...(sinceVersion === undefined ? {} : { since_version: String(sinceVersion) }) })
+  const response = await fetch(`${BASE}/scene?${query}`)
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+export async function saveScenePlacement(model: string, placement: ScenePlacement): Promise<{ version: number }> {
+  const response = await fetch(`${BASE}/scene/placement`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...placement, model }) })
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+export async function deleteScenePlacement(model: string, instanceId: string, author = ''): Promise<{ version: number }> {
+  const query = new URLSearchParams({ model, instanceId, author })
+  const response = await fetch(`${BASE}/scene/placement?${query}`, { method: 'DELETE' })
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+
 export async function inventory(path: string, page = 1): Promise<Evidence> {
   const r = await fetch(`${BASE}/inventory?${new URLSearchParams({ path, page: String(page) })}`)
   if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`)
