@@ -30,7 +30,7 @@ export default function PlanRooms3D({ path }: { path: string }) {
         for (let i = 0; i < points.length; i++) { const a = points[i], b = points[(i + 1) % points.length]; const length = a.distanceTo(b); if (length < .04) continue; const wall = new THREE.Mesh(new THREE.BoxGeometry(length, .07, 2.7), material); wall.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, 1.35); wall.rotation.z = Math.atan2(b.y - a.y, b.x - a.x); scene.add(wall) }
       }
       const render = () => { if (!renderer || disposed) return; const w = Math.max(1, element.clientWidth), h = Math.max(1, element.clientHeight); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); const distance = Math.max(width, depth, 3) * 1.7; camera.position.set(width / 2 + distance, depth / 2 - distance, distance * .8); camera.lookAt(width / 2, depth / 2, 1); renderer.render(scene, camera) }
-      render(); observer = new ResizeObserver(render); observer.observe(element); setMessage('Plan-derived 3D · wall height 2.7 m')
+      render(); observer = new ResizeObserver(render); observer.observe(element); setMessage('3D generated from the drawing · assumed wall height 2.7 m')
       const cleanup = () => scene.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); if (Array.isArray(object.material)) object.material.forEach(item => item.dispose()); else object.material.dispose() } })
       ;(element as HTMLDivElement & { _planCleanup?: () => void })._planCleanup = cleanup
     }).catch(() => setMessage('Room geometry could not be loaded.'))
