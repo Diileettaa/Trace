@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { api, toScenario, type QueryScenario } from './adapters'
+import { useState, type CSSProperties } from 'react'
+import { api, layerOf, toScenario, type FixtureVerification, type LayerId, type QueryScenario } from './adapters'
 
 const TALLINN_PLAN = 'data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf'
 
@@ -12,10 +12,47 @@ function AnswerCard({ scenario }: { scenario: QueryScenario }) {
   </article>
 }
 
+const LAYERS: { id: LayerId; label: string }[] = [
+  { id: 'architecture', label: 'Architecture & Walls' },
+  { id: 'sanitary', label: 'Sanitary & Plumbing' },
+  { id: 'hvac', label: 'Ventilation' },
+  { id: 'electrical', label: 'Electrical & Lighting' },
+  { id: 'dimensions', label: 'Dimension Chains' },
+]
+const ZOOM: Record<string, number> = { '1:200': 1, '1:100': 2, '1:50': 4, '1:20': 8 }
+
+function PlanEvidence({ path, scenario, fixtures, scale, layers }: { path: string; scenario: QueryScenario | null; fixtures: Record<string, FixtureVerification>; scale: string; layers: Record<LayerId, boolean> }) {
+  const [imageSize, setImageSize] = useState<[number, number] | null>(null)
+  const visibleFixtures = Object.values(fixtures).filter(fixture => layers[layerOf(fixture.category)] && fixture.position)
+  const polygon = scenario?.roomPolygon
+  const first = visibleFixtures[0]
+  return <div className="gigi-plan-scroll">
+    <div className="gigi-plan-canvas" style={{ '--gigi-plan-zoom': ZOOM[scale] } as CSSProperties}>
+      <img src={api.drawingUrl(path)} alt="Tallinn floor plan" onLoad={event => setImageSize([event.currentTarget.naturalWidth, event.currentTarget.naturalHeight])} />
+      {imageSize && <svg className="gigi-plan-overlay" viewBox={`0 0 ${imageSize[0]} ${imageSize[1]}`} preserveAspectRatio="none" aria-label="Evidence highlights">
+        {polygon && <polygon className="gigi-room-highlight" points={polygon.map(([x, y]) => `${x},${y}`).join(' ')} />}
+        {visibleFixtures.map((fixture, index) => {
+          const box = fixture.position!
+          const isIssue = fixture.status === 'Issue Reported'
+          return <g key={fixture.id} className={`gigi-evidence-box ${isIssue ? 'issue' : ''}`}>
+            <rect x={box.x} y={box.y} width={box.w} height={box.h} />
+            <text x={box.x} y={Math.max(18, box.y - 6)}>{String(index + 1).padStart(2, '0')}</text>
+          </g>
+        })}
+        {first?.position && <g className="gigi-evidence-lead"><line x1={first.position.x + first.position.w} y1={first.position.y} x2="920" y2="82" /><text x="750" y="68">EVIDENCE 01</text></g>}
+      </svg>}
+    </div>
+    <small className="gigi-plan-caption">{visibleFixtures.length ? `${visibleFixtures.length} evidence boxes shown` : 'Ask a question to show drawing evidence'}</small>
+  </div>
+}
+
 export default function GigiWorkspace() {
   const [view, setView] = useState<'2D' | '3D'>('2D')
   const [question, setQuestion] = useState('')
   const [scenario, setScenario] = useState<QueryScenario | null>(null)
+  const [fixtures, setFixtures] = useState<Record<string, FixtureVerification>>({})
+  const [scale, setScale] = useState('1:200')
+  const [layers, setLayers] = useState<Record<LayerId, boolean>>({ architecture: true, sanitary: true, hvac: true, electrical: true, dimensions: true })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,7 +68,11 @@ export default function GigiWorkspace() {
       ])
       const ids = (answer.evidence?.[0]?.items || []).map((item: { id?: string }) => item.id).filter(Boolean)
       const verification = ids.length ? await api.verifyStatus(TALLINN_PLAN, ids).catch(() => null) : null
-      setScenario(toScenario(answer, prompt, TALLINN_PLAN, plan, verification, plan?.image_size).scenario)
+      const next = toScenario(answer, prompt, TALLINN_PLAN, plan, verification, plan?.image_size)
+      setScenario(next.scenario)
+      setFixtures(next.fixtures)
+      setScale(next.scenario.recommendedScale)
+      setLayers(current => ({ ...current, ...Object.fromEntries(next.scenario.requiredLayers.map(layer => [layer, true])) }))
       setQuestion('')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not get an answer.')
@@ -43,8 +84,8 @@ export default function GigiWorkspace() {
   return <main className="gigi-shell">
     <header className="gigi-topbar"><b>TRACE DESKTOP APP</b><span>· TALLINN · LEVEL 02 ▾</span><nav><button>Desktop</button><button>Tablet</button><button>Mobile</button></nav></header>
     <div className="gigi-columns">
-      <aside><b>HISTORY</b><button>＋ New inspection chat</button><b>SCALE (AI LoD)</b><div>{['1:200', '1:100', '1:50', '1:20'].map(scale => <button key={scale}>{scale}</button>)}</div><b>LAYER GUIDE</b>{['Architecture & Walls', 'Sanitary & Plumbing', 'Ventilation', 'Electrical & Lighting', 'Dimension Chains'].map(layer => <label key={layer}><input type="checkbox" defaultChecked />{layer}</label>)}</aside>
-      <section><header>Floor plan <span><button onClick={() => setView('2D')}>2D</button><button onClick={() => setView('3D')}>3D</button></span></header><div className="gigi-keynotes"><article>ROOM<strong>{scenario?.roomCode || 'LEVEL 02'}</strong><b>{scenario?.roomArea || '— m²'}</b></article><article>OBJECTS FOUND<strong>{scenario?.foundCount ?? '—'}</strong></article><article>STATUS<strong>{scenario?.overallStatus || 'In Progress'}</strong><small>{scenario ? `${scenario.targetIds.length} targets` : '0/0 verified'}</small></article></div><div className="gigi-empty">{view === '2D' ? 'Drawing evidence loads with the current answer.' : 'Schematic · select a room to open 3D.'}</div></section>
+      <aside><b>HISTORY</b><button>＋ New inspection chat</button><b>SCALE (AI LoD)</b><div>{Object.keys(ZOOM).map(option => <button key={option} className={scale === option ? 'active' : ''} onClick={() => setScale(option)}>{option}</button>)}</div><b>LAYER GUIDE</b>{LAYERS.map(layer => <label key={layer.id}><input type="checkbox" checked={layers[layer.id]} onChange={event => setLayers(current => ({ ...current, [layer.id]: event.target.checked }))} />{layer.label}</label>)}</aside>
+      <section><header>Floor plan <span><button onClick={() => setView('2D')}>2D</button><button onClick={() => setView('3D')}>3D</button></span></header><div className="gigi-keynotes"><article>ROOM<strong>{scenario?.roomCode || 'LEVEL 02'}</strong><b>{scenario?.roomArea || '— m²'}</b></article><article>OBJECTS FOUND<strong>{scenario?.foundCount ?? '—'}</strong></article><article>STATUS<strong>{scenario?.overallStatus || 'In Progress'}</strong><small>{scenario ? `${scenario.targetIds.length} targets` : '0/0 verified'}</small></article></div>{view === '2D' ? <PlanEvidence path={TALLINN_PLAN} scenario={scenario} fixtures={fixtures} scale={scale} layers={layers} /> : <div className="gigi-empty">Schematic · select a room to open 3D.</div>}</section>
       <aside><b>ASSISTANT</b>{scenario ? <AnswerCard scenario={scenario} /> : <article><strong>Ask a question</strong><p>Your evidence-backed answer will appear here.</p></article>}{scenario?.followUpQuestions.length ? <div className="gigi-follow-ups"><b>FOLLOW UP</b>{scenario.followUpQuestions.map(followUp => <button key={followUp.id} onClick={() => void submit(followUp.question)}>{followUp.question}</button>)}</div> : null}{error && <p className="error">{error}</p>}<textarea value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void submit() }} placeholder="Ask about this level…"/><button onClick={() => void submit()} disabled={busy}>{busy ? 'Answering…' : 'Send'}</button></aside>
     </div>
   </main>
