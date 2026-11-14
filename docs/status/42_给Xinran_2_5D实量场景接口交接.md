@@ -36,10 +36,10 @@ Trace 需要把 IFC、DXF/SVG、矢量 PDF 和已校准的扫描图识别结果�
 ## 建议 API
 
 ```text
-GET /api/scene?path=<source path>&page=<optional page>
+GET /api/geometry/scene?path=<source path>&page=<optional page>
 ```
 
-也可先以本地 JSON / engine function 交付；前端不依赖传输方式。响应格式字段可以增加，但不要改名。
+也可先以本地 JSON / engine function 交付；前端不依赖传输方式。响应格式字段可以增加，但不要改名。注意：现有 `/api/scene` 已用于多人家具摆放状态，不能复用。
 
 ```json
 {
