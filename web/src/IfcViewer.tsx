@@ -307,8 +307,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const walkPositionRef = useRef(new THREE.Vector3())
   const walkYawRef = useRef(0)
   const walkPitchRef = useRef(0)
-  const walkKeysRef = useRef(new Set<string>())
-  const walkMouseRef = useRef<{ x: number; y: number } | null>(null)
   const walkFloorZRef = useRef(0)
   const walkAvatarRef = useRef<THREE.Group | null>(null)
   const savedWalkCameraRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3; up: THREE.Vector3 } | null>(null)
@@ -339,7 +337,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [inspectedRoomKey, setInspectedRoomKey] = useState('')
   const [hoveredRoomKey, setHoveredRoomKey] = useState('')
   const [walkMode, setWalkMode] = useState(false)
-  const [walkSpeed, setWalkSpeed] = useState(1.5)
   const [walkMap, setWalkMap] = useState({ x: 0, y: 0, yaw: 0 })
   const [helpOpen, setHelpOpen] = useState(false)
   const [showFirstWalkHint, setShowFirstWalkHint] = useState(false)
@@ -1043,13 +1040,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     body.position.z = .42
     const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 14, 10), new THREE.MeshStandardMaterial({ color: '#f6d4b4', roughness: .8 }))
     head.position.z = .92
-    avatar.add(body, head)
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.28, .025, 8, 24), new THREE.MeshBasicMaterial({ color: '#E9B949' }))
+    ring.position.z = .04
+    avatar.add(body, head, ring)
     avatar.position.set(center.x, center.y, room.box.min.z + .02)
     e.world.scene.three.add(avatar)
     walkAvatarRef.current = avatar
     walkYawRef.current = 0
     walkPitchRef.current = 0
-    walkKeysRef.current.clear()
     setWalkMap({ x: center.x, y: center.y, yaw: 0 })
     if (room.storeyId) setSelectedStoreyId(room.storeyId)
     setPlanView(false)
@@ -1057,7 +1055,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     if (e.world.camera.projection.current === 'Orthographic') void e.world.camera.projection.set('Perspective')
     e.world.camera.controls.stop()
     e.world.camera.controls.enabled = false
-    setWalkSpeed(1.5)
     setWalkHelpVisible(true)
     if (walkHelpTimerRef.current) window.clearTimeout(walkHelpTimerRef.current)
     walkHelpTimerRef.current = window.setTimeout(() => setWalkHelpVisible(false), 5000)
@@ -1079,8 +1076,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     savedWalkCameraRef.current = null
     walkAvatarRef.current?.removeFromParent()
     walkAvatarRef.current = null
-    walkKeysRef.current.clear()
-    walkMouseRef.current = null
     if (walkHelpTimerRef.current) window.clearTimeout(walkHelpTimerRef.current)
     setWalkMode(false)
   }
@@ -1089,7 +1084,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     if (!walkMode) return
     const room = rooms.find(candidate => candidate.key === selectedRoomKey)
     const bounds = room?.box ?? walkFloorBounds
-    const step = .55
+    const step = 1
     walkPositionRef.current.x += (Math.sin(walkYawRef.current) * forward + Math.cos(walkYawRef.current) * strafe) * step
     walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * step
     walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, bounds.min.x + .3, bounds.max.x - .3)
@@ -1103,7 +1098,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const canvas = renderer?.three.domElement
     if (!e || !renderer || !canvas) return
     let frame = 0
-    let previous = performance.now()
     let mapTick = 0
     const camera = e.world.camera.three
     camera.up.set(0, 0, 1)
@@ -1121,41 +1115,31 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return
       event.preventDefault()
-      walkMouseRef.current = { x: event.clientX, y: event.clientY }
-      canvas.setPointerCapture(event.pointerId)
-    }
-    const onPointerMove = (event: PointerEvent) => {
-      const previousPoint = walkMouseRef.current
-      if (!previousPoint) return
-      walkYawRef.current -= (event.clientX - previousPoint.x) * 0.004
-      walkPitchRef.current = THREE.MathUtils.clamp(walkPitchRef.current + (previousPoint.y - event.clientY) * 0.004, -1.25, 1.25)
-      walkMouseRef.current = { x: event.clientX, y: event.clientY }
+      const activeRoom = rooms.find(room => room.key === selectedRoomKey)
+      if (!activeRoom) return
+      const rect = canvas.getBoundingClientRect()
+      const pointer = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      )
+      const raycaster = new THREE.Raycaster()
+      raycaster.setFromCamera(pointer, camera)
+      const destination = new THREE.Vector3()
+      if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -(activeRoom.box.min.z + .02)), destination)) return
+      const inside = destination.x >= activeRoom.box.min.x + .3 && destination.x <= activeRoom.box.max.x - .3
+        && destination.y >= activeRoom.box.min.y + .3 && destination.y <= activeRoom.box.max.y - .3
+      if (!inside) {
+        setStatus('Stay inside this room')
+        window.setTimeout(() => setStatus(''), 1600)
+        return
+      }
+      walkPositionRef.current.set(destination.x, destination.y, walkFloorZRef.current)
       updateCamera()
     }
-    const onPointerUp = () => { walkMouseRef.current = null }
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault()
-      setWalkSpeed(speed => THREE.MathUtils.clamp(speed + (event.deltaY < 0 ? 0.5 : -0.5), 0.5, 6))
-    }
-    const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Escape') { stopWalk(); return }
-      if (movementKeys.has(event.code)) { event.preventDefault(); walkKeysRef.current.add(event.code) }
     }
-    const onKeyUp = (event: KeyboardEvent) => { walkKeysRef.current.delete(event.code) }
-    const onBlur = () => walkKeysRef.current.clear()
-    const tick = (time: number) => {
-      const delta = Math.min((time - previous) / 1000, 0.05)
-      previous = time
-      const keys = walkKeysRef.current
-      const forward = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0)
-      const strafe = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)
-      if (forward || strafe) {
-        const magnitude = Math.hypot(forward, strafe) || 1
-        const speed = walkSpeed * delta / magnitude
-        walkPositionRef.current.x += (Math.sin(walkYawRef.current) * forward + Math.cos(walkYawRef.current) * strafe) * speed
-        walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * speed
-      }
+    const tick = () => {
       walkPositionRef.current.z = walkFloorZRef.current
       const activeRoom = rooms.find(room => room.key === selectedRoomKey)
       const movementBounds = activeRoom?.box ?? walkFloorBounds
@@ -1170,26 +1154,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       frame = requestAnimationFrame(tick)
     }
     canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerUp)
-    canvas.addEventListener('wheel', onWheel, { passive: false })
     window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    window.addEventListener('blur', onBlur)
     frame = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame)
       canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerUp)
-      canvas.removeEventListener('pointercancel', onPointerUp)
-      canvas.removeEventListener('wheel', onWheel)
       window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('blur', onBlur)
     }
-  }, [walkMode, walkSpeed])
+  }, [walkMode])
 
   useEffect(() => {
     const e = engine.current
@@ -1853,12 +1825,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         </button>})}
       </div>
       {walkMode && <>
-        <div className={`walk-hud ${walkHelpVisible ? 'visible' : ''}`}><strong>Walk mode</strong><span>W A S D / arrows move · drag right side to look · Esc exits · ? help</span></div>
+        <div className={`walk-hud ${walkHelpVisible ? 'visible' : ''}`}><strong>Walk mode</strong><span>Click the floor to move · use the arrows for 1 m steps · Esc exits</span></div>
         <div className="walk-joystick walk-ground-arrows" aria-label="Walk direction arrows">
-          <button onClick={() => nudgeWalk(1)} onPointerDown={() => walkKeysRef.current.add('KeyW')} onPointerUp={() => walkKeysRef.current.delete('KeyW')} onPointerLeave={() => walkKeysRef.current.delete('KeyW')}>▲</button>
-          <button onClick={() => nudgeWalk(0, -1)} onPointerDown={() => walkKeysRef.current.add('KeyA')} onPointerUp={() => walkKeysRef.current.delete('KeyA')} onPointerLeave={() => walkKeysRef.current.delete('KeyA')}>◀</button>
-          <button onClick={() => nudgeWalk(0, 1)} onPointerDown={() => walkKeysRef.current.add('KeyD')} onPointerUp={() => walkKeysRef.current.delete('KeyD')} onPointerLeave={() => walkKeysRef.current.delete('KeyD')}>▶</button>
-          <button onClick={() => nudgeWalk(-1)} onPointerDown={() => walkKeysRef.current.add('KeyS')} onPointerUp={() => walkKeysRef.current.delete('KeyS')} onPointerLeave={() => walkKeysRef.current.delete('KeyS')}>▼</button>
+          <button onClick={() => nudgeWalk(1)}>▲</button>
+          <button onClick={() => nudgeWalk(0, -1)}>◀</button>
+          <button onClick={() => nudgeWalk(0, 1)}>▶</button>
+          <button onClick={() => nudgeWalk(-1)}>▼</button>
         </div>
         <div className="walk-minimap" aria-label="Current floor minimap">
           <strong>{storeys.find(floor => floor.id === selectedStoreyId)?.name || 'Floor map'}</strong>
@@ -1891,7 +1863,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
             <li>Right mouse drag: pan</li>
             <li>Wheel: zoom</li>
             <li>Double-click: focus an element</li>
-            <li>Walk: WASD / arrows move, drag to look, wheel changes speed, Esc exits</li>
+            <li>Walk: click a floor point to move, use the on-floor arrows for 1 m steps, Esc exits</li>
           </ul>
         </aside>}
       </div>
