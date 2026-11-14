@@ -73,3 +73,11 @@ ifc.room_of(ifc_path, guids: list) -> {guid: {"space_guid", "space_name", "metho
 
 ## 四、时间
 1–3 越早越好（Codex 的 3D 在等），做完一项推一项。03:30 最终版 → 04:00 最后部署 → 05:00 冻结。
+
+## 10 补充（00:05）问答测试结果已出：`docs/status/qa_sweep.md`
+你那边最重要的 5 条（按顺序）：
+1. IFC「所有房间总面积」8/10 个模型 `query:unsupported` → 全楼 = 各层 IfcSpace 净面积之和
+2. IFC「多少个马桶」9/10 个是 0 或不支持 → 建筑模型里 WC 常是 IfcBuildingElementProxy / IfcFurnishingElement / IfcFlowTerminal，按名称和类型找（WC、Toilet、Closet、Klosett、Unitas），method 写清楚
+3. 1810 S Park 的 IFC 每题都 `unsupported` → 打不开？路径里有空格和 &
+4. resbim-388 门窗房间全 0 → 真的没有还是 IFC4 类型没读到
+5. Tallinn 平面图问马桶给了「0」（视觉扫描）→ 用 IFC 或者说答不了
