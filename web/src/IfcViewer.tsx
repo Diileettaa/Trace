@@ -96,6 +96,32 @@ interface IfcElementInfo {
 
 interface ScreenClearanceLine { side: 'left' | 'right' | 'front' | 'rear'; value: number; x1: number; y1: number; x2: number; y2: number }
 
+/**
+ * IFC uses Z as up. A room is shown as a dollhouse cut: retain only this
+ * shallow box instead of hiding its neighbours and putting the camera inside.
+ */
+function sectionBoxForRoom(room: RoomOption, dims?: Props['roomDims']) {
+  const center = room.box.getCenter(new THREE.Vector3())
+  const source = room.box.getSize(new THREE.Vector3())
+  const width = dims?.L && dims.L > 0 ? dims.L : source.x
+  const depth = dims?.B && dims.B > 0 ? dims.B : source.y
+  return new THREE.Box3(
+    new THREE.Vector3(center.x - width / 2 - .4, center.y - depth / 2 - .4, room.box.min.z - .05),
+    new THREE.Vector3(center.x + width / 2 + .4, center.y + depth / 2 + .4, room.box.min.z + 2),
+  )
+}
+
+function clippingPlanesForBox(bounds: THREE.Box3) {
+  return [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -bounds.min.x),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), bounds.max.x),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -bounds.min.y),
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), bounds.max.y),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), -bounds.min.z),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), bounds.max.z),
+  ]
+}
+
 function readProperty(data: Record<string, unknown>, key: string): string {
   const raw = data[key]
   if (raw && typeof raw === 'object' && 'value' in raw) return String((raw as { value: unknown }).value ?? '')
@@ -337,6 +363,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const recordingRef = useRef<{ recorder: MediaRecorder; frame: number; stream: MediaStream } | null>(null)
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
+  const modelBoundsRef = useRef<THREE.Box3 | null>(null)
+  const roomSectionBoundsRef = useRef<THREE.Box3 | null>(null)
+  const clampingTargetRef = useRef(false)
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
   const onlyTrade = presentTrades.length === 1 ? presentTrades[0] : null
   // Real3D unmounts these props when returning to Whole Building. Keep the
@@ -398,15 +427,19 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>()
         world.scene = new OBC.SimpleScene(components)
         world.scene.setup()
-        world.scene.three.background = new THREE.Color('#F7F6F2')
-        world.scene.three.add(new THREE.HemisphereLight('#ffffff', '#c7c4bc', 1.6))
-        const softKey = new THREE.DirectionalLight('#fff6dc', 1.4)
+        world.scene.three.background = new THREE.Color('#f5f3ee')
+        world.scene.three.add(new THREE.HemisphereLight('#ffffff', '#d8d2c4', .9))
+        const softKey = new THREE.DirectionalLight('#fff6dc', 1.15)
         softKey.position.set(12, -10, 18)
+        softKey.castShadow = true
+        softKey.shadow.mapSize.set(1024, 1024)
+        softKey.shadow.camera.near = .1
+        softKey.shadow.camera.far = 80
         world.scene.three.add(softKey)
         world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true, logarithmicDepthBuffer: true })
         world.camera = new OBC.OrthoPerspectiveCamera(components)
         components.init()
-        world.camera.controls.minDistance = 0.02
+        world.camera.controls.minDistance = 2
         world.camera.controls.dollyToCursor = true
         world.camera.controls.mouseButtons.wheel = world.camera.controls.mouseButtons.middle
         const grid = components.get(OBC.Grids).create(world)
@@ -417,6 +450,17 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         setStatus('Loading 3D model… (large models take ~10 s)')
         fragments.init(await OBC.FragmentsManager.getWorker())
         world.camera.controls.addEventListener('rest', () => fragments.core.update(true))
+        world.camera.controls.addEventListener('update', () => {
+          const roomBounds = roomSectionBoundsRef.current
+          if (!roomBounds || clampingTargetRef.current) return
+          const target = world.camera.controls.getTarget(new THREE.Vector3())
+          const clamped = target.clone().clamp(roomBounds.min, roomBounds.max)
+          if (target.distanceToSquared(clamped) < 1e-8) return
+          clampingTargetRef.current = true
+          void world.camera.controls.moveTo(clamped.x, clamped.y, clamped.z, false).finally(() => {
+            clampingTargetRef.current = false
+          })
+        })
         fragments.list.onItemSet.add(({ value: model }) => {
           modelRef.current = model
           model.useCamera(world.camera.three)
@@ -504,6 +548,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
         await world.camera.fitToItems()
         const modelBounds = new THREE.Box3().setFromObject(loadedModel.object)
+        modelBoundsRef.current = modelBounds.clone()
         const modelDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 0.1)
         world.camera.three.near = .08
         world.camera.three.far = Math.max(modelDiameter * 5, 80)
@@ -730,9 +775,19 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   useEffect(() => {
     const current = engine.current
     const model = modelRef.current
-    if (!current || !model || !explorerReady) return
+    if (!current || !current.world.renderer || !model || !explorerReady) return
     const selectedStorey = selectedStoreyId ? storeys.find(item => item.id === selectedStoreyId) ?? null : null
-    applyStoreyCut(current.components, current.world, model, null)
+    const sectionRoom = isolateSpaceGuid ? rooms.find(candidate => candidate.guid === isolateSpaceGuid) : undefined
+    if (sectionRoom) {
+      const bounds = sectionBoxForRoom(sectionRoom, roomDims)
+      roomSectionBoundsRef.current = bounds
+      model.useClippingPlanes(clippingPlanesForBox(bounds))
+      current.world.renderer.three.localClippingEnabled = true
+      current.world.renderer.needsUpdate = true
+    } else {
+      roomSectionBoundsRef.current = null
+      applyStoreyCut(current.components, current.world, model, null)
+    }
     if (walkMode && selectedStorey && current.world.renderer) {
       const cutZ = Math.max(selectedStorey.elevation + 3.2, walkFloorZRef.current + 1.2)
       model.useClippingPlanes([new THREE.Plane(new THREE.Vector3(0, 0, -1), cutZ)])
@@ -750,39 +805,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
           const boxes = await model.getBoxes(allLocalIds)
           visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(bounds))
         }
-      } else if (previewRoomGuid || isolateSpaceGuid) {
-        const room = rooms.find(candidate => candidate.guid === (isolateSpaceGuid || previewRoomGuid))
+      } else if (previewRoomGuid) {
+        const room = rooms.find(candidate => candidate.guid === previewRoomGuid)
         if (room) {
           const boxes = await model.getBoxes(allLocalIds)
-          const roomBounds = room.box.clone().expandByScalar(isolateSpaceGuid ? .3 : 0)
+          const roomBounds = room.box.clone()
           visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(roomBounds))
-          if (isolateSpaceGuid) {
-            const camera = current.world.camera
-            const target = camera.controls.getTarget(new THREE.Vector3())
-            console.info('[Trace] interior isolation', {
-              roomGuid: isolateSpaceGuid,
-              bounds: { min: roomBounds.min.toArray(), max: roomBounds.max.toArray() },
-              visibleObjectCount: visibleIds.length,
-              camera: { position: camera.three.position.toArray(), target: target.toArray() },
-            })
-          }
-          if (!visibleIds.length && isolateSpaceGuid) {
-            const containingStorey = room.storeyId ? storeys.find(storey => storey.id === room.storeyId) : undefined
-            const storeyItems = containingStorey?.itemIds.filter(id => allLocalIds.includes(id)) ?? []
-            visibleIds = storeyItems.length ? storeyItems : allLocalIds
-            const center = room.box.getCenter(new THREE.Vector3())
-            const roomSize = room.box.getSize(new THREE.Vector3())
-            const distance = Math.max(roomSize.x, roomSize.y, 2.5) * 1.5
-            console.warn('[Trace] interior isolation fallback: showing containing storey', {
-              roomGuid: isolateSpaceGuid,
-              storeyId: containingStorey?.id ?? null,
-              visibleObjectCount: visibleIds.length,
-            })
-            void current.world.camera.controls.setLookAt(
-              center.x + distance, center.y - distance, center.z + distance * .8,
-              center.x, center.y, center.z + .8, true,
-            )
-          }
           const hidden = allLocalIds.filter(id => !visibleIds.includes(id))
           if (hidden.length) await model.setVisible(hidden, false)
           const walls = visibleIds.filter(id => /IFCWALL/i.test(classByLocalIdRef.current.get(id) || ''))
@@ -799,18 +827,42 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   useEffect(() => {
     const camera = engine.current?.world.camera
     if (!camera) return
-    if (!isolateSpaceGuid) { camera.controls.minDistance = .08; camera.controls.maxDistance = 1000; camera.controls.minPolarAngle = 0; camera.controls.maxPolarAngle = Math.PI; return }
+    if (!isolateSpaceGuid) {
+      const modelBounds = modelBoundsRef.current
+      const diagonal = modelBounds ? Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 1) : 1
+      camera.controls.minDistance = 2
+      camera.controls.maxDistance = diagonal * 2.5
+      camera.controls.minPolarAngle = .15
+      camera.controls.maxPolarAngle = Math.PI / 2 - .08
+      camera.controls.dollyToCursor = true
+      return
+    }
     const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
     if (!room) return
-    const center = room.box.getCenter(new THREE.Vector3())
-    const size = room.box.getSize(new THREE.Vector3())
+    const bounds = sectionBoxForRoom(room, roomDims)
+    roomSectionBoundsRef.current = bounds
+    const center = bounds.getCenter(new THREE.Vector3())
+    const size = bounds.getSize(new THREE.Vector3())
     const diagonal = Math.max(Math.hypot(size.x, size.y), 1)
+    const target = new THREE.Vector3(center.x, center.y, bounds.min.z + .8)
+    const distance = diagonal * 1.6
+    const horizontal = distance * Math.cos(Math.PI / 4)
+    const elevation = distance * Math.sin(Math.PI / 4)
+    const azimuth = THREE.MathUtils.degToRad(35)
     camera.controls.minDistance = diagonal * .6
-    camera.controls.maxDistance = diagonal * 2.5
-    camera.controls.minPolarAngle = Math.PI / 12
-    camera.controls.maxPolarAngle = Math.PI * 5 / 12
-    void camera.controls.setLookAt(center.x + diagonal, center.y - diagonal, center.z + diagonal * .9, center.x, center.y, center.z + .8, true)
-  }, [isolateSpaceGuid, rooms])
+    camera.controls.maxDistance = diagonal * 3
+    camera.controls.minPolarAngle = .15
+    camera.controls.maxPolarAngle = Math.PI / 2 - .08
+    camera.controls.dollyToCursor = false
+    const previousSmoothTime = camera.controls.smoothTime
+    camera.controls.smoothTime = .6
+    void camera.controls.setLookAt(
+      target.x + Math.cos(azimuth) * horizontal,
+      target.y - Math.sin(azimuth) * horizontal,
+      target.z + elevation,
+      target.x, target.y, target.z, true,
+    ).finally(() => { camera.controls.smoothTime = previousSmoothTime })
+  }, [isolateSpaceGuid, roomDims, rooms])
 
   useEffect(() => {
     const model = modelRef.current
