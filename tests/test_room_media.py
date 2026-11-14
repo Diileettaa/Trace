@@ -25,7 +25,7 @@ def test_media_upload_and_list(client, tmp_path):
     )
     assert r.status_code == 200, r.text
     record = r.json()
-    assert set(record.keys()) == {"id", "space_id", "author", "role", "note", "file", "kind", "created_at"}
+    assert {"id", "space_id", "author", "role", "note", "file", "kind", "created_at"}.issubset(set(record.keys()))
     assert record["space_id"] == "living_room"
     assert record["author"] == "Alice"
     assert record["role"] == "architect"
@@ -202,3 +202,32 @@ def test_media_rejects_too_large(client, monkeypatch):
     monkeypatch.setattr(media, "MAX_MEDIA_BYTES", 10)
     r = client.post("/collab/media?filename=photo.jpg", content=SAMPLE_JPG)
     assert r.status_code in (400, 413)
+
+
+def test_verify_status_flow(client):
+    # Check initial status for item_1 and item_2
+    r0 = client.get("/verify/status?ids=item_1,item_2").json()
+    assert r0["total"] == 2
+    assert r0["verified"] == 0
+    assert r0["ids"]["item_1"]["verified"] is False
+    assert r0["ids"]["item_1"]["photos"] == 0
+    assert r0["ids"]["item_1"]["latest"] is None
+
+    # POST a photo attached to item_1
+    r_post = client.post(
+        "/collab/media?item_id=item_1&author=Bob&filename=toilet_verified.jpg",
+        content=SAMPLE_JPG,
+    )
+    assert r_post.status_code == 200
+    assert r_post.json()["item_id"] == "item_1"
+
+    # Status after upload: verified increases from 0 to 1, item_1 is verified
+    r1 = client.get("/verify/status?ids=item_1,item_2").json()
+    assert r1["total"] == 2
+    assert r1["verified"] == 1
+    assert r1["ids"]["item_1"]["verified"] is True
+    assert r1["ids"]["item_1"]["photos"] == 1
+    assert r1["ids"]["item_1"]["latest"]["author"] == "Bob"
+    assert "/collab/media/file" in r1["ids"]["item_1"]["latest"]["url"]
+    assert r1["ids"]["item_2"]["verified"] is False
+

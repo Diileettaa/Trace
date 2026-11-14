@@ -77,6 +77,7 @@ def save_media(
     filename: str,
     data: bytes,
     space_id: str = "",
+    item_id: str = "",
     author: str = "",
     role: str = "",
     note: str = "",
@@ -108,6 +109,7 @@ def save_media(
     record = {
         "id": uuid.uuid4().hex,
         "space_id": space_id or "",
+        "item_id": item_id or "",
         "author": author or "",
         "role": role or "",
         "note": note or "",
@@ -136,6 +138,50 @@ def list_media(space_id: str | None = None) -> list[dict]:
     records = list(reversed(records))
     records.sort(key=lambda r: r.get("created_at", ""), reverse=True)
     return records
+
+
+def get_verify_status(path: str = "", ids: list[str] | None = None) -> dict[str, Any]:
+    """Retrieve on-site verification status for a list of element IDs."""
+    req_ids = [i.strip() for i in ids] if ids else []
+    all_media = list_media()
+
+    from collections import defaultdict
+    media_by_item: dict[str, list[dict]] = defaultdict(list)
+    for m in all_media:
+        mid = m.get("item_id")
+        if mid:
+            media_by_item[mid].append(m)
+
+    res_ids: dict[str, Any] = {}
+    verified_count = 0
+
+    for iid in req_ids:
+        if not iid:
+            continue
+        m_list = media_by_item.get(iid, [])
+        is_verified = len(m_list) > 0
+        if is_verified:
+            verified_count += 1
+            latest_m = m_list[0]
+            latest_obj = {
+                "url": f"/collab/media/file?id={latest_m['id']}",
+                "ts": latest_m.get("created_at"),
+                "author": latest_m.get("author") or "",
+            }
+        else:
+            latest_obj = None
+
+        res_ids[iid] = {
+            "verified": is_verified,
+            "photos": len(m_list),
+            "latest": latest_obj,
+        }
+
+    return {
+        "ids": res_ids,
+        "verified": verified_count,
+        "total": len(res_ids),
+    }
 
 
 def resolve_file(target: str) -> Path:

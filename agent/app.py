@@ -302,6 +302,7 @@ def collab_message(body: MessageIn):
 async def collab_media_post(
     request: Request,
     space_id: str = "",
+    item_id: str = "",
     author: str = "",
     role: str = "",
     note: str = "",
@@ -314,9 +315,12 @@ async def collab_media_post(
     ctype = request.headers.get("content-type", "")
     data = None
     fname = filename or ""
+    item_id_val = item_id or ""
     if "multipart/form-data" in ctype:
         try:
             form = await request.form()
+            if "item_id" in form and not item_id_val:
+                item_id_val = str(form.get("item_id") or "")
             for v in form.values():
                 if isinstance(v, UploadFile):
                     data = await v.read()
@@ -352,12 +356,20 @@ async def collab_media_post(
             filename=fname,
             data=data,
             space_id=space_id,
+            item_id=item_id_val,
             author=author,
             role=role,
             note=note,
         )
     except media.MediaError as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/verify/status")
+def verify_status_get(path: str = "", ids: str = ""):
+    try:
+        id_list = [x.strip() for x in ids.split(",") if x.strip()] if ids else []
+        return media.get_verify_status(path=path, ids=id_list)
     except Exception as e:
         raise HTTPException(500, str(e))
 
