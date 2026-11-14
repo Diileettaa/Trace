@@ -189,8 +189,8 @@ async function docsJson<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
   return response.json()
 }
-export async function listProjectDocs(query = ''): Promise<ProjectDocument[]> {
-  const params = new URLSearchParams(query ? { q: query, all: '1' } : {})
+export async function listProjectDocs(query = '', filters: { discipline?: string; permit?: string; status?: string } = {}): Promise<ProjectDocument[]> {
+  const params = new URLSearchParams({ limit: '500', ...(query ? { q: query, all: '1' } : {}), ...filters })
   const body = await docsJson<{ documents?: ProjectDocument[]; results?: ProjectDocument[] }>(`/docs${params.size ? `?${params}` : ''}`)
   return body.documents || body.results || []
 }

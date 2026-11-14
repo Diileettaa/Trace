@@ -100,11 +100,11 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
           </div>
         </section>
 
-        <section className="project-section project-files-section">
-          <div className="project-section-heading"><div><h2>Files</h2><p className="sub">Shared project documents</p></div></div>
-          <DocsLibrary />
-        </section>
       </div>
     </div>
+    <section className="project-section project-files-section">
+      <div className="project-section-heading"><div><h2>Shared files</h2><p className="sub">Project drawings, permits and reports</p></div></div>
+      <DocsLibrary />
+    </section>
   </main>
 }

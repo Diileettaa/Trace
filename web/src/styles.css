@@ -327,6 +327,50 @@ pre { white-space: pre-wrap; font-size: 11px; background: #f5f5f3; padding: 8px;
 .docs-history small { color: #6b7174; }
 .docs-actions { flex-wrap: wrap; margin-top: 12px; }
 .button-link { display: inline-block; padding: 8px 12px; background: #202427; color: #F7F6F2; border-radius: 6px; text-decoration: none; white-space: nowrap; }
+.project-files-section { max-width: 1500px; margin: 20px auto 0; }
+.docs-dropzone { display: grid; place-items: center; gap: 6px; min-height: 116px; padding: 18px; border: 2px dashed #A9AFB0; border-radius: 12px; background: #fff; color: #202427; cursor: pointer; text-align: center; }
+.docs-dropzone > span { color: #737d80; font-size: 12px; }
+.docs-dropzone.dragging { background: rgba(233,185,73,.2); border-color: #C18A00; }
+.docs-file-upload { margin: 10px 0; flex-wrap: wrap; }
+.docs-upload-receipt { padding: 10px 12px; color: #225c35; background: #e2f0e5; border-radius: 7px; font-size: 13px; }
+.docs-drive-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0; }
+.docs-drive-toolbar form { flex: 1; max-width: 520px; }
+.docs-drive-toolbar .active { background: #202427; color: #F7F6F2; }
+.docs-drive-layout { display: grid; grid-template-columns: 175px minmax(300px, 1fr) minmax(280px, .9fr); gap: 14px; align-items: start; }
+.docs-folders, .docs-files-panel, .docs-preview-panel { min-width: 0; padding: 12px; background: #fff; border: 1px solid #A9AFB0; border-radius: 9px; }
+.docs-folders { position: sticky; top: 12px; display: grid; gap: 4px; }
+.docs-folders h3, .docs-files-heading h3 { margin: 2px 0 8px; font-size: 14px; }
+.docs-folders button { display: flex; justify-content: space-between; gap: 8px; padding: 8px; border: 0; background: transparent; text-align: left; cursor: pointer; font-size: 12px; }
+.docs-folders button:hover, .docs-folders button.active { background: rgba(233,185,73,.22); color: #202427; border-radius: 5px; }
+.docs-folders button span:last-child { color: #6b7174; }
+.docs-files-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.docs-files-heading > span { color: #6b7174; font-size: 11px; }
+.docs-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 9px; }
+.docs-file-card { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 154px; padding: 10px; border: 1px solid #dedbd2; border-radius: 8px; cursor: pointer; }
+.docs-file-card:hover, .docs-file-card.selected { border-color: #C18A00; box-shadow: 0 0 0 2px rgba(233,185,73,.2); }
+.docs-card-top { display: flex; justify-content: space-between; gap: 5px; }
+.docs-file-icon { display: inline-grid; place-items: center; min-width: 34px; height: 30px; padding: 0 5px; background: #e9e7df; color: #202427; border-radius: 5px; font-size: 10px; font-weight: 800; }
+.docs-file-icon.large { min-width: 44px; height: 38px; font-size: 12px; }
+.docs-card-name { overflow-wrap: anywhere; font-size: 12px; }
+.docs-card-rev { color: #202427; font-size: 20px; font-weight: 700; }
+.docs-card-meta { color: #6b7174; font-size: 10px; }
+.docs-replacement-link { padding: 3px 0; border: 0; background: transparent; color: #586d8a; text-align: left; font-size: 10px; cursor: pointer; }
+.docs-card-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.docs-card-actions button { padding: 4px 7px; font-size: 10px; }
+.docs-list-view { display: grid; }
+.docs-list-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto auto auto auto; align-items: center; gap: 8px; padding: 8px 4px; border: 0; border-bottom: 1px solid #dedbd2; background: transparent; text-align: left; cursor: pointer; font-size: 11px; }
+.docs-list-row:hover, .docs-list-row.selected { background: rgba(233,185,73,.18); }
+.docs-preview-panel > header { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.docs-preview-panel > header > div { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; }
+.docs-preview-panel h3 { grid-column: 1 / -1; margin: 4px 0 0; font-size: 15px; overflow-wrap: anywhere; }
+.docs-preview-panel p { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }
+.docs-preview-frame, .docs-preview-image { display: block; width: 100%; height: 300px; margin: 10px 0; border: 1px solid #dedbd2; border-radius: 6px; background: #f7f6f2; object-fit: contain; }
+.docs-preview-placeholder { display: grid; place-items: center; height: 160px; margin: 10px 0; padding: 10px; color: #737d80; border: 1px dashed #A9AFB0; border-radius: 6px; text-align: center; font-size: 12px; }
+.docs-preview-panel h4 { margin: 14px 0 5px; font-size: 12px; }
+.docs-history button { padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; color: #202427; }
+.docs-empty { padding: 18px; text-align: center; }
+@media (max-width: 1050px) { .docs-drive-layout { grid-template-columns: 150px 1fr; } .docs-preview-panel { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .docs-drive-layout { grid-template-columns: 1fr; } .docs-folders { position: static; grid-template-columns: repeat(2, 1fr); } .docs-folders h3 { grid-column: 1 / -1; } .docs-list-row { grid-template-columns: 34px 1fr auto; } .docs-list-row > :nth-child(n+4) { display: none; } }
 @media (max-width: 900px) { .room-plan-details-grid { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .docs-library-grid { grid-template-columns: 1fr; } }
 .control-help { display: block; max-width: 100%; color: #7c8587; font-size: 11px; font-weight: 400; line-height: 1.25; }
