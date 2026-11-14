@@ -1,22 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { drawingUrl, getPlanRooms, setRoomStatus, type PlanRoom, type PlanRoomsResult } from '../api'
-import type { CollabState, RoomStatus } from '../types'
-import IfcViewer from '../IfcViewer'
-import RoomPlanPreview from './RoomPlanPreview'
-import RoomCollabPanel from './RoomCollabPanel'
-import RoomMediaPanel from './RoomMediaPanel'
+import { drawingUrl, getPlanRooms, type PlanRoom, type PlanRoomsResult } from '../api'
+import type { CollabState } from '../types'
+import RoomDetailCard from './RoomDetailCard'
 
 const statusColor: Record<string, string> = { built: '#74A889', missing_wall: '#D84B45', pending: '#E9B949' }
-export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChange, onScreenshot }: {
+export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChange, onScreenshot, selectedRoomId, onCloseRoom, compact = false }: {
   drawingPath: string; modelPath: string; collab: CollabState; onChange: (state: CollabState) => void
   onScreenshot: (dataUrl: string, name: string, note: string) => void
+  selectedRoomId?: string | null; onCloseRoom?: () => void; compact?: boolean
 }) {
   const [path, setPath] = useState(drawingPath)
   const [plan, setPlan] = useState<PlanRoomsResult | null>(null)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<PlanRoom | null>(null)
   const details = useRef<HTMLDivElement>(null)
-  const isIfc = modelPath.toLowerCase().endsWith('.ifc')
   const polygonRooms = useMemo(() => plan?.rooms.filter(room => (room.polygon_px?.length || 0) >= 3) || [], [plan])
   async function refresh() {
     if (!path.trim()) { setPlan(null); return }
@@ -27,6 +24,11 @@ export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChan
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
   }
   useEffect(() => { setPath(drawingPath) }, [drawingPath])
+  useEffect(() => {
+    if (!selectedRoomId || !plan) return
+    const room = plan.rooms.find(item => item.space_id === selectedRoomId)
+    if (room) setSelected(room)
+  }, [plan, selectedRoomId])
   useEffect(() => {
     let active = true
     const run = async () => {
@@ -39,6 +41,7 @@ export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChan
   }, [path])
   function choose(room: PlanRoom, focusDetails = false) { setSelected(room); if (focusDetails) window.setTimeout(() => details.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }
   const [width, height] = plan?.image_size || [0, 0]
+  if (compact) return selected ? <div ref={details}><RoomDetailCard room={selected} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} onClose={() => { setSelected(null); onCloseRoom?.() }} /></div> : null
   return <section className="project-section shared-plan-section">
     <div className="project-section-heading"><div><h2>Shared 2D plan</h2><p className="sub">Room status and team notes, synchronized from the project plan.</p></div></div>
     <div className="row project-model-picker"><input aria-label="Plan drawing path" value={path} onChange={event => setPath(event.target.value)} placeholder="data/swiss_dwellings/drawing.pdf" /><button onClick={() => void refresh()}>Load plan</button></div>
@@ -61,17 +64,6 @@ export default function SharedPlanPanel({ drawingPath, modelPath, collab, onChan
         </svg>
       </div>}
     </>}
-    {selected && <div className="room-plan-card" ref={details}>
-      <div className="room-plan-card-heading"><div><span className="dim small">Room details</span><h3>{selected.name || selected.number || selected.space_id}</h3></div><button onClick={() => setSelected(null)} aria-label="Close room details">Close</button></div>
-      {isIfc ? <div className="room-plan-card-preview"><IfcViewer path={modelPath} guids={[]} previewRoomGuid={selected.space_id} previewRoomStatus={selected.status} onSelectRoom={() => {}} onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>
-        : selected.polygon_px ? <RoomPlanPreview polygon={selected.polygon_px} missingWall={selected.status === 'missing_wall'} /> : <p className="dim">Room outline unavailable.</p>}
-      <div className="room-plan-details-grid">
-        <section><h4>Room information</h4><dl><dt>Number</dt><dd>{selected.number || '—'}</dd><dt>Area</dt><dd>{selected.area_m2 == null ? '—' : `${selected.area_m2.toFixed(2)} m²`}</dd></dl>
-          <label>Status <select value={selected.status || 'pending'} onChange={async event => { const status = event.target.value as RoomStatus; const updated = { ...selected, status }; setSelected(updated); setPlan(current => current ? { ...current, rooms: current.rooms.map(room => room.space_id === selected.space_id ? updated : room) } : current); try { onChange(await setRoomStatus(selected.space_id, status)) } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) } }}><option value="built">Built</option><option value="missing_wall">Missing wall</option><option value="pending">Pending</option></select></label>
-        </section>
-        <RoomCollabPanel spaceId={selected.space_id} spaceName={selected.name || selected.number || selected.space_id} role="" collab={collab} onChange={onChange} onHighlightSpace={() => {}} />
-        <RoomMediaPanel spaceId={selected.space_id} roomName={selected.name || selected.number || selected.space_id} />
-      </div>
-    </div>}
+    {selected && <div ref={details}><RoomDetailCard room={selected} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} onClose={() => { setSelected(null); onCloseRoom?.() }} /></div>}
   </section>
 }

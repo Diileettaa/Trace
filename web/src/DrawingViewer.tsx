@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { drawingUrl } from './api'
+import { drawingUrl, type PlanRoom } from './api'
 import LicenseBadge from './components/LicenseBadge'
 import type { AreaEvidence, AreaEvidenceRoom, Source } from './types'
 import './drawing.css'
@@ -14,6 +14,9 @@ interface Props {
   areaEvidence?: AreaEvidence | null
   selectedAreaRoom?: string | null
   onSelectAreaRoom?: (room: string) => void
+  planRooms?: PlanRoom[]
+  roomOutlineUnavailable?: boolean
+  onSelectPlanRoom?: (room: PlanRoom) => void
 }
 
 function areaPolygon(room: AreaEvidenceRoom, path: string): [number, number][] {
@@ -29,11 +32,12 @@ function polygonCenter(points: [number, number][]): [number, number] {
 }
 
 /** Shows one drawing page as an image with an SVG layer on top; every source bbox becomes a numbered box. */
-export default function DrawingViewer({ path, page, sources, selected, onSelect, flash, areaEvidence, selectedAreaRoom, onSelectAreaRoom }: Props) {
+export default function DrawingViewer({ path, page, sources, selected, onSelect, flash, areaEvidence, selectedAreaRoom, onSelectAreaRoom, planRooms = [], roomOutlineUnavailable, onSelectPlanRoom }: Props) {
   const [size, setSize] = useState<[number, number] | null>(null)
   const [error, setError] = useState('')
   const [zoom, setZoom] = useState(1)
   const [hovered, setHovered] = useState<number | null>(null)
+  const [hoveredPlanRoom, setHoveredPlanRoom] = useState<string | null>(null)
   const [isPanning, setIsPanning] = useState(false)
 
   const wrap = useRef<HTMLDivElement>(null)
@@ -60,6 +64,8 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
     setError('')
     setHovered(null)
   }, [path, page])
+
+  useEffect(() => setHoveredPlanRoom(null), [path, page])
 
   const fitToScreen = (naturalW?: number, naturalH?: number) => {
     const w = naturalW ?? size?.[0]
@@ -245,6 +251,7 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
       <div className="viewer-hint">
         <span className="hint-pill" />
         <span>Orange boxes = items found. Click a number to see it. Scroll to zoom, drag to move.</span>
+        {roomOutlineUnavailable && <span className="room-outline-hint" title="Room outlines are available for vector plans (Swiss, IFC)">ⓘ Room outlines unavailable</span>}
       </div>
 
       {error && <div className="error">{error}</div>}
@@ -303,6 +310,23 @@ export default function DrawingViewer({ path, page, sources, selected, onSelect,
                   )
                 })}
               </g>
+
+              {planRooms.length > 0 && <g className="plan-rooms-layer">
+                {planRooms.filter(room => (room.polygon_px?.length || 0) >= 3).map(room => {
+                  const polygon = room.polygon_px!
+                  const points = polygon.map(([x, y]) => `${x},${y}`).join(' ')
+                  const [x, y] = room.bbox_px
+                  const title = `${room.name || 'Room'}${room.number ? ` · ${room.number}` : ''}${room.area_m2 == null ? '' : ` · ${room.area_m2.toFixed(2)} m²`}`
+                  const hoveredRoom = hoveredPlanRoom === room.space_id
+                  return <g key={room.space_id} className={`ask-plan-room${hoveredRoom ? ' hovered' : ''}`}
+                    onMouseEnter={() => setHoveredPlanRoom(room.space_id)} onMouseLeave={() => setHoveredPlanRoom(null)}
+                    onClick={event => { event.stopPropagation(); if (!justDraggedRef.current && !hasMovedRef.current) onSelectPlanRoom?.(room) }}>
+                    <title>{title}</title>
+                    <polygon points={points} vectorEffect="non-scaling-stroke" />
+                    {hoveredRoom && <g className="ask-plan-room-label"><rect x={x} y={y - 26} width={Math.max(150, title.length * 8)} height="22" rx="4" vectorEffect="non-scaling-stroke" /><text x={x + 8} y={y - 11}>{title}</text></g>}
+                  </g>
+                })}
+              </g>}
 
               {areaEvidence && <g className="area-evidence-layer">
                 <defs><pattern id="area-excluded-hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">

@@ -189,3 +189,9 @@
   user-select: none;
   pointer-events: none;
 }
+
+.ask-plan-room polygon { fill: rgba(233,185,73,.12); stroke: #B58A23; stroke-width: 2; cursor: pointer; pointer-events: all; vector-effect: non-scaling-stroke; }
+.ask-plan-room.hovered polygon { fill: rgba(233,185,73,.35); stroke: #202427; stroke-width: 3; }
+.ask-plan-room-label rect { fill: #202427; stroke: #E9B949; stroke-width: 1; }
+.ask-plan-room-label text { fill: #fff; font: 12px system-ui, sans-serif; }
+.room-outline-hint { padding: 2px 6px; color: #6b7174; cursor: help; border-bottom: 1px dotted #A9AFB0; }

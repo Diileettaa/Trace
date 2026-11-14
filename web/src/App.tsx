@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ask, getCollab, inventory, renderMoodImage, sampleQuestions } from './api'
+import { ask, getCollab, getPlanRooms, inventory, renderMoodImage, sampleQuestions, type PlanRoom, type PlanRoomsResult } from './api'
 import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer, { type PlacedProduct } from './IfcViewer'
 import CommunityPage from './components/CommunityPage'
+import SharedPlanPanel from './components/SharedPlanPanel'
 import LandingPage from './components/LandingPage'
 import SpaceTree, { type TreeEntry } from './components/SpaceTree'
 import UploadButton from './components/UploadButton'
@@ -46,6 +47,9 @@ export default function App() {
   const [err, setErr] = useState('')
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedAreaRoom, setSelectedAreaRoom] = useState<string | null>(null)
+  const [askPlan, setAskPlan] = useState<PlanRoomsResult | null>(null)
+  const [askPlanChecked, setAskPlanChecked] = useState(false)
+  const [askRoomId, setAskRoomId] = useState<string | null>(null)
   const [selectedGuid, setSelectedGuid] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [collab, setCollab] = useState<CollabState>({ status: {}, messages: [] })
@@ -146,6 +150,20 @@ export default function App() {
   }, [evidence])
   const activeIfcPath = isIfc ? path : (modelFile ?? '')
   const areaEvidence = res?.evidence.find((item) => item.tool === 'answer_from_engine')?.evidence || null
+
+  useEffect(() => {
+    let active = true
+    setAskPlan(null); setAskPlanChecked(false); setAskRoomId(null)
+    if (!path || path.toLowerCase().endsWith('.ifc')) return () => { active = false }
+    const refresh = async () => {
+      try {
+        const next = await getPlanRooms(path, page)
+        if (active) { setAskPlan(current => JSON.stringify(current) === JSON.stringify(next) ? current : next); setAskPlanChecked(true) }
+      } catch { if (active) setAskPlanChecked(true) }
+    }
+    void refresh(); const timer = window.setInterval(() => void refresh(), 3000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [path, page])
 
   const guids = useMemo(
     () => [...new Set(evidence.flatMap((e) => e.items ?? []).map((i) => i.guid).filter((g): g is string => !!g))],
@@ -499,6 +517,9 @@ export default function App() {
             areaEvidence={areaEvidence}
             selectedAreaRoom={selectedAreaRoom}
             onSelectAreaRoom={setSelectedAreaRoom}
+            planRooms={askPlan?.rooms}
+            roomOutlineUnavailable={askPlanChecked && !(askPlan?.rooms.some(room => (room.polygon_px?.length || 0) >= 3))}
+            onSelectPlanRoom={(room: PlanRoom) => setAskRoomId(room.space_id)}
             onSelect={(i) => {
               setSelected(i)
               const entry = entries.find((e) => e.index === i)
@@ -507,6 +528,7 @@ export default function App() {
             flash={flash}
           />
         )}
+        {askRoomId && <SharedPlanPanel compact drawingPath={path} modelPath={activeIfcPath} selectedRoomId={askRoomId} onCloseRoom={() => setAskRoomId(null)} collab={collab} onChange={setCollab} onScreenshot={(dataUrl, roomName, note) => { setRenderSource(dataUrl); setRenderRoomName(roomName); setRenderNote(note) }} />}
         {(isIfc || viewMode === '3d') && activeIfcPath && (
           <section className="render-panel">
             <div className="render-actions">
