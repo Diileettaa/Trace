@@ -99,6 +99,7 @@ export async function getPeople(): Promise<CollabPerson[]> {
 }
 export async function getRoomMedia(spaceId: string): Promise<RoomMedia[]> {
   const response = await fetch(`${BASE}/collab/media?${new URLSearchParams({ space_id: spaceId })}`)
+  if (response.status === 404) return []
   if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
   return response.json()
 }

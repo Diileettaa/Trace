@@ -183,13 +183,19 @@ export async function applyExplodedView(
     for (const mesh of model.tiles.values()) {
       const geom = mesh.geometry
       if (!geom.attributes.position) continue
+      const pos = geom.attributes.position
 
       if (!geom.userData.originalPositions) {
-        geom.userData.originalPositions = new Float32Array(geom.attributes.position.array)
+        const original = new Float32Array(pos.count * 3)
+        for (let i = 0; i < pos.count; i++) {
+          original[3 * i] = pos.getX(i)
+          original[3 * i + 1] = pos.getY(i)
+          original[3 * i + 2] = pos.getZ(i)
+        }
+        geom.userData.originalPositions = original
       }
 
       const orig = geom.userData.originalPositions as Float32Array
-      const pos = geom.attributes.position
       const idAttr = geom.attributes.id
 
       if (exploded) {
@@ -214,7 +220,7 @@ export async function applyExplodedView(
           pos.setZ(i, origZ + sIdx * spacing)
         }
       } else {
-        pos.array.set(orig)
+        for (let i = 0; i < pos.count; i++) pos.setXYZ(i, orig[3 * i], orig[3 * i + 1], orig[3 * i + 2])
       }
 
       pos.needsUpdate = true

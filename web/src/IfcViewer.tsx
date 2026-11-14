@@ -4,6 +4,8 @@ import * as THREE from 'three'
 import { RenderedFaces } from '@thatopen/fragments'
 import { deleteScenePlacement, fileUrl, getScene, saveScenePlacement, type ScenePlacement } from './api'
 import FurnitureCatalogModal, { type FurnitureProduct } from './components/FurnitureCatalogModal'
+import RoomCollabPanel from './components/RoomCollabPanel'
+import RoomMediaPanel from './components/RoomMediaPanel'
 import catalogUrl from './catalog.json?url'
 import {
   BuildingExplorer,
@@ -21,7 +23,7 @@ import {
   type TradesState,
 } from './viewer3d'
 import type { FragmentsModel } from '@thatopen/fragments'
-import type { RoomStatus } from './types'
+import type { CollabState, RoomStatus } from './types'
 
 interface Props {
   path: string
@@ -33,6 +35,8 @@ interface Props {
   onSelectRoom?: (room: { id: string; name: string } | null) => void
   previewRoomGuid?: string
   previewRoomStatus?: RoomStatus | null
+  collab?: CollabState
+  onCollabChange?: (state: CollabState) => void
 }
 
 export interface PlacedProduct {
@@ -83,6 +87,42 @@ function readProperty(data: Record<string, unknown>, key: string): string {
   return raw === undefined || raw === null ? '' : String(raw)
 }
 
+function findIfcMeasure(data: unknown, names: string[]): number | undefined {
+  const wanted = new Set(names.map(name => name.toLowerCase()))
+  const visited = new WeakSet<object>()
+  let result: number | undefined
+  const numeric = (value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value)
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>
+      for (const key of ['value', 'wrappedValue', 'AreaValue', 'NominalValue']) {
+        const found = numeric(record[key])
+        if (found !== undefined) return found
+      }
+    }
+    return undefined
+  }
+  const visit = (value: unknown) => {
+    if (result !== undefined || value === null || value === undefined) return
+    if (Array.isArray(value)) { for (const item of value) visit(item); return }
+    if (typeof value !== 'object') return
+    if (visited.has(value)) return
+    visited.add(value)
+    const record = value as Record<string, unknown>
+    const name = readProperty(record, 'Name').toLowerCase()
+    if (wanted.has(name)) {
+      for (const key of ['AreaValue', 'NominalValue', 'value', 'Value']) {
+        result = numeric(record[key])
+        if (result !== undefined) return
+      }
+    }
+    for (const child of Object.values(record)) visit(child)
+  }
+  visit(data)
+  return result
+}
+
 function friendlyIfcCategory(category: string): string {
   const name = category.replace(/^Ifc/i, '').replace(/StandardCase$/i, '')
   const known: Record<string, string> = {
@@ -99,6 +139,7 @@ type ViewerEngine = { components: OBC.Components; world: World; fragments: OBC.F
 
 const HIGHLIGHT = { color: new THREE.Color('#E9B949'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
 const FOCUS_HIGHLIGHT = { color: new THREE.Color('#202427'), renderedFaces: RenderedFaces.TWO, opacity: 1, transparent: false }
+const EMPTY_COLLAB: CollabState = { status: {}, messages: [] }
 
 interface ErrorBoundaryProps { children: ReactNode }
 interface ErrorBoundaryState { hasError: boolean; error: Error | null }
@@ -213,7 +254,7 @@ function makeCatalogThumbnailModel(product: FurnitureProduct) {
   return makePlaceholder(product, `catalog-${product.id}`)
 }
 
-function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, previewRoomGuid, previewRoomStatus }: Props) {
+function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
@@ -239,6 +280,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [explorerReady, setExplorerReady] = useState(false)
   const [exploded, setExploded] = useState(false)
   const [planView, setPlanView] = useState(false)
+  const [inspectedRoomKey, setInspectedRoomKey] = useState('')
+  const [hoveredRoomKey, setHoveredRoomKey] = useState('')
   const modelRef = useRef<FragmentsModel | null>(null)
   const classByLocalIdRef = useRef(new Map<number, string>())
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
@@ -257,6 +300,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     let cancelled = false
     setModelReady(false)
     setRooms([])
+    setInspectedRoomKey('')
+    setHoveredRoomKey('')
     setSelectedRoomKey('')
     setSelectedElement(null)
     setPlaced([])
@@ -356,7 +401,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           const spaceIds = [...new Set(Object.values(byCategory).flat())]
           if (spaceIds.length) {
             const [data, boxes, guidsById] = await Promise.all([
-              loadedModel.getItemsData(spaceIds), loadedModel.getBoxes(spaceIds), loadedModel.getGuidsByLocalIds(spaceIds),
+              loadedModel.getItemsData(spaceIds, { attributesDefault: true, relations: { IsDefinedBy: { attributes: true, relations: true } } }),
+              loadedModel.getBoxes(spaceIds), loadedModel.getGuidsByLocalIds(spaceIds),
             ])
             if (cancelled) return
             const nextRooms = spaceIds.flatMap((localId, index) => {
@@ -369,17 +415,18 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
               const roomBox = boxes[index]
               if (!roomBox || roomBox.isEmpty()) return []
               const areaValue = Number(read('NetFloorArea') || read('GrossFloorArea') || read('Area'))
+                || findIfcMeasure(attributes, ['NetFloorArea', 'GrossFloorArea'])
               const centerZ = roomBox.getCenter(new THREE.Vector3()).z
               const roomStorey = nextStoreys.find(floor => floor.itemIds.includes(localId))
                 ?? [...nextStoreys].sort((a, b) => Math.abs(a.elevation - centerZ) - Math.abs(b.elevation - centerZ))[0]
               return [{ key: `${loadedModel.modelId}:${localId}`, modelId: loadedModel.modelId, localId, name,
                 guid: guidsById[index] ?? '', box: roomBox, number: read('Tag') || read('Reference'),
-                areaM2: Number.isFinite(areaValue) && areaValue > 0 ? areaValue : undefined, storeyId: roomStorey?.id }]
+                areaM2: typeof areaValue === 'number' && Number.isFinite(areaValue) && areaValue > 0 ? areaValue : undefined, storeyId: roomStorey?.id }]
             })
             setRooms(nextRooms)
             if (nextRooms.length) {
               setSelectedRoomKey(nextRooms[0].key)
-              onSelectRoom?.({ id: nextRooms[0].name, name: nextRooms[0].name })
+              onSelectRoom?.({ id: nextRooms[0].guid || nextRooms[0].key, name: nextRooms[0].name })
             }
           }
         } catch (error) { console.warn('Could not list IFC spaces:', error) }
@@ -474,8 +521,87 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   function selectRoom(key: string) {
     setSelectedRoomKey(key)
     const room = rooms.find((candidate) => candidate.key === key)
-    onSelectRoom?.(room ? { id: room.name, name: room.name } : null)
+    onSelectRoom?.(room ? { id: room.guid || room.key, name: room.name } : null)
   }
+
+  function focusRoom(key: string) {
+    const room = rooms.find(candidate => candidate.key === key)
+    if (!room) return
+    selectRoom(key)
+    setInspectedRoomKey(key)
+    if (room.storeyId) setSelectedStoreyId(room.storeyId)
+    const e = engine.current
+    if (!e) return
+    const center = room.box.getCenter(new THREE.Vector3())
+    const size = room.box.getSize(new THREE.Vector3())
+    const target = new THREE.Vector3(center.x, center.y, room.box.min.z + 1.6)
+    const lateral = Math.max(Math.min(size.x, size.y) * 0.28, 0.7)
+    const controls = e.world.camera.controls
+    const oldSmoothTime = controls.smoothTime
+    controls.smoothTime = 0.8
+    void controls.setLookAt(target.x + lateral, target.y - lateral, target.z,
+      target.x, target.y, target.z, true).finally(() => { controls.smoothTime = oldSmoothTime })
+  }
+
+  useEffect(() => {
+    const e = engine.current
+    const model = modelRef.current
+    if (!model || !modelReady || !rooms.length) return
+    const statusColor: Record<RoomStatus, string> = { built: '#48A868', missing_wall: '#D84B45', pending: '#E9B949' }
+    const grouped = new Map<string, number[]>()
+    for (const room of rooms) {
+      const state = collab.status[room.guid]?.status ?? collab.status[room.name]?.status ?? collab.status[room.key]?.status
+      const color = room.key === hoveredRoomKey ? '#D9A92D' : state ? statusColor[state] : '#D4D7D5'
+      const ids = grouped.get(color) ?? []
+      ids.push(room.localId)
+      grouped.set(color, ids)
+    }
+    void (async () => {
+      for (const [color, ids] of grouped) {
+        await model.setColor(ids, new THREE.Color(color))
+        await model.setOpacity(ids, color === '#D4D7D5' ? 0.15 : 0.34)
+      }
+      await e?.fragments.core.update(true)
+    })()
+  }, [collab.status, hoveredRoomKey, modelReady, rooms])
+
+  useEffect(() => {
+    const e = engine.current
+    const host = box.current
+    if (!e || !host || !modelReady || !rooms.length) return
+    let frame = 0
+    const placeLabels = () => {
+      const camera = e.world.camera.three
+      camera.updateMatrixWorld()
+      const rect = host.getBoundingClientRect()
+      const candidates = rooms.filter(room => !selectedStoreyId || room.storeyId === selectedStoreyId)
+        .map(room => {
+          const center = room.box.getCenter(new THREE.Vector3()).project(camera)
+          const world = room.box.getCenter(new THREE.Vector3())
+          return { room, center, distance: camera.position.distanceTo(world) }
+        }).filter(item => item.center.z > -1 && item.center.z < 1 && Math.abs(item.center.x) < 1 && Math.abs(item.center.y) < 1)
+        .sort((a, b) => a.distance - b.distance)
+      const visible: typeof candidates = []
+      for (const item of candidates) {
+        const x = (item.center.x + 1) * rect.width / 2
+        const y = (1 - item.center.y) * rect.height / 2
+        if (visible.every(other => Math.hypot(
+          x - (other.center.x + 1) * rect.width / 2,
+          y - (1 - other.center.y) * rect.height / 2,
+        ) > 72)) visible.push(item)
+        if (visible.length >= 16) break
+      }
+      const visibleKeys = new Set(visible.map(item => item.room.key))
+      for (const label of host.querySelectorAll<HTMLElement>('[data-room-label]')) {
+        const item = candidates.find(candidate => candidate.room.key === label.dataset.roomLabel)
+        label.style.display = item && visibleKeys.has(item.room.key) ? 'block' : 'none'
+        if (item) label.style.transform = `translate(${(item.center.x + 1) * rect.width / 2}px, ${(1 - item.center.y) * rect.height / 2}px) translate(-50%, -100%)`
+      }
+      frame = requestAnimationFrame(placeLabels)
+    }
+    frame = requestAnimationFrame(placeLabels)
+    return () => cancelAnimationFrame(frame)
+  }, [modelReady, rooms, selectedStoreyId])
 
   useEffect(() => {
     const e = engine.current
@@ -787,12 +913,15 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
             try {
               const hit = await model.raycast({ camera: e.world.camera.three, mouse: hoverPoint, dom: canvas })
               if (!hit) continue
+              const room = rooms.find(candidate => candidate.modelId === model.modelId && candidate.localId === hit.localId)
+              setHoveredRoomKey(room?.key || '')
               const data = (await model.getItemsData([hit.localId]))[0] as Record<string, unknown> | undefined
               const category = classByLocalIdRef.current.get(hit.localId) || 'IfcBuildingElement'
               canvas.title = `${friendlyIfcCategory(category)} · ${readProperty(data || {}, 'Name') || 'Unnamed element'}`
               return
             } catch { /* No hover hit is a normal pointer position. */ }
           }
+          setHoveredRoomKey('')
           canvas.title = ''
         })()
         return
@@ -835,6 +964,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         try {
           const hit = await model.raycast({ camera: e.world.camera.three, mouse: clickPoint, dom: canvas })
           if (!hit) continue
+          const room = rooms.find(candidate => candidate.modelId === model.modelId && candidate.localId === hit.localId)
+          if (room) { focusRoom(room.key); return }
           await inspectElement(model, hit.localId)
           break
         } catch { /* A click outside model geometry is not a room selection. */ }
@@ -905,6 +1036,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       selectedStoreyId={selectedStoreyId}
       onSelectStorey={selectStorey}
       roomCounts={roomCounts}
+      rooms={rooms}
+      selectedRoomKey={selectedRoomKey}
+      onSelectRoom={focusRoom}
       trades={trades}
       onToggleTrade={toggleTrade}
       exploded={exploded}
@@ -914,6 +1048,26 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       disabled={!modelReady || !explorerReady}
     />
     <div className="three" ref={box}>
+      <div className="room-label-layer" aria-label="Room labels">
+        {rooms.map(room => <button key={room.key} type="button" data-room-label={room.key}
+          className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
+          onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
+          onClick={() => focusRoom(room.key)} title="Fly into this room">
+          {room.name}{room.number ? ` · ${room.number}` : ''}{room.areaM2 !== undefined ? ` · ${room.areaM2.toFixed(1)} m²` : ''}
+        </button>)}
+      </div>
+      {rooms.find(room => room.key === inspectedRoomKey) && (() => {
+        const room = rooms.find(candidate => candidate.key === inspectedRoomKey)!
+        const spaceId = room.guid || room.key
+        return <aside className="room-inspect-card" aria-label={`${room.name} room details`}>
+          <div className="room-inspect-heading"><div><strong>{room.name}{room.number ? ` · ${room.number}` : ''}</strong>
+            <small>{room.areaM2 !== undefined ? `${room.areaM2.toFixed(1)} m²` : 'Area unavailable'}</small></div>
+            <button type="button" onClick={() => setInspectedRoomKey('')} aria-label="Close room card">×</button></div>
+          <RoomCollabPanel spaceId={spaceId} spaceName={room.name} role="" collab={collab}
+            onChange={onCollabChange || (() => undefined)} onHighlightSpace={() => {}} />
+          <RoomMediaPanel spaceId={spaceId} roomName={room.name} />
+        </aside>
+      })()}
       {selectedElement && <aside className="ifc-info-card" aria-label="Selected IFC element details">
         <div className="ifc-info-heading"><div><span>{selectedElement.category}</span><h3>{selectedElement.name}</h3></div>
           <button aria-label="Close element details" onClick={() => setSelectedElement(null)}>×</button></div>

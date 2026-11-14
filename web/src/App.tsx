@@ -569,6 +569,8 @@ export default function App() {
             selectedGuid={selectedGuid}
             onSelectGuid={setSelectedGuid}
             onPlacementsChange={setPlacedProducts}
+            collab={collab}
+            onCollabChange={setCollab}
             onScreenshot={(dataUrl, roomName, note) => {
               setRenderSource(dataUrl)
               setRenderRoomName(roomName)
