@@ -283,6 +283,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const walkKeysRef = useRef(new Set<string>())
   const walkMouseRef = useRef<{ x: number; y: number } | null>(null)
   const walkFloorZRef = useRef(0)
+  const walkAvatarRef = useRef<THREE.Group | null>(null)
   const savedWalkCameraRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3; up: THREE.Vector3 } | null>(null)
   const [status, setStatus] = useState('')
   const [modelReady, setModelReady] = useState(false)
@@ -519,6 +520,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       if (explodeAnimationRef.current !== null) cancelAnimationFrame(explodeAnimationRef.current)
       if (tourAnimationRef.current !== null) cancelAnimationFrame(tourAnimationRef.current)
       stopRecording()
+      walkAvatarRef.current?.removeFromParent()
+      walkAvatarRef.current = null
       showcaseLightsRef.current?.removeFromParent()
       showcaseLightsRef.current = null
       engine.current = null
@@ -959,6 +962,18 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const center = room.box.getCenter(new THREE.Vector3())
     walkFloorZRef.current = room.box.min.z + 1.6
     walkPositionRef.current.set(center.x, center.y, walkFloorZRef.current)
+    walkAvatarRef.current?.removeFromParent()
+    const avatar = new THREE.Group()
+    avatar.name = 'trace-walk-avatar'
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(.16, .19, .72, 14), new THREE.MeshStandardMaterial({ color: '#E9B949', roughness: .62 }))
+    body.rotation.x = Math.PI / 2
+    body.position.z = .42
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 14, 10), new THREE.MeshStandardMaterial({ color: '#f6d4b4', roughness: .8 }))
+    head.position.z = .92
+    avatar.add(body, head)
+    avatar.position.set(center.x, center.y, room.box.min.z + .02)
+    e.world.scene.three.add(avatar)
+    walkAvatarRef.current = avatar
     walkYawRef.current = 0
     walkPitchRef.current = 0
     walkKeysRef.current.clear()
@@ -989,10 +1004,23 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       e.world.camera.enabled = true
     }
     savedWalkCameraRef.current = null
+    walkAvatarRef.current?.removeFromParent()
+    walkAvatarRef.current = null
     walkKeysRef.current.clear()
     walkMouseRef.current = null
     if (walkHelpTimerRef.current) window.clearTimeout(walkHelpTimerRef.current)
     setWalkMode(false)
+  }
+
+  function nudgeWalk(forward: number, strafe = 0) {
+    if (!walkMode) return
+    const room = rooms.find(candidate => candidate.key === selectedRoomKey)
+    const bounds = room?.box ?? walkFloorBounds
+    const step = .55
+    walkPositionRef.current.x += (Math.sin(walkYawRef.current) * forward + Math.cos(walkYawRef.current) * strafe) * step
+    walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * step
+    walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, bounds.min.x + .3, bounds.max.x - .3)
+    walkPositionRef.current.y = THREE.MathUtils.clamp(walkPositionRef.current.y, bounds.min.y + .3, bounds.max.y - .3)
   }
 
   useEffect(() => {
@@ -1056,8 +1084,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         walkPositionRef.current.y += (Math.cos(walkYawRef.current) * forward - Math.sin(walkYawRef.current) * strafe) * speed
       }
       walkPositionRef.current.z = walkFloorZRef.current
-      walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, walkFloorBounds.min.x + .3, walkFloorBounds.max.x - .3)
-      walkPositionRef.current.y = THREE.MathUtils.clamp(walkPositionRef.current.y, walkFloorBounds.min.y + .3, walkFloorBounds.max.y - .3)
+      const activeRoom = rooms.find(room => room.key === selectedRoomKey)
+      const movementBounds = activeRoom?.box ?? walkFloorBounds
+      walkPositionRef.current.x = THREE.MathUtils.clamp(walkPositionRef.current.x, movementBounds.min.x + .3, movementBounds.max.x - .3)
+      walkPositionRef.current.y = THREE.MathUtils.clamp(walkPositionRef.current.y, movementBounds.min.y + .3, movementBounds.max.y - .3)
+      if (walkAvatarRef.current) {
+        walkAvatarRef.current.position.set(walkPositionRef.current.x, walkPositionRef.current.y, movementBounds.min.z + .02)
+        walkAvatarRef.current.rotation.z = -walkYawRef.current
+      }
       updateCamera()
       if (++mapTick % 6 === 0) setWalkMap({ x: walkPositionRef.current.x, y: walkPositionRef.current.y, yaw: walkYawRef.current })
       frame = requestAnimationFrame(tick)
@@ -1748,10 +1782,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       {walkMode && <>
         <div className={`walk-hud ${walkHelpVisible ? 'visible' : ''}`}><strong>Walk mode</strong><span>W A S D / arrows move · drag right side to look · Esc exits · ? help</span></div>
         <div className="walk-joystick walk-ground-arrows" aria-label="Walk direction arrows">
-          <button onPointerDown={() => walkKeysRef.current.add('KeyW')} onPointerUp={() => walkKeysRef.current.delete('KeyW')}>▲</button>
-          <button onPointerDown={() => walkKeysRef.current.add('KeyA')} onPointerUp={() => walkKeysRef.current.delete('KeyA')}>◀</button>
-          <button onPointerDown={() => walkKeysRef.current.add('KeyD')} onPointerUp={() => walkKeysRef.current.delete('KeyD')}>▶</button>
-          <button onPointerDown={() => walkKeysRef.current.add('KeyS')} onPointerUp={() => walkKeysRef.current.delete('KeyS')}>▼</button>
+          <button onClick={() => nudgeWalk(1)} onPointerDown={() => walkKeysRef.current.add('KeyW')} onPointerUp={() => walkKeysRef.current.delete('KeyW')} onPointerLeave={() => walkKeysRef.current.delete('KeyW')}>▲</button>
+          <button onClick={() => nudgeWalk(0, -1)} onPointerDown={() => walkKeysRef.current.add('KeyA')} onPointerUp={() => walkKeysRef.current.delete('KeyA')} onPointerLeave={() => walkKeysRef.current.delete('KeyA')}>◀</button>
+          <button onClick={() => nudgeWalk(0, 1)} onPointerDown={() => walkKeysRef.current.add('KeyD')} onPointerUp={() => walkKeysRef.current.delete('KeyD')} onPointerLeave={() => walkKeysRef.current.delete('KeyD')}>▶</button>
+          <button onClick={() => nudgeWalk(-1)} onPointerDown={() => walkKeysRef.current.add('KeyS')} onPointerUp={() => walkKeysRef.current.delete('KeyS')} onPointerLeave={() => walkKeysRef.current.delete('KeyS')}>▼</button>
         </div>
         <div className="walk-minimap" aria-label="Current floor minimap">
           <strong>{storeys.find(floor => floor.id === selectedStoreyId)?.name || 'Floor map'}</strong>
