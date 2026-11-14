@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -42,6 +42,7 @@ from . import (
     scene,
     uploads,
     vision,
+    workflow,
 )
 
 app = FastAPI(title="Trace API", docs_url="/swagger", redoc_url=None)  # /docs is the project document store
@@ -597,3 +598,177 @@ def drawing_catalog(kind: str | None = None):
     from . import catalog
 
     return catalog.catalog(kind)
+
+
+# ---------------------------------------------------------------------
+# Workflow, Ordering, Change Orders, Budget, and Project Settings (Modules 3, 7, 9)
+# ---------------------------------------------------------------------
+
+class OrderIn(BaseModel):
+    model: str
+    items: list[str] | str
+    supplier: str
+    delivery_date: str
+    deliver_to_space_id: str
+    notify_trades: list[str] = []
+    author: str = ""
+
+
+class OrderStatusIn(BaseModel):
+    id: str
+    status: str
+
+
+class NotificationReadIn(BaseModel):
+    id: str
+
+
+class ChangeOrderIn(BaseModel):
+    space_id: str
+    trade: str
+    author: str
+    description: str
+    amount_eur: float
+
+
+class ChangeOrderDecideIn(BaseModel):
+    id: str
+    decision: str  # approve | reject
+    by: str = ""
+    role: str = ""
+
+
+class ProjectSettingsIn(BaseModel):
+    owner_view: str = "everything"
+    building_type: str = "historic"
+    status_note: str = ""
+
+
+@app.get("/workflow/check")
+def workflow_check(space_id: str, trade: str, start: str = "", end: str = ""):
+    try:
+        return workflow.check_workflow(space_id=space_id, trade=trade, start=start, end=end)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/workflow/blockers")
+def workflow_blockers():
+    try:
+        return {"blockers": workflow.get_all_blockers()}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/orders")
+def orders_post(body: OrderIn):
+    try:
+        return workflow.create_order(
+            model=body.model,
+            items=body.items,
+            supplier=body.supplier,
+            delivery_date=body.delivery_date,
+            deliver_to_space_id=body.deliver_to_space_id,
+            notify_trades=body.notify_trades,
+            author=body.author,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/orders")
+def orders_get(model: str = "", status: str = ""):
+    return {"orders": workflow.list_orders(model=model, status=status)}
+
+
+@app.post("/orders/status")
+def orders_status_post(body: OrderStatusIn):
+    try:
+        return workflow.update_order_status(order_id=body.id, new_status=body.status)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/calendar")
+def calendar_get(from_date: str = Query("", alias="from"), to_date: str = Query("", alias="to")):
+    return {"events": workflow.get_calendar(from_date=from_date, to_date=to_date)}
+
+
+@app.get("/notifications")
+def notifications_get(trade: str = ""):
+    return {"notifications": workflow.list_notifications(trade=trade)}
+
+
+@app.post("/notifications/read")
+def notifications_read_post(body: NotificationReadIn):
+    found = workflow.mark_notification_read(body.id)
+    if not found:
+        raise HTTPException(404, f"Notification '{body.id}' not found")
+    return {"ok": True, "id": body.id}
+
+
+@app.post("/change-orders")
+def change_orders_post(body: ChangeOrderIn):
+    try:
+        return workflow.create_change_order(
+            space_id=body.space_id,
+            trade=body.trade,
+            author=body.author,
+            description=body.description,
+            amount_eur=body.amount_eur,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/change-orders/decide")
+def change_orders_decide_post(body: ChangeOrderDecideIn):
+    try:
+        return workflow.decide_change_order(
+            order_id=body.id,
+            decision=body.decision,
+            by=body.by,
+            role=body.role,
+        )
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/change-orders")
+def change_orders_get(space_id: str = "", status: str = ""):
+    return {"change_orders": workflow.list_change_orders(space_id=space_id, status=status)}
+
+
+@app.get("/budget")
+def budget_get():
+    return workflow.get_budget()
+
+
+@app.get("/project/settings")
+def project_settings_get():
+    return workflow.get_project_settings()
+
+
+@app.post("/project/settings")
+def project_settings_post(body: ProjectSettingsIn):
+    try:
+        return workflow.update_project_settings(body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+

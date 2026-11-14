@@ -276,12 +276,47 @@ def clear_demo_data() -> dict[str, int]:
     except Exception as e:
         logger.warning("Failed to clear demo docs store: %s", e)
 
+    # 4. Workflow store (orders, change orders, notifications, settings)
+    orders_cleared = 0
+    cos_cleared = 0
+    try:
+        from agent import workflow
+
+        wdata = workflow.load()
+        orig_o = len(wdata.get("orders", []))
+        wdata["orders"] = [
+            o for o in wdata.get("orders", [])
+            if not str(o.get("supplier", "")).startswith(DEMO_PREFIX)
+            and not str(o.get("author", "")).startswith(DEMO_PREFIX)
+        ]
+        orders_cleared = orig_o - len(wdata["orders"])
+
+        orig_co = len(wdata.get("change_orders", []))
+        wdata["change_orders"] = [
+            c for c in wdata.get("change_orders", [])
+            if not str(c.get("description", "")).startswith(DEMO_PREFIX)
+            and not str(c.get("author", "")).startswith(DEMO_PREFIX)
+        ]
+        cos_cleared = orig_co - len(wdata["change_orders"])
+
+        wdata["notifications"] = [
+            n for n in wdata.get("notifications", [])
+            if not str(n.get("text", "")).startswith(DEMO_PREFIX)
+            and "Demo:" not in str(n.get("text", ""))
+        ]
+        wdata["project_settings"] = workflow.DEFAULT_PROJECT_SETTINGS.copy()
+        workflow._save(wdata)
+    except Exception as e:
+        logger.warning("Failed to clear demo workflow data: %s", e)
+
     return {
         "status_cleared": status_cleared,
         "messages_cleared": msgs_cleared,
         "people_cleared": people_cleared,
         "placements_cleared": placements_cleared,
         "docs_cleared": docs_cleared,
+        "orders_cleared": orders_cleared,
+        "change_orders_cleared": cos_cleared,
     }
 
 
@@ -368,11 +403,69 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
         except Exception as e:
             logger.warning("Failed to seed document store: %s", e)
 
+    # Seed workflow data (orders, change orders, project settings)
+    orders_seeded = 0
+    cos_seeded = 0
+    try:
+        from agent import workflow
+
+        wdata = workflow.load()
+        existing_cos = wdata.get("change_orders", [])
+        if not existing_cos or reset:
+            co1 = workflow.create_change_order(
+                space_id="1hRdD63Mo$FJyGECMZH6V_",
+                trade="architect",
+                author="Demo: Alice Architect",
+                description="Demo: Custom oak built-in wardrobe",
+                amount_eur=1250.0,
+            )
+            workflow.decide_change_order(
+                order_id=co1["id"],
+                decision="approve",
+                by="Demo: Owner",
+                role="owner",
+            )
+            workflow.create_change_order(
+                space_id="3nzbtvC0UUFkkrjEvNjcXt",
+                trade="plumber",
+                author="Demo: Bob Plumber",
+                description="Demo: Concealed pipe routing and valve upgrade",
+                amount_eur=480.0,
+            )
+            cos_seeded = 2
+        else:
+            cos_seeded = len(existing_cos)
+
+        existing_orders = wdata.get("orders", [])
+        if not existing_orders or reset:
+            workflow.create_order(
+                model=DEMO_IFC_MODEL,
+                items=["demo-placement-desk"],
+                supplier="Demo: Nordic Furniture AB",
+                delivery_date="2026-11-20",
+                deliver_to_space_id="1hRdD63Mo$FJyGECMZH6V_",
+                notify_trades=["architect", "electrician"],
+                author="Demo: Alice Architect",
+            )
+            orders_seeded = 1
+        else:
+            orders_seeded = len(existing_orders)
+
+        workflow.update_project_settings({
+            "owner_view": "everything",
+            "building_type": "historic",
+            "status_note": "Demo: Historic building renovation",
+        })
+    except Exception as e:
+        logger.warning("Failed to seed workflow data: %s", e)
+
     return {
         "rooms_seeded": room_count,
         "messages_seeded": msg_count,
         "placements_seeded": placement_count,
         "docs_seeded": docs_seeded,
+        "orders_seeded": orders_seeded,
+        "change_orders_seeded": cos_seeded,
         "ifc_model": DEMO_IFC_MODEL,
         "ifc_plan": DEMO_IFC_PLAN,
         "swiss_plan": DEMO_SWISS_PLAN,
@@ -397,6 +490,8 @@ def main():
     print(f"  - Messages recorded: {res['messages_seeded']}")
     print(f"  - 3D placements:     {res['placements_seeded']}")
     print(f"  - Docs filed:        {res.get('docs_seeded', 0)} in project '{res.get('docs_project')}'")
+    print(f"  - Orders created:    {res.get('orders_seeded', 0)}")
+    print(f"  - Change orders:     {res.get('change_orders_seeded', 0)}")
     print(f"  - Target IFC model:  {res['ifc_model']}")
     print(f"  - Target Swiss plan: {res['swiss_plan']}")
 
