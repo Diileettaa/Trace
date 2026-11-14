@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { getDocEvents, getDocVersions, listProjectDocs, projectDocFileUrl, resolveProjectDoc, uploadProjectDoc, type DocEvent, type ProjectDocument } from '../api'
+import { getDocEvents, getDocVersions, getDocsMailbox, listProjectDocs, projectDocFileUrl, resolveProjectDoc, uploadProjectDoc, type DocEvent, type ProjectDocument } from '../api'
 
 type FolderKey = 'all' | 'architecture' | 'structural' | 'hvac' | 'electrical' | 'fire' | 'permits' | 'attention'
 const FOLDERS: { key: FolderKey; label: string }[] = [
@@ -71,6 +71,8 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
   const [feedback, setFeedback] = useState('')
   const [receipt, setReceipt] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [mailboxStatus, setMailboxStatus] = useState<'checking' | 'connected' | 'offline' | 'error'>('checking')
+  const [mailboxReceiptCount, setMailboxReceiptCount] = useState(0)
   const fileInput = useRef<HTMLInputElement>(null)
 
   async function refresh(q = query, folder = activeFolder) {
@@ -95,6 +97,16 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
     } catch (error) { setFeedback(error instanceof Error ? error.message : String(error)) }
   }
   useEffect(() => { void refresh('') }, [activeFolder])
+  useEffect(() => {
+    let alive = true
+    void getDocsMailbox().then(({ connected, receipts }) => {
+      if (!alive) return
+      setMailboxStatus(connected ? 'connected' : 'offline')
+      setMailboxReceiptCount(receipts.length)
+      if (connected) void refresh('')
+    }).catch(() => { if (alive) setMailboxStatus('error') })
+    return () => { alive = false }
+  }, [])
   useEffect(() => {
     if (selectedDocumentId == null) return
     setActiveFolder('all'); setQuery(''); setSearchText('')
@@ -145,6 +157,7 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
   const previewUrl = selected ? projectDocFileUrl(selected.id) : ''
 
   return <div className="docs-library">
+    <div className="docs-mailbox-banner"><span>Send or CC files to the project mailbox and they are filed here automatically, with revision tracking.</span><small className={`docs-mailbox-status ${mailboxStatus}`}>{mailboxStatus === 'offline' ? 'Mailbox not connected yet (demo uses sample e-mails)' : mailboxStatus === 'checking' ? 'Checking mailbox connection…' : mailboxStatus === 'connected' ? `Mailbox connected${mailboxReceiptCount ? ` · ${mailboxReceiptCount} receipt${mailboxReceiptCount === 1 ? '' : 's'} filed` : ''}` : 'Mailbox status unavailable'}</small></div>
     <div className={`docs-dropzone${dragging ? ' dragging' : ''}`} onDragEnter={event => { event.preventDefault(); setDragging(true) }} onDragOver={event => event.preventDefault()} onDragLeave={event => { if (event.target === event.currentTarget) setDragging(false) }} onDrop={onDrop} onClick={() => fileInput.current?.click()} role="button" tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') fileInput.current?.click() }}>
       <strong>Drop drawings, permits or reports here</strong><span>or click to choose a file</span>
       <input ref={fileInput} type="file" hidden onChange={onFileChange} />

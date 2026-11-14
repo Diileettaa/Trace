@@ -211,3 +211,10 @@ export async function resolveProjectDoc(id: number, action: 'approve' | 'make_la
   return body.document
 }
 export const projectDocFileUrl = (id: number) => `${BASE}/docs/file?${new URLSearchParams({ id: String(id) })}`
+export async function getDocsMailbox(): Promise<{ connected: boolean; receipts: unknown[] }> {
+  const response = await fetch(`${BASE}/docs/mailbox`)
+  if (response.status === 503) return { connected: false, receipts: [] }
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  const body = await response.json() as { receipts?: unknown[] }
+  return { connected: true, receipts: body.receipts || [] }
+}
