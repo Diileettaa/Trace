@@ -291,7 +291,17 @@ def _enrich_and_stabilize_items(path: str, raw_items: list[dict], source: str) -
                 if cand.is_file():
                     ifc_file = cand
             if ifc_file.is_file():
-                idx = room_contents._build_ifc_spatial_index(ifc_file)
+                idx = None
+                cf = room_contents._ifc_index_cache_file(ifc_file)
+                if cf.is_file():
+                    try:
+                        import json
+                        idx = json.loads(cf.read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                if not idx:
+                    idx = room_contents._build_ifc_spatial_index(ifc_file)
+
                 space_map = {s["guid"]: s for s in idx.get("spaces", [])}
                 guid_to_space = {}
                 for s_guid, els in idx.get("elements_by_space", {}).items():

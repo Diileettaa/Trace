@@ -162,8 +162,10 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
                 space_map = {s["guid"]: s for s in M.get("spaces", []) if "guid" in s}
                 from . import room_contents
 
-                idx = room_contents._build_ifc_spatial_index(ifc_model)
-                space_box_map = {sp["guid"]: sp.get("bbox") for sp in idx.get("spaces", []) if sp.get("bbox")}
+                cf = room_contents._ifc_index_cache_file(ifc_model)
+                if cf.is_file():
+                    idx = json.loads(cf.read_text(encoding="utf-8"))
+                    space_box_map = {sp["guid"]: sp.get("bbox") for sp in idx.get("spaces", []) if sp.get("bbox")}
             except Exception:
                 pass
 
@@ -245,8 +247,10 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
             try:
                 from . import room_contents
 
-                idx = room_contents._build_ifc_spatial_index(full)
-                space_box_map = {sp["guid"]: sp.get("bbox") for sp in idx.get("spaces", []) if sp.get("bbox")}
+                cf = room_contents._ifc_index_cache_file(full)
+                if cf.is_file():
+                    idx = json.loads(cf.read_text(encoding="utf-8"))
+                    space_box_map = {sp["guid"]: sp.get("bbox") for sp in idx.get("spaces", []) if sp.get("bbox")}
             except Exception:
                 pass
 
