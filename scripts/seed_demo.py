@@ -319,7 +319,31 @@ def clear_demo_data() -> dict[str, int]:
         wdata["project_settings"] = workflow.DEFAULT_PROJECT_SETTINGS.copy()
         workflow._save(wdata)
     except Exception as e:
-        logger.warning("Failed to clear demo workflow data: %s", e)
+        logger.warning("Failed to clear demo workflow store: %s", e)
+
+    # 5. Media & item verification statuses
+    media_cleared = 0
+    try:
+        from agent import media
+
+        records = media.load_records()
+        new_records = [
+            r for r in records
+            if not str(r.get("author", "")).endswith("· Demo")
+            and not str(r.get("author", "")).startswith(DEMO_PREFIX)
+        ]
+        media_cleared = len(records) - len(new_records)
+        media._save_records(new_records)
+
+        statuses = media.load_item_statuses()
+        new_statuses = {
+            k: v for k, v in statuses.items()
+            if not str(v.get("author", "")).endswith("· Demo")
+            and not str(v.get("author", "")).startswith(DEMO_PREFIX)
+        }
+        media._save_item_statuses(new_statuses)
+    except Exception as e:
+        logger.warning("Failed to clear demo media: %s", e)
 
     return {
         "status_cleared": status_cleared,
@@ -490,6 +514,67 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
     except Exception as e:
         logger.warning("Failed to seed workflow data: %s", e)
 
+    # Seed Gigi workbench on-site verification photos & item statuses (Brief 31 item 4)
+    media_seeded = 0
+    try:
+        from agent import engine_adapter, media
+
+        img_dir = _ROOT / "design" / "gigi" / "src" / "assets" / "images"
+        if img_dir.is_dir():
+            wc_std_f = img_dir / "wc_installed_standard_1794668063424.jpg"
+            wc_acc_f = img_dir / "wc_installed_accessible_1794668064308.jpg"
+            wc_rough_f = img_dir / "wc_rough_in_pipes_1794668065164.jpg"
+            duct_f = img_dir / "site_photo_hvac_duct_1794662437069.jpg"
+            damper_f = img_dir / "site_photo_fire_damper_1794662438641.jpg"
+
+            wc_std = wc_std_f.read_bytes() if wc_std_f.is_file() else b""
+            wc_acc = wc_acc_f.read_bytes() if wc_acc_f.is_file() else b""
+            wc_rough = wc_rough_f.read_bytes() if wc_rough_f.is_file() else b""
+            duct_img = duct_f.read_bytes() if duct_f.is_file() else b""
+            damper_img = damper_f.read_bytes() if damper_f.is_file() else b""
+
+            # 1. Tallinn (esplanades plan PDF)
+            ans_t = engine_adapter.answer(DEMO_IFC_PLAN, "How many toilets?")
+            t_items = ans_t.get("items", [])
+            if len(t_items) >= 3:
+                id1 = t_items[0]["id"]
+                id2 = t_items[1]["id"]
+                id3 = t_items[2]["id"]
+
+                # 1st toilet: Installed + wc_installed_standard (M. Lindqvist · Demo)
+                if wc_std:
+                    media.save_media("wc_installed_standard.jpg", wc_std, space_id=t_items[0].get("space_id") or "", item_id=id1, status="Installed", author="M. Lindqvist · Demo", role="plumber", note="Installed Standard WC · Tiled Stall 01")
+                    media_seeded += 1
+
+                # 2nd toilet: In Progress (no photo)
+                media.update_item_status(item_id=id2, status="In Progress", path=DEMO_IFC_PLAN, space_id=t_items[1].get("space_id") or "", author="Demo inspector · Demo", note="Unverified: no site photo yet.")
+
+                # 3rd toilet: Issue Reported + wc_installed_accessible (K. Korhonen · Demo)
+                if wc_acc:
+                    media.save_media("wc_installed_accessible.jpg", wc_acc, space_id=t_items[2].get("space_id") or "", item_id=id3, status="Issue Reported", author="K. Korhonen · Demo", role="inspector", note="transfer zone 865 mm, 35 mm short of 900 mm (DIN 18040)")
+                    media_seeded += 1
+
+            # 2. Swiss site1000
+            ans_s = engine_adapter.answer(DEMO_SWISS_PLAN, "How many toilets?")
+            s_items = ans_s.get("items", [])
+            if len(s_items) >= 2:
+                if wc_std:
+                    media.save_media("wc_installed_standard_swiss.jpg", wc_std, space_id=s_items[0].get("space_id") or "", item_id=s_items[0]["id"], status="Installed", author="M. Lindqvist · Demo", role="plumber", note="Standard Wall-Hung WC installed on tiled pre-wall")
+                    media_seeded += 1
+                if wc_rough:
+                    media.save_media("wc_rough_in_pipes_swiss.jpg", wc_rough, space_id=s_items[1].get("space_id") or "", item_id=s_items[1]["id"], status="In Progress", author="Bob Plumber · Demo", role="plumber", note="Rough-in connections only (pre-wall open)")
+                    media_seeded += 1
+
+            # 3. 2 Duct photos
+            if duct_img:
+                media.save_media("site_photo_hvac_duct.jpg", duct_img, space_id="1hRdD63Mo$FJyGECMZH6V_", item_id="hvac-duct-demo", status="Installed", author="Mikko Lindqvist · Demo", role="MEP Lead", note="Supply duct SD-204 installed")
+                media_seeded += 1
+            if damper_img:
+                media.save_media("site_photo_fire_damper.jpg", damper_img, space_id="1hRdD63Mo$FJyGECMZH6V_", item_id="hvac-damper-demo", status="Installed", author="Mikko Lindqvist · Demo", role="MEP Lead", note="Motorized fire damper installed")
+                media_seeded += 1
+    except Exception as e:
+        logger.warning("Failed to seed Gigi workbench demo media: %s", e)
+
     return {
         "rooms_seeded": room_count,
         "messages_seeded": msg_count,
@@ -497,6 +582,7 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
         "docs_seeded": docs_seeded,
         "orders_seeded": orders_seeded,
         "change_orders_seeded": cos_seeded,
+        "media_seeded": media_seeded,
         "ifc_model": DEMO_IFC_MODEL,
         "ifc_plan": DEMO_IFC_PLAN,
         "swiss_plan": DEMO_SWISS_PLAN,
