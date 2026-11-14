@@ -6,6 +6,7 @@
 每一步浏览器对照 Gigi 实际应用（AI Studio 的 Untitled）验证后单独 commit，不 push。只改 web/。
 
 ## 数据映射（Gigi 假数据 → 我们的接口）
+**已写好：`web/src/gigi/adapters.ts`（Claude）。** `toScenario(askResp, question, path, planRooms, verifyStatus, imageSize)` 直接返回 Gigi 的 `scenario` + `fixtures`；`withElementInfo()` 填 3D 尺寸卡；`api.*` 是全部接口调用。第 2 步直接用它，不要重写映射。下表是它做的事，供核对：
 | Gigi | 我们 |
 |---|---|
 | `QueryScenario` | 一次 `POST /api/ask` 的结果（见下） |
