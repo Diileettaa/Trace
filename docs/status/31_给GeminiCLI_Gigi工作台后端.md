@@ -45,3 +45,9 @@ Xinran 的路由（/api/docs/ask 等）要先把文件上传到资料库拿 doc 
 - 构件取平面外包矩形的四条边中点，沿 ±x、±y 方向射线求到房间多边形边的最近交点距离 → left/right/front/rear（front = 构件朝向一侧；不知道朝向时按离门最近的一侧）
 - 返回 `method: "polygon"`；退回外包盒时 `method: "bbox"`，前端据此显示 ≈
 - 测试：L 形房间一例
+
+## 8. 房间墙尺寸（Gigi 3D 房间视图要显示）
+`GET /room/walls?path=&space_id=` → `{walls:[{guid, name, length_m, thickness_m, height_m, side:"N|E|S|W"}], room:{L,B,H}}`
+- IFC：用 IfcRelSpaceBoundary 找到房间边界墙；没有就用房间多边形每条边附近（<0.3 m）的 IfcWall
+- 长度取墙在该房间那一侧的边长；厚度、高度来自墙几何/Qto_WallBaseQuantities
+- 没有就返回空列表 + reason，不估
