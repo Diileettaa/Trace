@@ -130,11 +130,60 @@ class MessageIn(BaseModel):
     author: str = ""
     role: str = ""
     notify: list[str] = []
+    attachment: str = ""
+
+class PersonIn(BaseModel):
+    name: str
+    trade: str
+    email: str
+    phone: str
+
+class DirectIn(BaseModel):
+    recipient: str
+    text: str = ""
+    author: str = ""
+    attachment: str = ""
+
+class BookingIn(BaseModel):
+    space_id: str
+    trade: str
+    person: str
+    start: float
+    end: float
+    what: str
 
 
 @app.get("/collab")
-def collab_get(space_id: str | None = None):
-    return {"statuses": collab.STATUSES, **collab.for_space(space_id)}
+def collab_get(space_id: str | None = None, viewer: str | None = None):
+    return {"statuses": collab.STATUSES, **collab.for_space(space_id, viewer)}
+
+@app.get("/collab/people")
+def collab_people():
+    return collab.people()
+
+@app.post("/collab/people")
+def collab_register(body: PersonIn):
+    try: return collab.register_person(body.name, body.trade, body.email, body.phone)
+    except ValueError as exc: raise HTTPException(400, str(exc))
+
+@app.get("/collab/direct")
+def collab_direct_get(person: str, with_person: str):
+    data = collab.for_space(None, person)
+    return [m for m in data["messages"] if m.get("thread") == "direct" and {m.get("author"), m.get("recipient")} == {person, with_person}]
+
+@app.post("/collab/direct")
+def collab_direct(body: DirectIn):
+    try: return collab.post_direct(body.recipient, body.text, body.author, body.attachment)
+    except ValueError as exc: raise HTTPException(400, str(exc))
+
+@app.get("/collab/bookings")
+def collab_bookings():
+    return collab.for_space(None)["bookings"]
+
+@app.post("/collab/bookings")
+def collab_booking(body: BookingIn):
+    try: return collab.book(body.space_id, body.trade, body.person, body.start, body.end, body.what)
+    except ValueError as exc: raise HTTPException(400, str(exc))
 
 
 @app.post("/collab/status")
@@ -148,7 +197,7 @@ def collab_status(body: StatusIn):
 @app.post("/collab/message")
 def collab_message(body: MessageIn):
     try:
-        return collab.post_message(body.space_id, body.text, body.author, body.role, body.notify)
+        return collab.post_message(body.space_id, body.text, body.author, body.role, body.notify, body.attachment)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

@@ -4,6 +4,7 @@ import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer, { type PlacedProduct } from './IfcViewer'
 import RoomCollabPanel from './components/RoomCollabPanel'
+import ContactRegistration from './components/ContactRegistration'
 import SpaceTree, { type TreeEntry } from './components/SpaceTree'
 import VerifyBadge from './components/VerifyBadge'
 import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, Source } from './types'
@@ -243,6 +244,7 @@ export default function App() {
   return (
     <div className="app">
       <aside className="panel">
+        <ContactRegistration />
         <header className="header">
           <div className="title-row">
             <h1>Trace</h1>

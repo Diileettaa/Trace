@@ -1,4 +1,4 @@
-import type { AskResponse, CollabState, DatasetQuestion, Evidence, Role, RoomStatus } from './types'
+import type { AskResponse, CollabState, CollabPerson, DatasetQuestion, Evidence, Role, RoomStatus } from './types'
 
 const BASE = '/api'
 
@@ -34,6 +34,16 @@ export async function inventory(path: string, page = 1): Promise<Evidence> {
 export async function getCollab(): Promise<CollabState> {
   const r = await fetch(`${BASE}/collab`)
   return r.ok ? r.json() : { status: {}, messages: [] }
+}
+
+export async function getPeople(): Promise<CollabPerson[]> {
+  const response = await fetch(`${BASE}/collab/people`)
+  return response.ok ? response.json() : []
+}
+export async function registerPerson(person: Omit<CollabPerson, 'id'>): Promise<CollabPerson> {
+  const response = await fetch(`${BASE}/collab/people`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(person) })
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
 }
 
 async function post(url: string, body: unknown): Promise<CollabState> {

@@ -59,10 +59,18 @@ export interface CollabMessage {
   notify?: string[]
   ts: number
   changed?: boolean
+  recipient?: string
+  thread?: string
+  attachment?: string | null
 }
+
+export interface CollabPerson { id: string; name: string; trade: string; email: string; phone: string }
+export interface CollabBooking { id: string; space_id: string; trade: string; person: string; start: number; end: number; what: string; created_at: number; demo?: boolean; conflict_with?: string | null; winner?: CollabBooking }
 
 export interface CollabState {
   statuses?: RoomStatus[]
   status: Record<string, { status: RoomStatus; author?: string; ts: number }>
   messages: CollabMessage[]
+  people?: CollabPerson[]
+  bookings?: CollabBooking[]
 }
