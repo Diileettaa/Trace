@@ -29,7 +29,7 @@
 - pytest 全过；对本地跑：Tallinn 马桶题 → /verify/status 返回 1 Installed / 1 In Progress / 1 Issue；/element/info 返回 clearances
 - 完成告诉 Diletta
 
-## 6. 交互复核接到我们的 /ask（Xinran 的 engine/review.py；说明见 Xinran 的「07 frontend interactive review」）
+## 6.（取消：Xinran 33 号第 1 项做）交互复核接到我们的 /ask（Xinran 的 engine/review.py；说明见 Xinran 的「07 frontend interactive review」）
 Xinran 的路由（/api/docs/ask 等）要先把文件上传到资料库拿 doc id。我们的工作台按 path 工作，所以在 agent/app.py 加同功能、按 path 的路由（直接调 engine.review，不改 engine）：
 - `/ask`：engine 原始结果出来后（转换前）调用 `review.register(r, <实际文件路径>, question)`，把返回的 `answer_id`、`alternatives`、`interactive` 放进 /ask 响应顶层；每个 item 加 `review_id`（= register 后 items 里的 id，顺序与我们 items 一致，写测试保证）
 - `POST /review` body 同 Xinran：`{answer_id, remove, add, choose, user}` → 返回 review.review() 结果，并带上我们的 `answer_text`（如「Model 41 → reviewed by X: 44」）
@@ -46,7 +46,7 @@ Xinran 的路由（/api/docs/ask 等）要先把文件上传到资料库拿 doc 
 - 返回 `method: "polygon"`；退回外包盒时 `method: "bbox"`，前端据此显示 ≈
 - 测试：L 形房间一例
 
-## 8. 房间墙尺寸（Gigi 3D 房间视图要显示）
+## 8.（改：Xinran 33 号第 3 项做 engine 函数，Gemini 只包 /room/walls 路由，等她推送后）房间墙尺寸（Gigi 3D 房间视图要显示）
 `GET /room/walls?path=&space_id=` → `{walls:[{guid, name, length_m, thickness_m, height_m, side:"N|E|S|W"}], room:{L,B,H}}`
 - IFC：用 IfcRelSpaceBoundary 找到房间边界墙；没有就用房间多边形每条边附近（<0.3 m）的 IfcWall
 - 长度取墙在该房间那一侧的边长；厚度、高度来自墙几何/Qto_WallBaseQuantities
