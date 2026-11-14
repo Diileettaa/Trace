@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { GeometryObject, GeometryOpening, GeometryScene, GeometrySource, GeometrySystem, PlanPoint } from '../viewer3d/geometryScene'
+import type { GeometryObject, GeometryOpening, GeometryRoom, GeometryScene, GeometrySource, GeometrySystem, GeometryWall, PlanPoint } from '../viewer3d/geometryScene'
 
 type SceneLayer = 'architecture' | 'sanitary' | 'hvac' | 'electrical'
 
@@ -24,6 +24,43 @@ const layerFor = (kind: string): SceneLayer => {
 }
 const layerVisible = (layer: SceneLayer, visibleLayers?: Partial<Record<SceneLayer, boolean>>) => visibleLayers?.[layer] !== false
 const matchesStorey = (item: { storeyId?: string }, storeyId?: string | null) => !storeyId || !item.storeyId || item.storeyId === storeyId
+const metres = (value: number) => `${value < 1 ? value.toFixed(2) : value.toFixed(2).replace(/\.00$/, '')} m`
+
+interface Inspection {
+  id: string
+  title: string
+  kind: string
+  dimensions: string[]
+  method?: string
+  confidence?: number
+  assumed?: boolean
+  source?: GeometrySource
+}
+
+const inspectionFor = (scene: GeometryScene, id: string, roomId?: string): Inspection | null => {
+  const build = (item: GeometryObject | GeometryOpening | GeometryWall | GeometrySystem | GeometryRoom, title: string, kind: string, dimensions: string[]): Inspection => ({
+    id: item.id, title, kind, dimensions, method: item.method, confidence: item.confidence, assumed: item.assumed, source: item.source,
+  })
+  if (roomId) {
+    const room = scene.rooms.find(item => item.id === roomId)
+    return room ? build(room, room.name || room.number || room.id, 'Room', [
+      ...(room.areaM2 !== null && room.areaM2 !== undefined ? [`${room.areaM2.toFixed(2)} m²`] : []),
+      ...(room.heightM !== undefined ? [`height ${metres(room.heightM)}`] : []),
+    ]) : null
+  }
+  const object = scene.objects.find(item => item.id === id)
+  if (object) return build(object, object.name || object.id, object.category, [
+    ...(object.footprint ? [`${metres(object.footprint.widthM)} × ${metres(object.footprint.depthM)}`] : []),
+    ...(object.heightM !== undefined ? [`height ${metres(object.heightM)}`] : []),
+  ])
+  const opening = scene.openings.find(item => item.id === id)
+  if (opening) return build(opening, opening.id, opening.kind, [`${metres(opening.widthM)} × ${metres(opening.heightM)}`])
+  const wall = scene.walls.find(item => item.id === id)
+  if (wall) return build(wall, wall.id, 'wall', [`${metres(wall.thicknessM)} thick`, `height ${metres(wall.heightM)}`])
+  const system = scene.systems.find(item => item.id === id)
+  if (system) return build(system, system.id, system.kind, system.diameterM !== undefined ? [`Ø ${metres(system.diameterM)}`] : [])
+  return null
+}
 
 const roomMesh = (polygon: PlanPoint[], y: number, material: THREE.Material) => {
   const shape = new THREE.Shape(polygon.map(([x, z]) => new THREE.Vector2(x, z)))
@@ -104,6 +141,7 @@ const systemSymbol = (system: GeometrySystem) => {
 /** Renders only calibrated metre-based data supplied by the scene endpoint. */
 export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, onSelectSource, focusRoomId, storeyId, visibleLayers }: Props) {
   const host = useRef<HTMLDivElement>(null)
+  const [inspection, setInspection] = useState<Inspection | null>(null)
   const reviewNeeded = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
     .some(item => item.confidence !== undefined && item.confidence < .7)
   const hasAssumedDimensions = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
@@ -186,12 +224,13 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
       })
       let node = hit?.object ?? null
       while (node && typeof node.userData.objectId !== 'string' && typeof node.userData.roomId !== 'string' && !node.userData.source) node = node.parent
-      if (node?.userData.objectId) onSelectObject?.(node.userData.objectId as string)
-      else if (node?.userData.roomId) onSelectRoom?.({ id: node.userData.roomId as string, name: node.userData.roomName as string })
-      const source = node?.userData.source as GeometrySource | undefined
-      // An IFC GUID is already inspectable in 3D. A drawing link requires the
-      // exact PNG-pixel rectangle defined by the shared tool result format.
-      if (source?.bbox) onSelectSource?.(source)
+      if (node?.userData.objectId) {
+        const id = node.userData.objectId as string
+        onSelectObject?.(id); setInspection(inspectionFor(scene, id))
+      } else if (node?.userData.roomId) {
+        const id = node.userData.roomId as string
+        onSelectRoom?.({ id, name: node.userData.roomName as string }); setInspection(inspectionFor(scene, '', id))
+      }
     }
     renderer.domElement.addEventListener('click', onClick)
     const resize = () => { const width = Math.max(1, element.clientWidth); const height = Math.max(1, element.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix() }
@@ -200,5 +239,5 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
   }, [focusRoomId, onSelectObject, onSelectRoom, onSelectSource, scene, storeyId, visibleLayers])
 
-  return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside></div>
+  return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside>{inspection && <aside className="geometry-scene-inspector" aria-live="polite"><button type="button" className="geometry-scene-inspector-close" onClick={() => setInspection(null)} aria-label="Close element details">×</button><strong>{inspection.title}</strong><span>{inspection.kind}</span>{inspection.dimensions.map((dimension) => <span key={dimension}>{dimension}</span>)}{inspection.method && <span>method: {inspection.method}</span>}{inspection.confidence !== undefined && <span>confidence: {Math.round(inspection.confidence * 100)}%</span>}{inspection.assumed && <span className="geometry-scene-review">△ default dimension</span>}{inspection.source?.bbox && <button type="button" className="geometry-scene-source-button" onClick={() => onSelectSource?.(inspection.source!)}>Open source evidence</button>}</aside>}</div>
 }
