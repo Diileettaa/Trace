@@ -27,7 +27,7 @@ const LAYERS: { id: LayerId; label: string }[] = [
 ]
 const ZOOM: Record<string, number> = { '1:200': 1, '1:100': 2, '1:50': 4, '1:20': 8 }
 
-function PlanEvidence({ path, scenario, fixtures, scale, layers, onVerify }: { path: string; scenario: QueryScenario | null; fixtures: Record<string, FixtureVerification>; scale: string; layers: Record<LayerId, boolean>; onVerify: (fixture: FixtureVerification) => void }) {
+export function PlanEvidence({ path, scenario, fixtures, scale, layers, onVerify }: { path: string; scenario: QueryScenario | null; fixtures: Record<string, FixtureVerification>; scale: string; layers: Record<LayerId, boolean>; onVerify: (fixture: FixtureVerification) => void }) {
   const [imageSize, setImageSize] = useState<[number, number] | null>(null)
   const [hovered, setHovered] = useState<FixtureVerification | null>(null)
   const visibleFixtures = Object.values(fixtures).filter(fixture => layers[layerOf(fixture.category)] && fixture.position)
