@@ -29,4 +29,5 @@ GEMINI_PRICE_OUT = float(os.getenv("GEMINI_PRICE_OUT", "3.75"))
 
 # Agent behaviour
 MAX_TOOL_STEPS = int(os.getenv("MAX_TOOL_STEPS", "5"))
+TOKEN_BUDGET = int(os.getenv("TOKEN_BUDGET", "30000"))  # per question; the agent stops and says why above this
 TEMPERATURE = 0.0

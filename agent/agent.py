@@ -220,6 +220,13 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
                 usage[k] += int(getattr(um, attr, 0) or 0) if um else 0
             usage["gemini_calls"] += 1
             calls = resp.function_calls or []
+            if calls and usage["input"] + usage["output"] + usage["thinking"] > config.TOKEN_BUDGET:
+                # stop paying for a loop that is not converging; say why instead of guessing
+                why = "; ".join(dict.fromkeys(str(w) for e in evidence for w in (e.get("warnings") or [])))[:300]
+                answer = ("I could not get a reliable answer from this drawing within the cost limit"
+                          + (f" ({why})" if why else "") + ". For areas and lengths on a scan, set the scale "
+                          "(click both ends of a known dimension) and measure on the drawing.")
+                break
             if not calls:
                 answer = resp.text or ""
                 break
@@ -233,7 +240,8 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
                 parts.append(types.Part.from_function_response(name=fc.name, response={"result": result}))
             contents.append(types.Content(role="user", parts=parts))
         else:
-            answer = "I could not finish within the allowed number of steps."
+            why = "; ".join(dict.fromkeys(str(w) for e in evidence for w in (e.get("warnings") or [])))[:300]
+            answer = "I could not get a reliable answer from this drawing" + (f" ({why})" if why else "") + "."
 
         bad = unsupported_numbers(answer, question, evidence)
         if not bad:
