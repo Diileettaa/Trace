@@ -22,6 +22,8 @@ COPY engine/ engine/
 COPY models/ models/
 COPY mock/ mock/
 COPY ask.py ./
+COPY scripts/ scripts/
+COPY design/gigi/src/assets/images/ design/gigi/src/assets/images/
 COPY --from=web /web/dist web/dist
 # warm-up: load the YOLO weights once at build time so the first request is not slow
 RUN python -c "from engine import detector; assert detector.available(), 'YOLO detector not available'"

@@ -534,7 +534,7 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
             damper_img = damper_f.read_bytes() if damper_f.is_file() else b""
 
             # 1. Tallinn (esplanades plan PDF)
-            ans_t = engine_adapter.answer(DEMO_IFC_PLAN, "How many toilets?")
+            ans_t = engine_adapter.answer(DEMO_IFC_PLAN, "How many doors are on this floor?")  # the Tallinn IFC is architecture only: no toilets modelled
             t_items = ans_t.get("items", [])
             if len(t_items) >= 3:
                 id1 = t_items[0]["id"]
@@ -543,7 +543,7 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
 
                 # 1st toilet: Installed + wc_installed_standard (M. Lindqvist · Demo)
                 if wc_std:
-                    media.save_media("wc_installed_standard.jpg", wc_std, space_id=t_items[0].get("space_id") or "", item_id=id1, status="Installed", author="M. Lindqvist · Demo", role="plumber", note="Installed Standard WC · Tiled Stall 01")
+                    media.save_media("wc_installed_standard.jpg", wc_std, space_id=t_items[0].get("space_id") or "", item_id=id1, status="Installed", author="M. Lindqvist · Demo", role="plumber", note="Door installed, frame grouted, smoke seals checked")
                     media_seeded += 1
 
                 # 2nd toilet: In Progress (no photo)
@@ -551,7 +551,7 @@ def seed_demo_data(reset: bool = False, seed_docs: bool = True) -> dict[str, Any
 
                 # 3rd toilet: Issue Reported + wc_installed_accessible (K. Korhonen · Demo)
                 if wc_acc:
-                    media.save_media("wc_installed_accessible.jpg", wc_acc, space_id=t_items[2].get("space_id") or "", item_id=id3, status="Issue Reported", author="K. Korhonen · Demo", role="inspector", note="transfer zone 865 mm, 35 mm short of 900 mm (DIN 18040)")
+                    media.save_media("wc_installed_accessible.jpg", wc_acc, space_id=t_items[2].get("space_id") or "", item_id=id3, status="Issue Reported", author="K. Korhonen · Demo", role="inspector", note="Clear opening 865 mm, 35 mm short of the 900 mm accessible minimum")
                     media_seeded += 1
 
             # 2. Swiss site1000
