@@ -1621,6 +1621,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       </div>
       {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
+        {isolateSpaceGuid && clearances && <div className="interior-clearances">{(['left', 'right', 'front', 'rear'] as const).map((side, index) => clearances[side] == null ? null : <span key={side} style={{ left: `${16 + (index % 2) * 55}%`, top: `${60 + Math.floor(index / 2) * 12}%` }}><i />{clearances[side]} mm</span>)}</div>}
         {(isolateSpaceGuid || guids.length > 0) && elementTags.slice(0, 20).map((tag, index) => <button key={tag.guid} type="button" className={`element-world-tag ${tag.issue || !tag.verified ? 'issue' : ''}`} style={{ left: `${12 + (index % 4) * 21}%`, top: `${12 + Math.floor(index / 4) * 13}%` }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>)}
         {!walkMode && !hideRoomLabels && rooms.map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
