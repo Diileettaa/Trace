@@ -28,7 +28,10 @@ Team **Montree** · Junction 2026 · Stoa challenge "Make Blueprints Talk"
 | Raster plans: balconies, storeys, WC rooms, saunas, bathrooms | Gemini vision, one cached call per plan | 1 call |
 | Area answers (swiss, IFC) | formula + per-room breakdown + excluded rooms with reason, drawn as polygons | 0 |
 
-Gemini (function calling) only routes the question and writes the sentence; it never produces a number itself.
+When the engine answers exactly (geometry, our detectors, or a prior that beats every model) the app does not call an LLM
+at all: the answer sentence is a template, 0 tokens, about 1 s. On the preview set that is **81% of all questions**
+(all swiss and IFC, and every raster category except the five room types that need vision).
+Otherwise Gemini (function calling) routes the question and writes the sentence; it never produces a number itself.
 Nemotron 3.5 Super VL gives an independent second count on raster plans; it is shown as a badge
 (agree / disagree) and never replaces the engine value, because on disagreement the detector is right 3–8× more often.
 
