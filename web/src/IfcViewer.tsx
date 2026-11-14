@@ -731,11 +731,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           const boxes = await model.getBoxes(allLocalIds)
           visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(bounds))
         }
-      } else if (previewRoomGuid) {
-        const room = rooms.find(candidate => candidate.guid === previewRoomGuid)
+      } else if (previewRoomGuid || isolateSpaceGuid) {
+        const room = rooms.find(candidate => candidate.guid === (isolateSpaceGuid || previewRoomGuid))
         if (room) {
           const boxes = await model.getBoxes(allLocalIds)
-          visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(room.box))
+          const roomBounds = room.box.clone().expandByScalar(isolateSpaceGuid ? .3 : 0)
+          visibleIds = allLocalIds.filter((_, index) => boxes[index]?.intersectsBox(roomBounds))
           const hidden = allLocalIds.filter(id => !visibleIds.includes(id))
           if (hidden.length) await model.setVisible(hidden, false)
           const walls = visibleIds.filter(id => /IFCWALL/i.test(classByLocalIdRef.current.get(id) || ''))
@@ -747,7 +748,22 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       }
       await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, visibleIds, walkMode)
     })()
-  }, [allLocalIds, explorerReady, exploded, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades, walkMode])
+  }, [allLocalIds, explorerReady, exploded, isolateSpaceGuid, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades, walkMode])
+
+  useEffect(() => {
+    if (!isolateSpaceGuid) return
+    const room = rooms.find(candidate => candidate.guid === isolateSpaceGuid)
+    const camera = engine.current?.world.camera
+    if (!room || !camera) return
+    const center = room.box.getCenter(new THREE.Vector3())
+    const size = room.box.getSize(new THREE.Vector3())
+    const diagonal = Math.max(Math.hypot(size.x, size.y), 1)
+    camera.controls.minDistance = diagonal * .6
+    camera.controls.maxDistance = diagonal * 2.5
+    camera.controls.minPolarAngle = Math.PI / 12
+    camera.controls.maxPolarAngle = Math.PI * 5 / 12
+    void camera.controls.setLookAt(center.x + diagonal, center.y - diagonal, center.z + diagonal * .9, center.x, center.y, center.z + .8, true)
+  }, [isolateSpaceGuid, rooms])
 
   function toggleTrade(key: TradeKey, enabled: boolean) {
     setTrades((current) => ({ ...current, [key]: { ...current[key], enabled } }))
