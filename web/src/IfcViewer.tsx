@@ -1837,7 +1837,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       </div>
       {touring && <div className="tour-caption" aria-live="polite"><span>TRACE TOUR · {Math.min(tourStage + 1, 6)} / 6</span><strong>{tourCaptions[tourStage]}</strong><small>Press Esc to cancel</small></div>}
       <div className="room-label-layer" aria-label="Room labels">
-        {isolateSpaceGuid && clearanceLines.length > 0 && <svg className="interior-clearances" aria-label="Fixture clearances">{clearanceLines.map(line => <g key={line.side}><line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} /><text x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2}>{line.value} mm</text></g>)}</svg>}
+        {isolateSpaceGuid && clearanceLines.length > 0 && <svg className="interior-clearances" aria-label="Fixture clearances">{clearanceLines.map(line => <g key={line.side}><line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} /><text x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2}>≈ {line.value} mm</text></g>)}</svg>}
         {isolateSpaceGuid && roomDims && <div className="room-floor-dimensions">{roomDims.L != null && <span className="room-dim-l">↔ {roomDims.L.toFixed(2)} m</span>}{roomDims.B != null && <span className="room-dim-b">↕ {roomDims.B.toFixed(2)} m</span>}</div>}
         {interiorElementTags.slice(0, 12).map((tag) => {
           const position = elementTagPositions[tag.guid]
