@@ -305,6 +305,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [tourStage, setTourStage] = useState(0)
   const [recording, setRecording] = useState(false)
   const [transparentCapture, setTransparentCapture] = useState(false)
+  const [zoomLevel, setZoomLevel] = useState(50)
   const showcaseLightsRef = useRef<THREE.Group | null>(null)
   const explodeAnimationRef = useRef<number | null>(null)
   const tourAnimationRef = useRef<number | null>(null)
@@ -1194,6 +1195,55 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     void e.world.camera.fitToItems()
   }
 
+  function zoomCamera(factor: number) {
+    const e = engine.current
+    if (!e) return
+    const camera = e.world.camera.three
+    const target = e.world.camera.controls.getTarget(new THREE.Vector3())
+    const offset = camera.position.clone().sub(target)
+    const min = Math.max(e.world.camera.controls.minDistance || .08, .08)
+    const max = Math.max(e.world.camera.controls.maxDistance || 100, min * 2)
+    const distance = THREE.MathUtils.clamp(offset.length() * factor, min, max)
+    if (!offset.length()) offset.set(1, -1, .7)
+    offset.setLength(distance)
+    void e.world.camera.controls.setLookAt(target.x + offset.x, target.y + offset.y, target.z + offset.z, target.x, target.y, target.z, true)
+  }
+
+  function panCamera(x: number, y: number) {
+    const e = engine.current
+    if (!e) return
+    const camera = e.world.camera.three
+    const target = e.world.camera.controls.getTarget(new THREE.Vector3())
+    const distance = camera.position.distanceTo(target)
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).multiplyScalar(distance * .08 * x)
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).multiplyScalar(distance * .08 * y)
+    const next = target.clone().add(right).add(up)
+    const position = camera.position.clone().add(right).add(up)
+    void e.world.camera.controls.setLookAt(position.x, position.y, position.z, next.x, next.y, next.z, true)
+  }
+
+  useEffect(() => {
+    const canvas = engine.current?.world.renderer?.three.domElement
+    if (!canvas || !modelReady || walkMode) return
+    let last = 0
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const raw = event.ctrlKey ? event.deltaY * .35 : event.deltaY
+      const normalized = THREE.MathUtils.clamp(raw / (Math.abs(raw) > 80 ? 1800 : 750), -.05, .05)
+      const target = 1 + normalized
+      last += (target - last) * .72
+      zoomCamera(last || target)
+    }
+    const keys = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      const pan: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }
+      if (pan[event.key]) { event.preventDefault(); panCamera(...pan[event.key]) }
+    }
+    canvas.addEventListener('wheel', wheel, { passive: false })
+    window.addEventListener('keydown', keys)
+    return () => { canvas.removeEventListener('wheel', wheel); window.removeEventListener('keydown', keys) }
+  }, [modelReady, walkMode])
+
   function resetView() {
     if (explodeAnimationRef.current !== null) cancelAnimationFrame(explodeAnimationRef.current)
     if (tourAnimationRef.current !== null) cancelAnimationFrame(tourAnimationRef.current)
@@ -1516,6 +1566,13 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       disabled={!modelReady || !explorerReady || walkMode}
     />
     <div className="three" ref={box}>
+      <div className="camera-nav" aria-label="Camera navigation">
+        <button type="button" title="Zoom in 20%" onClick={() => { zoomCamera(.8); setZoomLevel(level => Math.min(100, level + 20)) }}>＋</button>
+        <input aria-label="Zoom level" type="range" min="0" max="100" value={zoomLevel} onChange={event => { const next = Number(event.target.value); zoomCamera(next > zoomLevel ? .94 : 1.06); setZoomLevel(next) }} />
+        <button type="button" title="Zoom out 20%" onClick={() => { zoomCamera(1.2); setZoomLevel(level => Math.max(0, level - 20)) }}>－</button>
+        <button type="button" onClick={fitModel}>Fit</button>
+        <button type="button" onClick={resetView}>Reset</button>
+      </div>
       <div className="showcase-motion-controls" aria-label="Showcase motion controls">
         <button type="button" disabled={!modelReady || exploding} onClick={() => animateExplode(!exploded)}>{exploding ? 'Exploding…' : exploded ? 'Assemble' : 'Explode'}</button>
         <button type="button" disabled={!modelReady} onClick={advancePeel}>Peel · {peelStep}/3</button>
