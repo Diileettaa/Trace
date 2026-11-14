@@ -13,7 +13,7 @@ export const TRADE_COLORS: Record<TradeKey, string> = {
   furniture: '#754321',
 }
 
-export const ARCHITECTURE_OPACITY = 0.3
+export const ARCHITECTURE_OPACITY = 1
 
 export const TRADE_DEFINITIONS: Record<TradeKey, { label: string; regex: RegExp; categories: string[] }> = {
   architecture: {
