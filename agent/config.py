@@ -18,7 +18,7 @@ NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "")
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data/junction-dataset-preview")).resolve()
 CACHE_DIR = Path(os.getenv("CACHE_DIR", "./cache")).resolve()
-UPLOAD_PREFIX = "upload/"  # paths of user-uploaded drawings, stored under CACHE_DIR/uploads
+UPLOAD_PREFIX = "uploads/"  # paths of user-uploaded drawings, stored under CACHE_DIR/uploads
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 # Agent behaviour

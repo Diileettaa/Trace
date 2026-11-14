@@ -29,9 +29,9 @@ def _decl(name: str, description: str, props: dict, required: list[str]) -> dict
 
 ENGINE_DECL = _decl(
     "answer_from_engine",
-    "Exact answer from the team's data engine for drawings under swiss_dwellings, ifc_models, ifc_bench and "
-    "cubicasa5k (counts of WC/washbasin/bathtub/shower/doors/windows/rooms/apartments, room and apartment areas, "
-    "IFC spaces/doors/windows/walls/stairs/columns/beams/sanitary/lights, areas, lengths, volumes). "
+    "Exact answer from the team's data engine for DXF and IFC models (including uploaded files), and drawings under "
+    "swiss_dwellings, ifc_models, ifc_bench and cubicasa5k (counts of WC/washbasin/bathtub/shower/doors/windows/rooms/apartments, "
+    "room and apartment areas, IFC spaces/doors/windows/walls/stairs/columns/beams/sanitary/lights, areas, lengths, volumes). "
     "Pass the user's question unchanged. Use this FIRST; it returns evidence boxes and IFC GUIDs.",
     {"path": _S, "question": _S}, ["path", "question"])
 

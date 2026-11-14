@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -65,14 +65,52 @@ def ask(body: AskIn, fresh: bool = False):
 
 
 @app.post("/upload")
-async def upload(request: Request, filename: str):
-    """Upload your own drawing (PDF/PNG/JPG/IFC, max 50 MB). Body = raw file bytes (no multipart needed)."""
+async def upload(
+    request: Request,
+    filename: str | None = None,
+    file: UploadFile | None = File(None),
+):
+    """Upload your own drawing (PDF/PNG/JPG/DXF/IFC, max 50 MB). Accepts raw file bytes or multipart."""
     size = int(request.headers.get("content-length") or 0)
     if size > config.MAX_UPLOAD_BYTES:
         raise HTTPException(413, "file too large (max 50 MB)")
-    data = await request.body()
+
+    data = None
+    fname = ""
+    if file is not None:
+        data = await file.read()
+        fname = file.filename or filename or ""
+    else:
+        ctype = request.headers.get("content-type", "")
+        if "multipart/form-data" in ctype:
+            try:
+                form = await request.form()
+                for v in form.values():
+                    if isinstance(v, UploadFile):
+                        data = await v.read()
+                        fname = v.filename or filename or ""
+                        break
+            except Exception:
+                pass
+        if data is None:
+            data = await request.body()
+            fname = filename or request.headers.get("x-filename") or ""
+            if not fname:
+                import re
+
+                cd = request.headers.get("content-disposition", "")
+                m = re.search(r'filename=["\']?([^"\';]+)["\']?', cd)
+                if m:
+                    fname = m.group(1)
+
+    if not fname:
+        raise HTTPException(400, "filename is required (via ?filename=, multipart upload, or X-Filename header)")
+
+    if len(data) > config.MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "file too large (max 50 MB)")
+
     try:
-        return uploads.save(filename, data)
+        return uploads.save(fname, data)
     except uploads.UploadError as e:
         raise HTTPException(400, str(e))
 

@@ -35,17 +35,83 @@ def _label(item: dict, n: int) -> str:
     return f"{base} {n}" + (f" ({name})" if name and str(name) != base else "")
 
 
-def _upload_answer(path: str, question: str) -> dict:
-    """User uploads: IFC goes through Xinran's IFC solver directly; plans have no vector data -> vision tools."""
-    if not path.lower().endswith(".ifc"):
-        return {"value": None, "unit": None, "items": [], "sources": [], "method": "upload:no_vector_data",
-                "warnings": ["Uploaded plan has no vector data for the engine; use count_in_drawing or scan_drawing_inventory"]}
-    from engine import ifc, ifc_answer
+def _is_upload_path(path: str) -> bool:
+    clean = path.replace("\\", "/").strip()
+    return (
+        clean.startswith("uploads/")
+        or clean.startswith("upload/")
+        or clean.startswith("cache/uploads/")
+        or clean.startswith(config.UPLOAD_PREFIX)
+    )
 
-    full = drawings.resolve(path)
-    v, unit, items, method, warn = ifc_answer.answer(path, question, ifc.load(str(full)))
-    return {"value": v, "unit": unit, "items": items, "sources": [{"file": path}], "method": method,
-            "warnings": warn, "model_file": path}
+
+def _upload_answer(path: str, question: str) -> dict:
+    """User uploads: DXF/IFC go through the engine solvers; raster/PDF plans go to vision tools."""
+    clean_p = path.lower()
+    if clean_p.endswith(".ifc"):
+        from engine import ifc, ifc_answer
+
+        full = drawings.resolve(path)
+        v, unit, items, method, warn = ifc_answer.answer(path, question, ifc.load(str(full)))
+        return {
+            "value": v,
+            "unit": unit,
+            "items": items,
+            "sources": [{"file": path}],
+            "method": method,
+            "warnings": warn,
+            "model_file": path,
+        }
+    if clean_p.endswith((".dxf", ".dwg")):
+        from engine import questions, swiss
+
+        full = drawings.resolve(path)
+        f = swiss.parse(str(full))
+        q = questions.parse_swiss(question)
+        it, items, value, unit, warn = q["intent"], [], None, "count", []
+        rooms = f.get("rooms", [])
+        if it in ("doors", "windows"):
+            items = [{"category": it[:-1], "name": f"{it[:-1]} {i+1}", "bbox_m": d.get("bbox")} for i, d in enumerate(f.get(it, []))]
+            value = len(items)
+        elif it in ("wc", "washbasin", "bathtub", "shower"):
+            items = [{"category": it, "name": f"{it} {i+1}", "bbox_m": x.get("bbox")} for i, x in enumerate(f.get("fixtures", [])) if x.get("kind") == it]
+            value = len(items)
+        elif it == "apartments":
+            letters = sorted({u["letter"] for u in f.get("units", []) if u.get("letter")})
+            items = [{"category": "apartment", "name": f"Unit {u.get('letter')}", "label": u.get("label"), "bbox_m": u.get("bbox")} for u in f.get("units", []) if u.get("letter")]
+            value = len(letters)
+        elif it == "label_count":
+            sel = [r for r in rooms if r.get("name") == q.get("label")]
+            items = [{"category": "room", "number": r.get("number"), "name": r.get("name"), "area_m2": r.get("area"), "bbox_m": r.get("bbox")} for r in sel if r.get("bbox")]
+            value = len(sel)
+        elif it in ("room_area", "apt_area", "indoor_area", "label_area"):
+            unit = "m2"
+            if it == "room_area":
+                sel = [r for r in rooms if r.get("number") == q.get("room") or str(r.get("number", "")).endswith(q.get("room", ""))]
+            elif it == "apt_area":
+                sel = [r for r in rooms if r.get("unit") == q.get("apt") and not r.get("outdoor") and not r.get("shaft_void")]
+            elif it == "indoor_area":
+                sel = [r for r in rooms if not r.get("outdoor") and not r.get("shaft_void")]
+            else:
+                sel = [r for r in rooms if r.get("name") == q.get("label")]
+            miss = [r for r in sel if r.get("area") is None]
+            if miss:
+                warn.append(f"{len(miss)} rooms had no outline")
+            value = round(sum(r["area"] for r in sel if r.get("area") is not None), 2)
+            items = [{"category": "room", "number": r.get("number"), "name": r.get("name"), "area_m2": r.get("area"), "bbox_m": r.get("bbox")} for r in sel if r.get("bbox")]
+        else:
+            warn.append("question not recognised")
+        return {
+            "value": value,
+            "unit": unit,
+            "items": items,
+            "sources": [{"file": path, "role": "computed from DXF layers"}],
+            "method": f"swiss_dxf:{it}",
+            "warnings": warn,
+        }
+
+    return {"value": None, "unit": None, "items": [], "sources": [], "method": "upload:no_vector_data",
+            "warnings": ["Uploaded plan has no vector data for the engine; use count_in_drawing or scan_drawing_inventory"]}
 
 
 def answer(path: str, question: str) -> dict:
@@ -57,7 +123,7 @@ def answer(path: str, question: str) -> dict:
     if "cubicasa5k" in path and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
         # the Nemotron second count does not depend on the engine result: run both at the same time
         early = _POOL.submit(nemotron_check, path, question)
-    r = _upload_answer(path, question) if path.startswith(config.UPLOAD_PREFIX) else ea.answer(path, question)
+    r = _upload_answer(path, question) if _is_upload_path(path) else ea.answer(path, question)
     is_pdf = path.lower().endswith(".pdf")
     counters: dict[str, int] = {}
     items, sources = [], []
@@ -111,6 +177,8 @@ def answer(path: str, question: str) -> dict:
             r["warnings"].append(f"Detector found {r['value']} but Nemotron counted {verify['nemotron_count']}: "
                                  "please check the highlighted boxes")
     model = next((s["file"] for s in r.get("sources") or [] if str(s.get("file", "")).endswith(".ifc")), None)
+    if not model and r.get("model_file"):
+        model = r.get("model_file")
     out = {
         "value": r.get("value"),
         "unit": r.get("unit"),
