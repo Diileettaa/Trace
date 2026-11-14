@@ -12,3 +12,8 @@ Fix, one commit each, do not deploy:
 6. Remove `window.__traceRooms` debug hook when 1–5 pass.
 
 Send screenshots: FZK + Duplex + Tallinn — whole building, one room, one storey plan.
+
+## ADD 00:02 — from Diletta's video (Duplex)
+7. Whole Building 3D after visiting a room still shows only ONE cut piece of the building (the room section box / storey cut is not cleared). Leaving room mode or pressing Whole Building / Reset must: `model.useClippingPlanes([])` (or Clipper.deleteAll), clear storey cut, `controls.setBoundary()` to model bounds, fitToBox(model).
+8. Small rooms (Duplex "Bathroom 2"): camera ends up a metre from a wall, screen is a white/grey plane. Distance must come from `fitToBox(sectionBox)` with min distance = 2.5 × room diagonal for rooms < 6 m², never inside the box. Walls nearer the camera than the room centre (the two "front" walls) should be cut lower (≈ 1.0 m) so you look over them into the room.
+9. Mouse wheel zoom in room mode jumps far — use `controls.dollySpeed = 0.4` and `smoothTime 0.25`.
