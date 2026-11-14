@@ -1237,7 +1237,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
           x - (other.center.x + 1) * rect.width / 2,
           y - (1 - other.center.y) * rect.height / 2,
         ) > 72)) visible.push(item)
-        if (visible.length >= 16) break
+        if (visible.length >= 12) break
       }
       const visibleKeys = new Set(visible.map(item => item.room.key))
       for (const label of host.querySelectorAll<HTMLElement>('[data-room-label]')) {
@@ -1249,7 +1249,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     }
     frame = requestAnimationFrame(placeLabels)
     return () => cancelAnimationFrame(frame)
-  }, [modelReady, rooms, selectedStoreyId])
+  }, [modelReady, planView, rooms, selectedStoreyId])
 
   useEffect(() => {
     if (!modelReady) return
@@ -1845,7 +1845,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
           const tagKind = tag.issue ? 'issue' : tag.verified ? 'verified' : 'unverified'
           return <button key={tag.guid} type="button" className={`element-world-tag ${tagKind}`} style={{ left: position.x, top: position.y }} onClick={() => onSelectGuid?.(tag.guid)}>{tag.code}{tag.issue ? ' !' : ''}</button>
         })}
-        {!walkMode && !hideRoomLabels && rooms.filter(room => !selectedStoreyId || room.storeyId === selectedStoreyId).filter((room, index, list) => list.findIndex(candidate => englishRoomName(candidate.name) === englishRoomName(room.name)) === index).map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
+        {!walkMode && !hideRoomLabels && planView && rooms.filter(room => !selectedStoreyId || room.storeyId === selectedStoreyId).filter((room, index, list) => list.findIndex(candidate => englishRoomName(candidate.name) === englishRoomName(room.name)) === index).map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
           onClick={() => focusRoom(room.key)} title="Open room actions">
