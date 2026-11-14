@@ -2,10 +2,8 @@ import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as OBC from '@thatopen/components'
 import * as THREE from 'three'
 import { RenderedFaces } from '@thatopen/fragments'
-import { deleteScenePlacement, fileUrl, getScene, saveScenePlacement, type ScenePlacement } from './api'
+import { deleteScenePlacement, fileUrl, getScene, getRoomMedia, postRoomChat, saveScenePlacement, type ScenePlacement } from './api'
 import FurnitureCatalogModal, { type FurnitureProduct } from './components/FurnitureCatalogModal'
-import RoomCollabPanel from './components/RoomCollabPanel'
-import RoomMediaPanel from './components/RoomMediaPanel'
 import catalogUrl from './catalog.json?url'
 import {
   BuildingExplorer,
@@ -33,6 +31,7 @@ interface Props {
   onPlacementsChange?: (placements: PlacedProduct[]) => void
   onScreenshot?: (dataUrl: string, roomName: string, note: string) => void
   onSelectRoom?: (room: { id: string; name: string } | null) => void
+  onRoomAction?: (tab: 'Chat' | 'Photos' | 'Schedule') => void
   previewRoomGuid?: string
   previewRoomStatus?: RoomStatus | null
   collab?: CollabState
@@ -254,7 +253,7 @@ function makeCatalogThumbnailModel(product: FurnitureProduct) {
   return makePlaceholder(product, `catalog-${product.id}`)
 }
 
-function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange }: Props) {
+function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScreenshot, onSelectRoom, onRoomAction, previewRoomGuid, previewRoomStatus, collab = EMPTY_COLLAB, onCollabChange }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const engine = useRef<ViewerEngine | null>(null)
   const placementsRef = useRef(new Map<string, THREE.Group>())
@@ -280,6 +279,10 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [placed, setPlaced] = useState<PlacedProduct[]>([])
   const [selectedPlacementId, setSelectedPlacementId] = useState('')
   const [selectedElement, setSelectedElement] = useState<IfcElementInfo | null>(null)
+  const [popupPosition, setPopupPosition] = useState({ x: 16, y: 16 })
+  const [popupNote, setPopupNote] = useState('')
+  const [popupFeedback, setPopupFeedback] = useState('')
+  const [popupMediaCount, setPopupMediaCount] = useState(0)
   const [storeys, setStoreys] = useState<StoreyInfo[]>([])
   const [selectedStoreyId, setSelectedStoreyId] = useState<string | null>(null)
   const [trades, setTrades] = useState<TradesState>(createInitialTrades)
@@ -559,11 +562,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     onSelectRoom?.(room ? { id: room.guid || room.key, name: room.name } : null)
   }
 
-  function focusRoom(key: string) {
+  function focusRoom(key: string, popupAt?: { x: number; y: number }) {
     const room = rooms.find(candidate => candidate.key === key)
     if (!room) return
     selectRoom(key)
     setInspectedRoomKey(key)
+    setSelectedElement(null)
+    const rect = box.current?.getBoundingClientRect()
+    setPopupPosition(popupAt || { x: Math.min((rect?.left || 16) + 16, window.innerWidth - 336), y: Math.min((rect?.top || 16) + 16, window.innerHeight - 300) })
     if (room.storeyId) setSelectedStoreyId(room.storeyId)
     const e = engine.current
     if (!e) return
@@ -993,24 +999,29 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     )
   }
 
-  function screenshot() {
+  function captureScreenshotData(note: string) {
     const renderer = engine.current?.world.renderer
-    if (!renderer) return
+    if (!renderer) return ''
     renderer.three.render(engine.current!.world.scene.three, engine.current!.world.camera.three)
     const source = renderer.three.domElement
     const annotated = document.createElement('canvas')
     annotated.width = source.width; annotated.height = source.height
     const context = annotated.getContext('2d')
-    if (!context) return
+    if (!context) return ''
     context.drawImage(source, 0, 0)
-    const note = screenshotNote.trim()
     if (note) {
       const band = Math.max(52, Math.round(annotated.height * 0.075))
       context.fillStyle = 'rgba(18, 24, 32, 0.82)'; context.fillRect(0, annotated.height - band, annotated.width, band)
       context.fillStyle = '#fff'; context.font = `600 ${Math.max(18, Math.round(band * 0.38))}px system-ui, sans-serif`
       context.textBaseline = 'middle'; context.fillText(note.slice(0, 240), 20, annotated.height - band / 2, annotated.width - 40)
     }
-    const dataUrl = annotated.toDataURL('image/png')
+    return annotated.toDataURL('image/png')
+  }
+
+  function screenshot() {
+    const note = screenshotNote.trim()
+    const dataUrl = captureScreenshotData(note)
+    if (!dataUrl) return
     const roomName = rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'Selected room'
     onScreenshot?.(dataUrl, roomName, note)
     const link = document.createElement('a')
@@ -1018,6 +1029,31 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     link.download = 'trace-room-layout.png'
     link.click()
   }
+
+  async function savePopupNote() {
+    const room = rooms.find(candidate => candidate.key === inspectedRoomKey || candidate.key === selectedRoomKey)
+    if (!room) { setPopupFeedback('Select a room before adding a room note.'); return }
+    let me: { id?: string; trade?: string } | null = null
+    try { me = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') } catch { /* profile may not be registered */ }
+    if (!me?.id) { setPopupFeedback('Set up your project identity before posting a room note.'); return }
+    const text = popupNote.trim()
+    if (!text) { setPopupFeedback('Write a short note first.'); return }
+    const attachment = captureScreenshotData(text)
+    if (!attachment) { setPopupFeedback('The 3D view is not ready for a screenshot yet.'); return }
+    try {
+      const next = await postRoomChat(room.guid || room.key, text, me.id, me.trade || '', attachment)
+      onCollabChange?.(next)
+      setPopupNote(''); setPopupFeedback('Note and screenshot added to the room chat.')
+    } catch (error) { setPopupFeedback(error instanceof Error ? error.message : String(error)) }
+  }
+
+  useEffect(() => {
+    const room = rooms.find(candidate => candidate.key === inspectedRoomKey)
+    if (!room) { setPopupMediaCount(0); return }
+    let active = true
+    void getRoomMedia(room.guid || room.key).then(records => { if (active) setPopupMediaCount(records.length) }).catch(() => { if (active) setPopupMediaCount(0) })
+    return () => { active = false }
+  }, [inspectedRoomKey, rooms])
 
   useEffect(() => {
     const e = engine.current
@@ -1046,7 +1082,8 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         setSelectedElement({ localId, modelId: model.modelId, guid, category: friendly, name, type,
           storey: storey?.name || 'Unknown', room: room?.name || 'Unknown',
           dimensions: [size.x, size.y, size.z] })
-        if (room && room.key !== selectedRoomKey) selectRoom(room.key)
+        if (room) { selectRoom(room.key); setInspectedRoomKey(room.key) }
+        else { selectRoom(''); setInspectedRoomKey('') }
         if (focus && bounds && !bounds.isEmpty()) {
           const target = bounds.getCenter(new THREE.Vector3())
           const distance = Math.max(bounds.getSize(new THREE.Vector3()).length() * 1.8, 0.12)
@@ -1133,6 +1170,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       if (walkMode) return
       if (draggedRef.current) return
       const rect = canvas.getBoundingClientRect()
+      const popupX = Math.min(Math.max(event.clientX + 12, 12), Math.max(12, window.innerWidth - 336))
+      const popupY = Math.min(Math.max(event.clientY + 12, 12), Math.max(12, window.innerHeight - 300))
+      setPopupPosition({ x: popupX, y: popupY })
       point.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(point, e.world.camera.three)
       const clickPoint = point.clone()
@@ -1142,7 +1182,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           const hit = await model.raycast({ camera: e.world.camera.three, mouse: clickPoint, dom: canvas })
           if (!hit) continue
           const room = rooms.find(candidate => candidate.modelId === model.modelId && candidate.localId === hit.localId)
-          if (room) { focusRoom(room.key); return }
+          if (room) { focusRoom(room.key, { x: popupX, y: popupY }); return }
           await inspectElement(model, hit.localId)
           break
         } catch { /* A click outside model geometry is not a room selection. */ }
@@ -1178,6 +1218,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       canvas.removeEventListener('dblclick', onDoubleClick)
     }
   }, [modelReady, onSelectRoom, rooms, walkMode])
+
+  const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
+  const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
 
   return <div className="viewer">
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
@@ -1230,12 +1273,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     />
     <div className="three" ref={box}>
       <div className="room-label-layer" aria-label="Room labels">
-        {!walkMode && rooms.map(room => <button key={room.key} type="button" data-room-label={room.key}
+        {!walkMode && rooms.map(room => { const roomMessages = collab.messages.filter(item => item.space_id === (room.guid || room.key)).length; const hasBubble = roomMessages + (room.key === inspectedRoomKey ? popupMediaCount : 0) > 0; return <button key={room.key} type="button" data-room-label={room.key}
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
-          onClick={() => focusRoom(room.key)} title="Fly into this room">
-          {room.name}{room.number ? ` · ${room.number}` : ''}{room.areaM2 !== undefined ? ` · ${room.areaM2.toFixed(1)} m²` : ''}
-        </button>)}
+          onClick={() => focusRoom(room.key)} title="Open room actions">
+          {room.name}{room.number ? ` · ${room.number}` : ''}{room.areaM2 !== undefined ? ` · ${room.areaM2.toFixed(1)} m²` : ''}{hasBubble && <span className="room-activity-bubble">💬 {roomMessages}{room.key === inspectedRoomKey && popupMediaCount ? ` · 📷 ${popupMediaCount}` : ''}</span>}
+        </button>})}
       </div>
       {walkMode && <>
         <div className="walk-hud"><strong>Walk mode</strong><span>WASD / arrows · drag to look · wheel speed {walkSpeed.toFixed(1)} m/s · Esc exit</span></div>
@@ -1273,29 +1316,11 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           </ul>
         </aside>}
       </div>
-      {rooms.find(room => room.key === inspectedRoomKey) && (() => {
-        const room = rooms.find(candidate => candidate.key === inspectedRoomKey)!
-        const spaceId = room.guid || room.key
-        return <aside className="room-inspect-card" aria-label={`${room.name} room details`}>
-          <div className="room-inspect-heading"><div><strong>{room.name}{room.number ? ` · ${room.number}` : ''}</strong>
-            <small>{room.areaM2 !== undefined ? `${room.areaM2.toFixed(1)} m²` : 'Area unavailable'}</small></div>
-            <button type="button" onClick={() => setInspectedRoomKey('')} aria-label="Close room card">×</button></div>
-          <RoomCollabPanel spaceId={spaceId} spaceName={room.name} role="" collab={collab}
-            onChange={onCollabChange || (() => undefined)} onHighlightSpace={() => {}} />
-          <RoomMediaPanel spaceId={spaceId} roomName={room.name} />
-        </aside>
-      })()}
-      {selectedElement && <aside className="ifc-info-card" aria-label="Selected IFC element details">
-        <div className="ifc-info-heading"><div><span>{selectedElement.category}</span><h3>{selectedElement.name}</h3></div>
-          <button aria-label="Close element details" onClick={() => setSelectedElement(null)}>×</button></div>
-        <dl>
-          <dt>Type</dt><dd>{selectedElement.type}</dd>
-          <dt>Storey</dt><dd>{selectedElement.storey}</dd>
-          <dt>Room</dt><dd>{selectedElement.room}</dd>
-          <dt>Dimensions</dt><dd>{selectedElement.dimensions.map((value) => `${value.toFixed(2)} m`).join(' × ')}</dd>
-          <dt>GUID</dt><dd className="ifc-guid">{selectedElement.guid || 'Unavailable'}</dd>
-        </dl>
-        <small>Double-click the element to zoom in.</small>
+      {(popupRoom || selectedElement) && !walkMode && <aside className="ifc-action-popup" aria-label="Room and element actions" style={{ left: popupPosition.x, top: popupPosition.y }}>
+        <div className="ifc-info-heading"><div><span>{selectedElement?.category || 'IfcSpace'}</span><h3>{selectedElement?.name || popupRoom?.name || 'Room'}</h3></div><button aria-label="Close room actions" onClick={() => { setInspectedRoomKey(''); setSelectedElement(null) }}>×</button></div>
+        <dl>{selectedElement && <><dt>Category</dt><dd>{selectedElement.type}</dd><dt>Storey</dt><dd>{selectedElement.storey}</dd><dt>Room</dt><dd>{popupRoom?.name || selectedElement.room}</dd><dt>Dimensions</dt><dd>{selectedElement.dimensions.map(value => `${value.toFixed(2)} m`).join(' × ')}</dd></>}{popupRoom && <><dt>Floor</dt><dd>{storeys.find(storey => storey.id === popupRoom.storeyId)?.name || selectedElement?.storey || 'Unknown'}</dd><dt>Room</dt><dd>{popupRoom.name}{popupRoom.number ? ` · ${popupRoom.number}` : ''}</dd><dt>Area</dt><dd>{popupRoom.areaM2 !== undefined ? `${popupRoom.areaM2.toFixed(1)} m²` : 'Unavailable'}</dd></>}</dl>
+        {popupSpaceId && <><textarea aria-label="Room note" value={popupNote} onChange={event => setPopupNote(event.target.value)} placeholder="Write a room note…" rows={2} /><div className="ifc-popup-actions"><button onClick={() => void savePopupNote()}>Add note</button><button onClick={screenshot}>Screenshot</button><button onClick={() => onRoomAction?.('Photos')}>Photos ({popupMediaCount})</button><button onClick={() => onRoomAction?.('Schedule')}>Timeline</button><button className="ifc-popup-place" onClick={() => setCatalogOpen(true)}>Place furniture here</button></div>{popupFeedback && <small className="ifc-popup-feedback">{popupFeedback}</small>}</>}
+        {!popupSpaceId && <small>Room details are unavailable for this element.</small>}
       </aside>}
     </div>
     </div>
