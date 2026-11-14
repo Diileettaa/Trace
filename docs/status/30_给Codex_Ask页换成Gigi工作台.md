@@ -56,3 +56,11 @@
 6. History/新对话/Quick prompts/楼层/项目切换 → commit
 7. ★ 三项 → commit
 8. 三个项目各问 3 题截图发 Diletta：Tallinn（IFC 平面）、Swiss、扫描图 colorful-11397
+
+## 补充 ★（Xinran c940eb6：交互复核 API，Stoa 说「界面可以交互」，评委加分项）
+接口挂在 `/api/docs/`（engine/review.py）：
+- `POST /api/docs/ask` 返回 `answer_id` + 每个计数项的框
+- `POST /api/docs/review {answer_id, remove:[item ids], add:[[x0,y0,x1,y1]], choose:k, user}`：用户删掉误检框、画框补漏检、选另一种读法（如门扇 vs 门套）→ 返回新计数
+- `POST /api/docs/calibrate {id, p1, p2, length_m, image_size}`：图上点两点、输入真实长度 → 定比例尺
+- `POST /api/docs/measure {id, points, kind:"area"|"length"}`：图上点多边形量面积/长度（踢脚线、区域面积）
+工作台 2D 工具条加 4 个小工具（Gigi 风格图标按钮，放在图纸右上角）：**Fix count**（点框删除/拖框添加，回答卡数字实时变，标「Reviewed by <name>」）、**Set scale**、**Measure area**、**Measure length**。扫描图没有比例尺时，面积题回答卡显示「Set scale to measure」按钮。放在第 7 步一起做。
