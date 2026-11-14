@@ -307,6 +307,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [tourStage, setTourStage] = useState(0)
   const [recording, setRecording] = useState(false)
   const [transparentCapture, setTransparentCapture] = useState(false)
+  const [buildingView, setBuildingView] = useState<'whole' | 'interior'>('whole')
   const [zoomLevel, setZoomLevel] = useState(50)
   const showcaseLightsRef = useRef<THREE.Group | null>(null)
   const explodeAnimationRef = useRef<number | null>(null)
@@ -1263,6 +1264,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     stopRecording()
     setExploded(false); setExploding(false); setPeelStep(0); setShowcase(false)
     setTouring(false); setTourStage(0); setPlanView(false); setSelectedStoreyId(null)
+    setBuildingView('whole')
     setTrades(createInitialTrades())
     const model = modelRef.current
     if (model) void applyExplodedView(model, storeys, 0, 6, placementsRef.current)
@@ -1526,6 +1528,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
     <div className="viewer-bar furniture-bar">
       <span className="path">{path}</span>
+      <div className="building-view-tabs" role="tablist" aria-label="3D view mode"><button role="tab" aria-selected={buildingView === 'whole'} className={buildingView === 'whole' ? 'active' : ''} onClick={() => { setBuildingView('whole'); setSelectedStoreyId(null); setPeelStep(0); setPlanView(false); requestAnimationFrame(() => fitModel()) }}>Whole Building</button><button role="tab" aria-selected={buildingView === 'interior'} className={buildingView === 'interior' ? 'active' : ''} onClick={() => { const room = rooms.find(item => item.key === selectedRoomKey) ?? rooms[0]; setBuildingView('interior'); if (room?.storeyId) setSelectedStoreyId(room.storeyId); setPeelStep(2); setPlanView(false) }}>Interior</button></div>
       <span className="catalog-label" title="Demo catalog">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
       {selectedGuid && <span className="dim"> · Focused: {selectedGuid.slice(0, 8)}…</span>}
