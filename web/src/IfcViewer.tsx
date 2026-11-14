@@ -272,6 +272,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     } catch { setStatus('WebGL check failed.'); return }
 
     let components: OBC.Components | null = null
+    setStatus('Loading 3D model… (large models take ~10 s)')
     ;(async () => {
       try {
         components = new OBC.Components()
@@ -290,7 +291,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
 
         const fragments = components.get(OBC.FragmentsManager)
         engine.current = { components, world, fragments }
-        setStatus('Loading 3D engine…')
+        setStatus('Loading 3D model… (large models take ~10 s)')
         fragments.init(await OBC.FragmentsManager.getWorker())
         world.camera.controls.addEventListener('rest', () => fragments.core.update(true))
         fragments.list.onItemSet.add(({ value: model }) => {
@@ -312,12 +313,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         })
         loader.settings.wasm.path = '/wasm/'
         loader.settings.wasm.absolute = true
-        setStatus('Downloading model…')
+        setStatus('Loading 3D model… (large models take ~10 s)')
         const res = await fetch(fileUrl(path))
         if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch ${path}`)
         const bytes = new Uint8Array(await res.arrayBuffer())
         if (cancelled) return
-        setStatus('Converting IFC (may take tens of seconds for large models)…')
+        setStatus('Loading 3D model… (large models take ~10 s)')
         const loadedModel = await loader.load(bytes, true, path)
         if (cancelled) return
         modelRef.current = loadedModel

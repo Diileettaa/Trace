@@ -44,6 +44,8 @@ export default function App() {
   const [res, setRes] = useState<AskResponse | null>(null)
   const [inv, setInv] = useState<Evidence | null>(null)
   const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<'ask' | 'scan' | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [err, setErr] = useState('')
   const [selected, setSelected] = useState<number | null>(null)
   const [selectedAreaRoom, setSelectedAreaRoom] = useState<string | null>(null)
@@ -83,6 +85,14 @@ export default function App() {
     const timer = window.setTimeout(() => setQuestionFlash(false), 1200)
     return () => window.clearTimeout(timer)
   }, [questionFlash])
+  useEffect(() => {
+    if (busyAction !== 'ask') { setElapsedSeconds(0); return }
+    const started = Date.now()
+    const tick = () => setElapsedSeconds(Math.floor((Date.now() - started) / 1000))
+    tick()
+    const timer = window.setInterval(tick, 250)
+    return () => window.clearInterval(timer)
+  }, [busyAction])
 
   const evidence: Evidence[] = useMemo(() => [...(inv ? [inv] : []), ...(res?.evidence ?? [])], [inv, res])
 
@@ -266,8 +276,9 @@ export default function App() {
     setViewMode(item.path.toLowerCase().endsWith('.ifc') ? '3d' : '2d')
   }
 
-  async function run<T>(f: () => Promise<T>, set: (v: T) => void) {
+  async function run<T>(f: () => Promise<T>, set: (v: T) => void, action: 'ask' | 'scan' = 'ask') {
     setBusy(true)
+    setBusyAction(action)
     setErr('')
     setSelected(null)
     try {
@@ -276,6 +287,7 @@ export default function App() {
       setErr(String(e))
     } finally {
       setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -285,9 +297,9 @@ export default function App() {
     setRes(null)
     setSelectedGuid(null)
     setSelectedAreaRoom(null)
-    run(() => ask(q, path, role), setRes)
+    run(() => ask(q, path, role), setRes, 'ask')
   }
-  const scan = () => path && run(() => inventory(path, page), setInv)
+  const scan = () => path && run(() => inventory(path, page), setInv, 'scan')
 
   function showHowItWorks() {
     setActivePage('home')
@@ -385,7 +397,7 @@ export default function App() {
             {ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
           </select>
           <small className="control-help role-help">Changes how the answer is explained, not the numbers.</small>
-          <button className="primary" onClick={submit} disabled={busy}>{busy ? 'Thinking…' : 'Ask'}</button>
+          <button className="primary" onClick={submit} disabled={busy}>{busyAction === 'ask' ? `Answering… ${elapsedSeconds}s` : busyAction === 'scan' ? 'Scanning…' : 'Ask'}</button>
         </div>
 
         {!isIfc && path && <div className="control-with-help"><button onClick={scan} disabled={busy}>Scan &amp; number all elements</button><small className="control-help">Find and number everything on the drawing.</small></div>}
@@ -396,7 +408,7 @@ export default function App() {
         {busy && (
           <div className="loading">
             <div className="spinner" />
-            <span>Gemini is analyzing the drawing…</span>
+            <span>{busyAction === 'ask' ? `Answering… ${elapsedSeconds}s` : 'Scanning the drawing…'}</span>
           </div>
         )}
 
