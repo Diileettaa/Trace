@@ -363,6 +363,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const modelBoundsRef = useRef<THREE.Box3 | null>(null)
   const roomSectionBoundsRef = useRef<THREE.Box3 | null>(null)
   const clampingTargetRef = useRef(false)
+  const keyLightRef = useRef<THREE.DirectionalLight | null>(null)
   const presentTrades = Object.values(trades).filter((trade) => trade.count > 0)
   const onlyTrade = presentTrades.length === 1 ? presentTrades[0] : null
   // Real3D unmounts these props when returning to Whole Building. Keep the
@@ -428,11 +429,12 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
         world.scene.three.add(new THREE.HemisphereLight('#ffffff', '#d8d2c4', .9))
         const softKey = new THREE.DirectionalLight('#fff6dc', 1.15)
         softKey.position.set(12, -10, 18)
-        softKey.castShadow = true
+        softKey.castShadow = false
         softKey.shadow.mapSize.set(1024, 1024)
         softKey.shadow.camera.near = .1
         softKey.shadow.camera.far = 80
         world.scene.three.add(softKey)
+        keyLightRef.current = softKey
         world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true, logarithmicDepthBuffer: true })
         world.camera = new OBC.OrthoPerspectiveCamera(components)
         components.init()
@@ -597,7 +599,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     showcaseLightsRef.current?.removeFromParent()
     showcaseLightsRef.current = null
     if (!showcase) {
-      scene.background = new THREE.Color('#F7F6F2')
+      scene.background = new THREE.Color('#f5f3ee')
       current.world.renderer.three.shadowMap.enabled = false
       current.world.renderer.needsUpdate = true
       return
@@ -620,6 +622,16 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     showcaseLightsRef.current = group
     return () => { group.removeFromParent() }
   }, [showcase, showcaseDegraded, modelReady])
+
+  useEffect(() => {
+    const current = engine.current
+    const keyLight = keyLightRef.current
+    if (!current?.world.renderer || !keyLight) return
+    // Soft shadows improve depth in the small cutaway, but stay off for a full building.
+    keyLight.castShadow = Boolean(isolateSpaceGuid)
+    current.world.renderer.three.shadowMap.enabled = Boolean(isolateSpaceGuid || showcase)
+    current.world.renderer.needsUpdate = true
+  }, [isolateSpaceGuid, showcase])
 
   useEffect(() => { setShowcaseDegraded(allLocalIds.length > 18000) }, [allLocalIds.length])
 
