@@ -8,14 +8,16 @@ export interface TreeEntry {
   storey?: string
   space_id?: string
   space_name?: string
+  guid?: string
 }
 
 interface Props {
   entries: TreeEntry[]
   collab: CollabState
   selected: number | null
+  selectedGuid?: string | null
   activeSpace: string | null
-  onSelectElement: (index: number) => void
+  onSelectElement: (index: number, entry?: TreeEntry) => void
   onSelectSpace: (spaceId: string, spaceName: string) => void
 }
 
@@ -23,7 +25,7 @@ const NO_STOREY = 'Drawing'
 const NO_SPACE = '(no room)'
 
 /** Module 2: Building -> Storey -> Room -> numbered elements. Click a room to scope questions to it. */
-export default function SpaceTree({ entries, collab, selected, activeSpace, onSelectElement, onSelectSpace }: Props) {
+export default function SpaceTree({ entries, collab, selected, selectedGuid, activeSpace, onSelectElement, onSelectSpace }: Props) {
   const [closed, setClosed] = useState<Record<string, boolean>>({})
   if (entries.length === 0) return <p className="dim small">No elements yet. Click "Scan &amp; number all elements" or ask a question first.</p>
 
@@ -65,10 +67,16 @@ export default function SpaceTree({ entries, collab, selected, activeSpace, onSe
                     </span>
                     {!closed[key] && (
                       <ul>
-                        {items.map((i) => (
-                          <li key={i.index} className={`tree-leaf ${selected === i.index ? 'on' : ''}`}
-                            onClick={() => onSelectElement(i.index)}>{i.name}</li>
-                        ))}
+                        {items.map((i, leafIdx) => {
+                          const isSel = (i.index >= 0 && selected === i.index) || (!!i.guid && selectedGuid === i.guid)
+                          return (
+                            <li key={`${i.index}-${leafIdx}`} className={`tree-leaf ${isSel ? 'on' : ''}`}
+                              onClick={() => onSelectElement(i.index, i)}>
+                              {i.name}
+                              {i.guid && <span className="dim small" title={i.guid}> ({i.guid.slice(0, 8)}…)</span>}
+                            </li>
+                          )
+                        })}
                       </ul>
                     )}
                   </li>

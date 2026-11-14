@@ -28,6 +28,7 @@ export interface Evidence {
   by_category?: Record<string, number>
   cached?: boolean
   verified_by?: { nemotron_count: number | null; agreement: boolean | null; model?: string | null }
+  model_file?: string
 }
 
 export interface AskResponse {
