@@ -1301,21 +1301,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
           const selected = await e.fragments.guidsToModelIdMap([elementGuid])
           if (Object.keys(selected).length) {
             await e.fragments.highlight(FOCUS_HIGHLIGHT, selected)
-            if (selectedGuid) {
-              await e.world.camera.fitToItems(selected)
-              e.world.camera.enabled = true
-              e.world.camera.controls.enabled = true
-              await e.fragments.core.update(true)
-              return
-            }
-          }
-        }
-        if (guids.length && !selectedElement) {
-          const items = await e.fragments.guidsToModelIdMap(guids)
-          if (Object.keys(items).length) {
-            await e.world.camera.fitToItems(items)
-            e.world.camera.enabled = true
-            e.world.camera.controls.enabled = true
           }
         }
         await e.fragments.core.update(true)
