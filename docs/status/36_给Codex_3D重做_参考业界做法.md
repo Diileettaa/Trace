@@ -72,3 +72,12 @@ Also test at narrow window (780 px wide): currently the 3D canvas becomes a 190-
 - That Open Components: Clipper + ClipStyler (styled cut edges/fill), Views/floor plans (clip + top-down camera), OrthoPerspectiveCamera (orbit / first-person / plan modes).
 - three.js examples: webgl_clipping, webgl_clipping_stencil (caps).
 - xeokit SectionPlanesPlugin / StoreyViewsPlugin.
+
+## API reference to READ FIRST (MIT, OpenAEC-Foundation, written for @thatopen/components 3.3; we have 3.6)
+docs/refs/thatopen-skills/
+- thatopen-impl-clipping-plans → item 1 (section box via Clipper / raw THREE.Plane), item 3 (Views = floor plan per storey), ClipStyler for cut edges/fill
+- thatopen-impl-navigation → item 2/3/7 (OrthoPerspectiveCamera Orbit/Plan/FirstPerson, fit(), camera-controls limits)
+- thatopen-impl-measurements → item 6 (dimension lines)
+- thatopen-impl-highlighting → item 10 (selected fixtures outline)
+- thatopen-impl-viewer → world/renderer setup
+Use the built-in components instead of hand-rolling where they fit. Check names against the installed 3.6 types (node_modules/@thatopen/components) — the docs say 3.3.
