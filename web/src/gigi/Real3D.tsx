@@ -110,7 +110,7 @@ export const Real3D: React.FC<Props> = ({
             <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
               onSelectRoom={(r) => { setPickedRoom(r); if (r) setRoomCardOpen(true); }}
               isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}
-              elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
+              elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, category: f.category, verified: f.verified, issue: f.status === 'Issue Reported' }))}
               clearances={mode === 'room' && fixture && isGuid(fixture.id) && fixture.clearanceMm ? { guid: fixture.id, ...fixture.clearanceMm } : undefined}
               roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
               hideRoomLabels={mode === 'room'}

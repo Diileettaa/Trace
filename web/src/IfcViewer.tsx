@@ -23,6 +23,7 @@ import {
 } from './viewer3d'
 import type { FragmentsModel } from '@thatopen/fragments'
 import type { CollabState, RoomStatus } from './types'
+import { RoomMetricsCard } from './viewer3d/RoomMetricsCard'
 
 interface Props {
   path: string
@@ -40,7 +41,7 @@ interface Props {
   /** Gigi Interior 3D: an IfcSpace GlobalId to isolate. */
   isolateSpaceGuid?: string | null
   /** Evidence labels supplied by the Ask adapter. */
-  elementTags?: { guid: string; code: string; verified: boolean; issue?: boolean }[]
+  elementTags?: { guid: string; code: string; category?: string; verified: boolean; issue?: boolean }[]
   /** Measured fixture-to-wall distances in millimetres. */
   clearances?: { guid: string; left?: number; right?: number; front?: number; rear?: number }
   /** Room dimensions in metres, supplied by the Gigi Real3D adapter. */
@@ -1742,6 +1743,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
   const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
   const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
+  const measuredRoom = rooms.find(room => room.guid === isolateSpaceGuid) ?? rooms.find(room => room.key === selectedRoomKey)
 
   return <div className={`viewer ${showcase ? 'showcase-mode' : ''} ${recording ? 'showcase-recording' : ''} ${toolsOpen ? 'tools-open' : ''}`}>
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
@@ -1797,6 +1799,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       disabled={!modelReady || !explorerReady || walkMode}
     />
     <div className="three" ref={box}>
+      {measuredRoom && (() => { const size = measuredRoom.box.getSize(new THREE.Vector3()); return <RoomMetricsCard room={{ name: englishRoomName(measuredRoom.name), number: measuredRoom.number, width: size.x, depth: size.z, height: size.y, area: measuredRoom.areaM2 }} fixtures={interiorElementTags.map(tag => ({ id: tag.guid, code: tag.code, category: tag.category, clearance: tag.guid === clearances?.guid ? clearances : undefined }))} /> })()}
       <div className="camera-nav" aria-label="Camera navigation">
         <button type="button" title="Zoom in 20%" onClick={() => { zoomCamera(.8); setZoomLevel(level => Math.min(100, level + 20)) }}>＋</button>
         <input aria-label="Zoom level" type="range" min="0" max="100" value={zoomLevel} onChange={event => { const next = Number(event.target.value); zoomCamera(next > zoomLevel ? .94 : 1.06); setZoomLevel(next) }} />
