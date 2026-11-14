@@ -7,6 +7,7 @@ pixel space of the drawing the user is looking at (PDFs are shown rendered at 15
 """
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 from . import config, drawings, ifc_plan, vision
@@ -250,9 +251,13 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
             and config.NVIDIA_API_KEY and config.NEMOTRON_MODEL:
         r["warnings"] = list(r.get("warnings") or [])
         try:
-            verify = dict(early.result(timeout=180) if early else nemotron_check(path, question))
-        except Exception as e:  # never fail the answer because the second opinion failed
-            verify = {"nemotron_count": None, "model": config.NEMOTRON_MODEL or None, "error": type(e).__name__}
+            # the second opinion must not slow the answer: wait at most NEMOTRON_WAIT_S, then answer without it.
+            # The call keeps running in the pool and lands in the vision cache, so the next ask gets the badge.
+            fut = early or _POOL.submit(nemotron_check, path, question)
+            verify = dict(fut.result(timeout=float(os.getenv("NEMOTRON_WAIT_S", "4"))))
+        except Exception as e:  # never fail the answer because the second opinion failed or was slow
+            verify = {"nemotron_count": None, "model": config.NEMOTRON_MODEL or None, "error": type(e).__name__,
+                      "pending": type(e).__name__ == "TimeoutError"}
         verify["agreement"] = None if verify["nemotron_count"] is None else verify["nemotron_count"] == r["value"]
         r["verified_by"] = verify
         if verify["agreement"] is False:
