@@ -26,6 +26,27 @@ function fileIcon(filename: string) {
   if (['ifc', 'dwg', 'dxf'].includes(ext || '')) return 'CAD'
   return (ext || 'FILE').slice(0, 4).toUpperCase()
 }
+function statusText(doc: ProjectDocument, docs: ProjectDocument[]) {
+  if (doc.status === 'latest') return 'Current'
+  if (doc.status === 'superseded') {
+    const newer = docs.find(item => item.doc_key === doc.doc_key && item.status === 'latest')
+    return `Replaced by Rev ${newer?.rev_label || 'newer version'}`
+  }
+  if (doc.status === 'conflict') return 'Needs a decision: two different files claim the same revision'
+  if (doc.status === 'pending') return 'Waiting for approval'
+  if (doc.status === 'rejected') return 'Rejected'
+  return doc.status
+}
+function statusHint(status: string) {
+  const hints: Record<string, string> = {
+    latest: 'This is the current approved version.',
+    superseded: 'A newer revision has replaced this file. Select the status to open that version.',
+    conflict: 'Two different files claim the same revision. Choose which one to keep.',
+    pending: 'This file is waiting for approval before it becomes current.',
+    rejected: 'This file was rejected and remains in the project history.',
+  }
+  return hints[status] || 'Document filing status.'
+}
 function matchesFolder(doc: ProjectDocument, folder: FolderKey) {
   if (folder === 'all') return true
   if (folder === 'attention') return doc.status === 'conflict' || doc.status === 'pending'
@@ -108,7 +129,7 @@ export default function DocsLibrary() {
   async function resolve(action: 'approve' | 'make_latest' | 'reject', doc = selected) {
     if (!doc) return
     setBusy(true); setFeedback('')
-    try { const updated = await resolveProjectDoc(doc.id, action); setSelected(updated); await refresh(); setFeedback(`Document ${action.replace('_', ' ')}ed.`) }
+    try { const updated = await resolveProjectDoc(doc.id, action); setSelected(updated); await refresh(); setFeedback(action === 'approve' ? 'Document approved.' : action === 'reject' ? 'Document rejected.' : 'This revision is now current.') }
     catch (error) { setFeedback(error instanceof Error ? error.message : String(error)) } finally { setBusy(false) }
   }
   const ext = selected?.filename.split('.').pop()?.toLowerCase()
@@ -127,24 +148,27 @@ export default function DocsLibrary() {
       <section className={`docs-files-panel ${view}`} aria-label="Project files">
         <div className="docs-files-heading"><h3>{FOLDERS.find(folder => folder.key === activeFolder)?.label}</h3><span>{documents.length} files</span></div>
         {view === 'grid' ? <div className="docs-card-grid">{documents.map(doc => {
-          const replacement = doc.status === 'superseded' ? documents.find(item => item.doc_key === doc.doc_key && item.status === 'latest') : undefined
+          const replacement = doc.status === 'superseded' ? allDocuments.find(item => item.doc_key === doc.doc_key && item.status === 'latest') : undefined
           return <article key={doc.id} className={`docs-file-card${selected?.id === doc.id ? ' selected' : ''}`} onClick={() => setSelected(doc)}>
-            <div className="docs-card-top"><span className="docs-file-icon">{fileIcon(doc.filename)}</span><span className={`doc-status-pill ${doc.status}`}>{doc.status}</span></div>
+            <div className="docs-card-top"><span className="docs-file-icon">{fileIcon(doc.filename)}</span></div>
             <strong className="docs-card-name">{doc.title || doc.filename}</strong><span className="docs-card-rev">{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'}</span>
             <span className="docs-card-meta">{doc.uploaded_by || 'Unknown uploader'} · {timeAgo(doc.uploaded_at)}</span>
-            {replacement && <button className="docs-replacement-link" onClick={event => { event.stopPropagation(); setSelected(replacement) }}>Replaced by Rev {replacement.rev_label || 'latest'} · View</button>}
+            <button className={`doc-status-pill ${doc.status}`} title={statusHint(doc.status)} onClick={event => { event.stopPropagation(); if (replacement) setSelected(replacement) }}>{statusText(doc, allDocuments)}</button>
             {['pending', 'conflict'].includes(doc.status) && <div className="docs-card-actions"><button onClick={event => { event.stopPropagation(); void resolve(doc.status === 'pending' ? 'approve' : 'make_latest', doc) }}>{doc.status === 'pending' ? 'Approve' : 'Keep this one'}</button><button onClick={event => { event.stopPropagation(); void resolve('reject', doc) }}>Reject</button></div>}
           </article>
-        })}</div> : <div className="docs-list-view">{documents.map(doc => <button key={doc.id} className={`docs-list-row${selected?.id === doc.id ? ' selected' : ''}`} onClick={() => setSelected(doc)}><span className="docs-file-icon">{fileIcon(doc.filename)}</span><strong>{doc.title || doc.filename}</strong><span>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'}</span><span className={`doc-status-pill ${doc.status}`}>{doc.status}</span><span>{doc.uploaded_by || '—'}</span><span>{timeAgo(doc.uploaded_at)}</span></button>)}</div>}
+        })}</div> : <div className="docs-list-view">{documents.map(doc => <button key={doc.id} className={`docs-list-row${selected?.id === doc.id ? ' selected' : ''}`} onClick={() => setSelected(doc)}><span className="docs-file-icon">{fileIcon(doc.filename)}</span><strong>{doc.title || doc.filename}</strong><span>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'}</span><span title={statusHint(doc.status)} className={`doc-status-pill ${doc.status}`} onClick={event => { event.stopPropagation(); const newer = allDocuments.find(item => item.doc_key === doc.doc_key && item.status === 'latest'); if (newer) setSelected(newer) }}>{statusText(doc, allDocuments)}</span><span>{doc.uploaded_by || '—'}</span><span>{timeAgo(doc.uploaded_at)}</span></button>)}</div>}
         {!documents.length && <p className="dim docs-empty">No files in this folder.</p>}
       </section>
       <aside className="docs-preview-panel">{selected ? <>
-        <header><div><span className="docs-file-icon large">{fileIcon(selected.filename)}</span><span className={`doc-status-pill ${selected.status}`}>{selected.status}</span></div><h3>{selected.title || selected.filename}</h3><p className="dim small">{selected.filename} · {selected.rev_label ? `Rev ${selected.rev_label}` : 'Revision unknown'}</p><a className="button-link" href={previewUrl} target="_blank" rel="noreferrer">Open / download</a></header>
+        <header><div><span className="docs-file-icon large">{fileIcon(selected.filename)}</span><button title={statusHint(selected.status)} className={`doc-status-pill ${selected.status}`} onClick={() => { const newer = allDocuments.find(item => item.doc_key === selected.doc_key && item.status === 'latest'); if (newer) setSelected(newer) }}>{statusText(selected, allDocuments)}</button></div><h3>{selected.title || selected.filename}</h3><p className="dim small">{selected.filename} · {selected.rev_label ? `Rev ${selected.rev_label}` : 'Revision unknown'}</p><a className="button-link" href={previewUrl} target="_blank" rel="noreferrer">Open / download</a></header>
+        {selected.status === 'conflict' && <p className="docs-status-explanation">Needs a decision: two different files claim the same revision.</p>}
+        {selected.status === 'pending' && <p className="docs-status-explanation">Waiting for approval.</p>}
+        {['pending', 'conflict'].includes(selected.status) && <div className="docs-card-actions detail-actions">{selected.status === 'pending' ? <button disabled={busy} onClick={() => void resolve('approve')}>Approve</button> : <button disabled={busy} onClick={() => void resolve('make_latest')}>Keep this one</button>}<button disabled={busy} onClick={() => void resolve('reject')}>Reject</button></div>}
         {ext === 'pdf' ? <iframe className="docs-preview-frame" src={previewUrl} title={`Preview of ${selected.filename}`} /> : ['png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext || '') ? <img className="docs-preview-image" src={previewUrl} alt={selected.filename} /> : <div className="docs-preview-placeholder">Preview is not available for this file type.</div>}
-        <h4>Version timeline</h4><ol className="docs-history">{versions.map(doc => <li key={doc.id} className={doc.id === selected.id ? 'current' : ''}><button onClick={() => setSelected(doc)}>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'} · {doc.status}</button><small>{doc.filename} · {doc.uploaded_by || '—'} · {timeAgo(doc.uploaded_at)}</small></li>)}</ol>
+        <h4>Version timeline</h4><ol className="docs-history">{versions.map(doc => <li key={doc.id} className={doc.id === selected.id ? 'current' : ''}><button onClick={() => setSelected(doc)}>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'} · {statusText(doc, versions)}</button><small>{doc.filename} · {doc.uploaded_by || '—'} · {timeAgo(doc.uploaded_at)}</small></li>)}</ol>
         <h4>Activity</h4><ul className="docs-history">{events.map((item, index) => <li key={`${item.ts}-${index}`}><span>{String(item.action || item.event || 'Document event')} · {item.actor || 'system'}</span><small>{item.detail || ''} {item.ts ? `· ${timeAgo(item.ts)}` : ''}</small></li>)}</ul>
       </> : <p className="dim">Select a file to preview its contents and history.</p>}</aside>
     </div>
-    {feedback && <p className="error">{feedback}</p>}
+    {feedback && <p className={feedback.startsWith('Document ') || feedback.startsWith('This revision') ? 'dim small' : 'error'}>{feedback}</p>}
   </div>
 }
