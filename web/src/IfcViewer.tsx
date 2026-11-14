@@ -786,7 +786,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       current.world.renderer.needsUpdate = true
     } else {
       roomSectionBoundsRef.current = null
-      applyStoreyCut(current.components, current.world, model, null)
+      applyStoreyCut(current.components, current.world, model, planView ? selectedStorey : null)
     }
     if (walkMode && selectedStorey && current.world.renderer) {
       const cutZ = Math.max(selectedStorey.elevation + 3.2, walkFloorZRef.current + 1.2)
@@ -822,7 +822,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       }
       await applyBuildingVisibility(model, storeys, selectedStoreyId, trades, visibleIds, walkMode)
     })()
-  }, [allLocalIds, explorerReady, exploded, isolateSpaceGuid, previewRoomGuid, previewRoomStatus, rooms, selectedStoreyId, storeys, trades, walkMode])
+  }, [allLocalIds, explorerReady, exploded, isolateSpaceGuid, planView, previewRoomGuid, previewRoomStatus, roomDims, rooms, selectedStoreyId, storeys, trades, walkMode])
 
   useEffect(() => {
     const camera = engine.current?.world.camera
@@ -971,12 +971,14 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const selected = selectedStoreyId ? storeys.find(item => item.id === selectedStoreyId) : null
     if (planView && selected) {
       void camera.projection.set('Orthographic').then(() => {
+        camera.set('Plan')
         const center = selected.box.getCenter(new THREE.Vector3())
         const size = selected.box.getSize(new THREE.Vector3())
         const distance = Math.max(size.x, size.y, 5) * 1.4
         void camera.controls.setLookAt(center.x, center.y, center.z + distance, center.x, center.y, center.z, true)
       })
     } else if (!planView && camera.projection.current === 'Orthographic') {
+      camera.set('Orbit')
       void camera.projection.set('Perspective')
     }
   }, [planView, selectedStoreyId, storeys])

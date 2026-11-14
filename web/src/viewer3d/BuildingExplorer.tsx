@@ -80,7 +80,7 @@ export function BuildingExplorer({
       />
       <div className="explorer-actions">
         <label><input type="checkbox" checked={exploded} onChange={event => onExplodedChange(event.target.checked)} disabled={disabled} /> Explode</label>
-        <button type="button" className={planView ? 'active' : ''} onClick={() => onPlanViewChange(!planView)} disabled={disabled}>Plan view</button>
+        <button type="button" className={planView ? 'active' : ''} onClick={() => onPlanViewChange(!planView)} disabled={disabled}>{planView ? '3D' : 'Plan'}</button>
       </div>
       <div className="explorer-hint">
         <span className="hint-badge">💡 Hint:</span>
