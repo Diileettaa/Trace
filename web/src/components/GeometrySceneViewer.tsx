@@ -95,6 +95,12 @@ export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
 
     const size = bounds.isEmpty() ? new THREE.Vector3(5, 3, 5) : bounds.getSize(new THREE.Vector3())
     const center = bounds.isEmpty() ? new THREE.Vector3() : bounds.getCenter(new THREE.Vector3())
+    if (!bounds.isEmpty()) {
+      const reference = new THREE.Vector3(bounds.min.x + Math.max(.18, size.x * .025), bounds.min.y + .035, bounds.min.z + Math.max(.18, size.z * .025))
+      const scaleLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([reference, reference.clone().add(new THREE.Vector3(1, 0, 0))]), new THREE.LineBasicMaterial({ color: '#e9b949' }))
+      const north = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), reference, .75, '#202427', .16, .09)
+      scene3.add(scaleLine, north)
+    }
     const distance = Math.max(size.x, size.z, 3) * 1.7
     camera.position.set(center.x + distance, center.y + distance * .9, center.z + distance)
     controls.target.copy(center); controls.update()
@@ -116,7 +122,7 @@ export default function GeometrySceneViewer({ scene, onSelectObject }: Props) {
     const resize = () => { const width = Math.max(1, element.clientWidth); const height = Math.max(1, element.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix() }
     const observer = new ResizeObserver(resize); observer.observe(element); resize()
     const animate = () => { if (disposed) return; controls.update(); renderer.render(scene3, camera); frame = requestAnimationFrame(animate) }; animate()
-    return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
+    return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
   }, [onSelectObject, scene])
 
   return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span></aside></div>
