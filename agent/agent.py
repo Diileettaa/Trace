@@ -91,9 +91,72 @@ def _client():
     return genai.Client(api_key=config.GEMINI_API_KEY)
 
 
+# Engine answers that need no LLM at all: the number is exact (geometry), from our trained detectors, or a prior that
+# beats every model. For these the answer sentence is a template: 0 tokens, ~1 s. Set TRACE_ALWAYS_LLM=1 to disable.
+DIRECT_SOURCES = {"geometry", "detector", "prior"}
+_UNIT = {"count": "", "m2": " m²", "m3": " m³", "m": " m"}
+_CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
+
+
+def _fmt(v) -> str:
+    return str(int(v)) if isinstance(v, (int, float)) and float(v).is_integer() else f"{v}"
+
+
+def direct_answer_text(question: str, r: dict) -> str:
+    value = _fmt(r["value"]) + _UNIT.get(str(r.get("unit") or ""), f" {r.get('unit') or ''}".rstrip())
+    it = r.get("interpreted") or {}
+    what = ", ".join(str(x) for x in (it.get("intent"), it.get("category"), it.get("scope")) if x)
+    n = r.get("evidence_count") or 0
+    formula = (r.get("evidence") or {}).get("formula")
+    if _CJK.search(question):
+        parts = [f"答案：{value}。"]
+        if what:
+            parts.append(f"理解为：{what}。")
+        parts.append(f"来源：{r.get('source_label')}（{str(r.get('method', '')).removeprefix('engine:')}）" +
+                     (f"，图上标出 {n} 个编号框。" if n else "。"))
+    else:
+        parts = [f"**{value}**."]
+        if what:
+            parts.append(f"Interpreted as: {what}.")
+        parts.append(f"Source: {r.get('source_label')} ({str(r.get('method', '')).removeprefix('engine:')})" +
+                     (f", {n} numbered box{'es' if n != 1 else ''} on the drawing." if n else "."))
+    if formula:
+        parts.append(str(formula))
+    warn = [w for w in r.get("warnings") or [] if "free-form question" not in str(w)]
+    if warn:
+        parts.append("⚠ " + "; ".join(str(w) for w in warn))
+    return " ".join(parts)
+
+
+def _direct(question: str, path: str | None) -> dict | None:
+    import os
+    import time
+
+    if not path or os.getenv("TRACE_ALWAYS_LLM") == "1" or not tools.engine_adapter.available():
+        return None
+    t0 = time.perf_counter()
+    args = {"path": path, "question": question}
+    r = tools.call("answer_from_engine", args)
+    if r.get("value") is None or r.get("source") not in DIRECT_SOURCES:
+        return None
+    text = direct_answer_text(question, r)
+    evidence = [{"tool": "answer_from_engine", **r}]
+    tool_calls = [{"name": "answer_from_engine", "args": args}]
+    timing = {"total_s": round(time.perf_counter() - t0, 2), "gemini_calls_s": [], "tools_s": [r.get("elapsed_s")]}
+    usage = {"input": 0, "output": 0, "thinking": 0, "gemini_calls": 0, "vision_calls": 0,
+             "nemotron_calls": 1 if (r.get("verified_by") or {}).get("nemotron_count") is not None else 0,
+             "cost_usd": 0.0}
+    trace = build_trace(question, tool_calls, evidence, text, direct=True)
+    return {"answer_text": text, "evidence": evidence, "tool_calls": tool_calls, "timing": timing, "usage": usage,
+            "summary": summarize(evidence, timing, usage), "trace": trace, "llm_used": False}
+
+
 def ask(question: str, path: str | None = None, role: str | None = None, client=None) -> dict:
     from google.genai import types
 
+    direct = _direct(question, path)
+    if direct is not None:
+        return direct
     client = client or _client()
     role_hint = ROLE_HINTS.get(role or "", "")
     user_text = question if not path else f"Drawing/model file: {path} (type: {drawings.kind(path)})\n\nQuestion: {question}"
@@ -158,7 +221,7 @@ def ask(question: str, path: str | None = None, role: str | None = None, client=
     usage["nemotron_calls"] = sum(1 for e in evidence if (e.get("verified_by") or {}).get("nemotron_count") is not None)
     usage["cost_usd"] = cost_usd(usage)
     return {"answer_text": answer, "evidence": evidence, "tool_calls": tool_calls, "timing": timing,
-            "usage": usage, "summary": summarize(evidence, timing, usage),
+            "usage": usage, "summary": summarize(evidence, timing, usage), "llm_used": True,
             "trace": build_trace(question, tool_calls, evidence, answer)}
 
 
@@ -196,7 +259,7 @@ def summarize(evidence: list[dict], timing: dict, usage: dict) -> dict:
     }
 
 
-def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], answer: str) -> list[dict]:
+def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], answer: str, direct: bool = False) -> list[dict]:
     """Human-readable steps behind an answer, so a person can check where each number came from."""
     steps = [{"kind": "question", "title": "Question received", "detail": question}]
     calls = iter(tool_calls)
@@ -209,7 +272,8 @@ def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], ans
         args = {k: v for k, v in (call.get("args") or {}).items() if k != "path"}
         unit = e.get("unit") or ""
         steps.append({
-            "kind": "tool", "title": f"Gemini called {call.get('name')}", "args": args,
+            "kind": "tool", "title": (f"Engine called directly: {call.get('name')}" if direct
+                                      else f"Gemini called {call.get('name')}"), "args": args,
             "detail": f"result: {e.get('value')} {unit}".strip(),
             "method": e.get("method"), "boxes": len(e.get("sources") or []),
             "items": len(e.get("items") or []), "elapsed_s": e.get("elapsed_s"), "cached": bool(e.get("cached")),
@@ -226,7 +290,8 @@ def build_trace(question: str, tool_calls: list[dict], evidence: list[dict], ans
     if not any(s["kind"] == "check" and s["title"].startswith("Number check") for s in steps):
         steps.append({"kind": "check", "ok": True, "title": "Number check passed",
                       "detail": "Every number in the answer appears in a tool result or in the question"})
-    steps.append({"kind": "answer", "title": "Answer written by Gemini from the tool results", "detail": answer})
+    steps.append({"kind": "answer", "title": ("Answer written from the engine result (no LLM call, 0 tokens)" if direct
+                                              else "Answer written by Gemini from the tool results"), "detail": answer})
     return steps
 
 

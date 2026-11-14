@@ -142,3 +142,35 @@ def test_summary_for_reasoning_panel(monkeypatch):
     assert s["engine_tokens"] == 0 and s["badge"]["color"] == "grey" and isinstance(s["cost_usd"], float)
     step = next(t for t in out["trace"] if t["kind"] == "tool")
     assert step["source"] == "geometry" and step["tokens"] == 0 and step["engine_ms"] is not None
+
+
+def test_engine_answer_needs_no_llm(monkeypatch):
+    import engine.answer as ea
+
+    from agent import agent
+
+    monkeypatch.setattr(ea, "answer", lambda p, q: {
+        "value": 21, "unit": "count", "method": "swiss_dxf:doors", "warnings": [], "sources": [],
+        "items": [{"category": "door", "png_bbox": [1, 2, 3, 4]}],
+        "interpreted": {"intent": "count", "category": "door", "scope": "whole drawing"}})
+
+    class NoClient:
+        @property
+        def models(self):
+            raise AssertionError("Gemini must not be called")
+
+    out = agent.ask("一共有几扇门", "data/demo/plan.png", client=NoClient())
+    assert out["llm_used"] is False and out["usage"]["cost_usd"] == 0.0 and "21" in out["answer_text"]
+    assert out["answer_text"].startswith("答案") and "count, door, whole drawing" in out["answer_text"]
+    assert out["trace"][-1]["title"].startswith("Answer written from the engine result")
+    assert agent.unsupported_numbers(out["answer_text"], "q", out["evidence"]) == []
+
+
+def test_vision_answer_still_uses_llm(monkeypatch):
+    import engine.answer as ea
+
+    from agent import agent
+
+    monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 3, "unit": "count", "method": "cubicasa:vlm[gemini:x]:sauna",
+                                                    "warnings": [], "sources": [], "items": []})
+    assert agent._direct("How many saunas?", "data/demo/plan.png") is None
