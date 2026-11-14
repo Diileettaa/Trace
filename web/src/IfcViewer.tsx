@@ -1,6 +1,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as OBC from '@thatopen/components'
 import * as THREE from 'three'
+import { englishRoomName } from './roomNames'
 import { RenderedFaces } from '@thatopen/fragments'
 import { deleteScenePlacement, fileUrl, getScene, getRoomMedia, postRoomChat, saveScenePlacement, type ScenePlacement } from './api'
 import FurnitureCatalogModal, { type FurnitureProduct } from './components/FurnitureCatalogModal'
@@ -1549,7 +1550,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <label className="furniture-room-select">Room
         <select aria-label="Room" value={selectedRoomKey} onChange={(event) => selectRoom(event.target.value)}>
           <option value="">Select a room…</option>
-          {rooms.map((room) => <option key={room.key} value={room.key}>{room.name}</option>)}
+          {rooms.map((room) => <option key={room.key} value={room.key}>{englishRoomName(room.name)}</option>)}
         </select>
         <small>Determines where furniture is placed; it does not change the catalog.</small>
       </label>
@@ -1563,7 +1564,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <button disabled={!modelReady} onClick={screenshot}>Screenshot</button>
     </div>
     {status && <div className="status">{status}</div>}
-    {selectedRoomKey && <div className="status room-hint">Selected room: {rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'IfcSpace'} · click a room in the model to change selection</div>}
+    {selectedRoomKey && <div className="status room-hint">Selected room: {englishRoomName(rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'IfcSpace')} · click a room in the model to change selection</div>}
     <div className="viewer-main-row">
     <BuildingExplorer
       storeys={storeys}
@@ -1600,7 +1601,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
           className={`room-world-label ${hoveredRoomKey === room.key ? 'hovered' : ''}`}
           onPointerEnter={() => setHoveredRoomKey(room.key)} onPointerLeave={() => setHoveredRoomKey('')}
           onClick={() => focusRoom(room.key)} title="Open room actions">
-          {room.name}{room.number ? ` · ${room.number}` : ''}{room.areaM2 !== undefined ? ` · ${room.areaM2.toFixed(1)} m²` : ''}{hasBubble && <span className="room-activity-bubble">💬 {roomMessages}{room.key === inspectedRoomKey && popupMediaCount ? ` · 📷 ${popupMediaCount}` : ''}</span>}
+          {englishRoomName(room.name)}{room.number ? ` · ${room.number}` : ''}{room.areaM2 !== undefined ? ` · ${room.areaM2.toFixed(1)} m²` : ''}{hasBubble && <span className="room-activity-bubble">💬 {roomMessages}{room.key === inspectedRoomKey && popupMediaCount ? ` · 📷 ${popupMediaCount}` : ''}</span>}
         </button>})}
       </div>
       {walkMode && <>

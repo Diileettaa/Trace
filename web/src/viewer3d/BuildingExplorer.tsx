@@ -1,5 +1,6 @@
 import type { StoreyInfo, TradesState, TradeKey } from './types'
 import { useMemo, useState } from 'react'
+import { englishRoomName } from '../roomNames'
 import { StoreyPanel } from './StoreyPanel'
 import { TradeLayersPanel } from './TradeLayersPanel'
 import './viewer3d.css'
@@ -61,13 +62,13 @@ export function BuildingExplorer({
               {floorRooms.map(room => <button type="button" key={room.key}
                 className={selectedRoomKey === room.key ? 'active' : ''}
                 onClick={() => onSelectRoom(room.key)} disabled={disabled}>
-                <span>{room.name}{room.number ? ` · ${room.number}` : ''}</span>
+                <span>{englishRoomName(room.name)}{room.number ? ` · ${room.number}` : ''}</span>
                 {room.areaM2 !== undefined && <small>{room.areaM2.toFixed(1)} m²</small>}
               </button>)}
             </div>
           })}
           {filteredRooms.some(room => !room.storeyId) && <div className="room-list-group"><small>Other</small>
-            {filteredRooms.filter(room => !room.storeyId).map(room => <button type="button" key={room.key} className={selectedRoomKey === room.key ? 'active' : ''} onClick={() => onSelectRoom(room.key)}>{room.name}</button>)}
+          {filteredRooms.filter(room => !room.storeyId).map(room => <button type="button" key={room.key} className={selectedRoomKey === room.key ? 'active' : ''} onClick={() => onSelectRoom(room.key)}>{englishRoomName(room.name)}</button>)}
           </div>}
           {!filteredRooms.length && <small className="dim">No matching rooms.</small>}
         </div>
