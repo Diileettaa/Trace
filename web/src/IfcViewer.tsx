@@ -100,11 +100,11 @@ interface ScreenClearanceLine { side: 'left' | 'right' | 'front' | 'rear'; value
  * A room is shown as a dollhouse cut: retain only this
  * shallow box instead of hiding its neighbours and putting the camera inside.
  */
-function sectionBoxForRoom(room: RoomOption, dims?: Props['roomDims']) {
+function sectionBoxForRoom(room: RoomOption, _dims?: Props['roomDims']) {
   const center = room.box.getCenter(new THREE.Vector3())
   const source = room.box.getSize(new THREE.Vector3())
-  const width = dims?.L && dims.L > 0 ? dims.L : source.x
-  const depth = dims?.B && dims.B > 0 ? dims.B : source.z
+  const width = source.x
+  const depth = source.z
   return new THREE.Box3(
     new THREE.Vector3(center.x - width / 2 - .4, room.box.min.y - .05, center.z - depth / 2 - .4),
     new THREE.Vector3(center.x + width / 2 + .4, room.box.min.y + 2, center.z + depth / 2 + .4),
