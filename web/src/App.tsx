@@ -278,40 +278,15 @@ export default function App() {
         <header className="header">
           <div className="title-row">
             <h1>Trace</h1>
-            <select
-              className="demo-select"
-              value=""
-              onChange={(e) => {
-                const item = DEMO_ITEMS.find((d) => d.id === e.target.value)
-                if (item) applyDemo(item)
-              }}
-            >
-              <option value="">Demo Scenarios…</option>
-              {DEMO_ITEMS.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
           </div>
           <p className="sub">Ask a drawing anything. Every answer shows where it came from.</p>
         </header>
 
-        <label>
-          Dataset samples
-          <div className="row">
-            <select value={source} onChange={(e) => setSource(e.target.value)}>
-              {SOURCES.map((s) => (
-                <option key={s} value={s}>{s || 'All sources'}</option>
-              ))}
-            </select>
-            <select value="" onChange={(e) => pick(samples[Number(e.target.value)])}>
-              <option value="">Select a question…</option>
-              {samples.map((q, i) => (
-                <option key={i} value={i}>{q.question.slice(0, 70)}</option>
-              ))}
-            </select>
-          </div>
+        <label className="question-primary">
+          Question{space && <span className="scope"> · Room scope: {space.name} <a onClick={() => setSpace(null)}>×</a></span>}
+          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={4}
+            placeholder="Ask a question about your drawing or model…"
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
         </label>
 
         <label>
@@ -333,18 +308,39 @@ export default function App() {
           setViewMode(u.kind === 'ifc' ? '3d' : '2d')
         }} />
 
-        <label>
-          Question{space && <span className="scope"> · Room scope: {space.name} <a onClick={() => setSpace(null)}>×</a></span>}
-          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={3}
-            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
-        </label>
-
         <div className="row">
           <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
           </select>
           <button className="primary" onClick={submit} disabled={busy}>{busy ? 'Thinking…' : 'Ask'}</button>
         </div>
+
+        <details className="examples-panel">
+          <summary>Examples</summary>
+          <label>
+            Demo scenarios
+            <select className="demo-select" value="" onChange={(e) => {
+              const item = DEMO_ITEMS.find((d) => d.id === e.target.value)
+              if (item) applyDemo(item)
+            }}>
+              <option value="">Choose a demo scenario…</option>
+              {DEMO_ITEMS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Dataset samples
+            <div className="row">
+              <select value={source} onChange={(e) => setSource(e.target.value)}>
+                {SOURCES.map((s) => <option key={s} value={s}>{s || 'All sources'}</option>)}
+              </select>
+              <select value="" onChange={(e) => pick(samples[Number(e.target.value)])}>
+                <option value="">Select a question…</option>
+                {samples.map((q, i) => <option key={i} value={i}>{q.question.slice(0, 70)}</option>)}
+              </select>
+            </div>
+          </label>
+        </details>
+
         {!isIfc && path && <button onClick={scan} disabled={busy}>Scan &amp; number all elements</button>}
 
         {err && <div className="error" title={err}><strong>Error:</strong> {err.length > 200 ? err.slice(0, 200) + '…' : err}</div>}
