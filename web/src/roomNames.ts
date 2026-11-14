@@ -10,7 +10,9 @@ const TERMS: Record<string, string> = {
 export function roomEnglish(name: string) {
   if (!name) return name
   const parts = name.split('+').map(part => part.trim()).filter(Boolean)
-  return parts.map(part => TERMS[part.toLocaleUpperCase()] || (/^[A-ZÄÖÜÕ]{3,}$/.test(part) ? part.charAt(0) + part.slice(1).toLowerCase() : part)).join(' + ')
+  // translate word by word so "ESIK 2-2" or "1.03 Bad" also become English
+  const word = (w: string) => TERMS[w.toLocaleUpperCase()] || (/^[A-ZÄÖÜÕ]{3,}$/.test(w) ? w.charAt(0) + w.slice(1).toLowerCase() : w)
+  return parts.map(part => part.split(/(\s+)/).map(w => /\s+/.test(w) ? w : word(w)).join('')).join(' + ')
 }
 export function englishRoomName(name: string) {
   const parts = name.split('+').map(part => part.trim()).filter(Boolean)
