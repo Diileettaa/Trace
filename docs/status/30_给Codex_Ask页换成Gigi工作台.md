@@ -58,7 +58,7 @@
 8. 三个项目各问 3 题截图发 Diletta：Tallinn（IFC 平面）、Swiss、扫描图 colorful-11397
 
 ## 补充 ★（Xinran c940eb6：交互复核 API，Stoa 说「界面可以交互」，评委加分项）
-接口挂在 `/api/docs/`（engine/review.py）：
+改用 Gemini 31 号第 6 项的按 path 接口：`/api/review`、`/api/answer`、`/api/calibrate`、`/api/measure`（/api/ask 已带 answer_id、alternatives、item.review_id）。字段同下（原 Xinran 的 /api/docs/* 版本要 doc id，不用）。Xinran 的前端说明：坐标 `box`=PDF 点，`box_norm1000`=图片 0–1000；`alternatives` 做成切换（如 door sets 107 | door leaves 129）；method 含 uncertain 显示黄色横幅「Two readings disagree — please review」；复核后显示「Model 41 → reviewed by X: 44」。原始说明：
 - `POST /api/docs/ask` 返回 `answer_id` + 每个计数项的框
 - `POST /api/docs/review {answer_id, remove:[item ids], add:[[x0,y0,x1,y1]], choose:k, user}`：用户删掉误检框、画框补漏检、选另一种读法（如门扇 vs 门套）→ 返回新计数
 - `POST /api/docs/calibrate {id, p1, p2, length_m, image_size}`：图上点两点、输入真实长度 → 定比例尺

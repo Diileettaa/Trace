@@ -28,3 +28,13 @@
 ## 5. 验收
 - pytest 全过；对本地跑：Tallinn 马桶题 → /verify/status 返回 1 Installed / 1 In Progress / 1 Issue；/element/info 返回 clearances
 - 完成告诉 Diletta
+
+## 6. 交互复核接到我们的 /ask（Xinran 的 engine/review.py；说明见 Xinran 的「07 frontend interactive review」）
+Xinran 的路由（/api/docs/ask 等）要先把文件上传到资料库拿 doc id。我们的工作台按 path 工作，所以在 agent/app.py 加同功能、按 path 的路由（直接调 engine.review，不改 engine）：
+- `/ask`：engine 原始结果出来后（转换前）调用 `review.register(r, <实际文件路径>, question)`，把返回的 `answer_id`、`alternatives`、`interactive` 放进 /ask 响应顶层；每个 item 加 `review_id`（= register 后 items 里的 id，顺序与我们 items 一致，写测试保证）
+- `POST /review` body 同 Xinran：`{answer_id, remove, add, choose, user}` → 返回 review.review() 结果，并带上我们的 `answer_text`（如「Model 41 → reviewed by X: 44」）
+- `GET /answer?id=`
+- `POST /calibrate {path, p1, p2, length_m, image_size, page}`、`POST /measure {path, points, kind, page}`：path 用 drawings.resolve 转实际文件
+- 坐标：矢量 PDF 用 `box`（PDF 点），扫描/图片用 `box_norm1000`；/ask 的 items 里两种都原样透传，方便前端画
+- 方法名以 `:uncertain` 结尾时，回答 `warnings` 里加一条「Two readings disagree — please review」
+- 测试：swiss 一题、扫描图（mock vision）一题，review remove 1 个 → value 减 1
