@@ -186,3 +186,16 @@ def test_docs_tools_offered_and_dispatched(tmp_path, monkeypatch):
     r = tools.call("search_docs", {"query": "floor plan"})
     assert r["method"] == "docs:search_docs" and "result" in r
     docs_tools._STORE = None
+
+
+def test_follow_ups_are_offered(monkeypatch):
+    import engine.answer as ea
+
+    from agent import agent
+
+    monkeypatch.setattr(ea, "answer", lambda p, q: {
+        "value": 3, "unit": "count", "method": "swiss_dxf:wc", "warnings": [], "sources": [],
+        "items": [{"category": "wc", "png_bbox": [1, 2, 3, 4]}] * 3,
+        "interpreted": {"intent": "count", "category": "toilet", "scope": "whole drawing"}})
+    out = agent.ask("How many toilets?", "data/demo/plan.png", client=object())
+    assert 1 <= len(out["follow_ups"]) <= 3 and all(isinstance(q, str) for q in out["follow_ups"])
