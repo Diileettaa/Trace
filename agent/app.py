@@ -882,3 +882,38 @@ def room_contents_route(path: str, room: str):
 
 
 
+
+
+# Xinran's interactive review (engine/review.py via agent/docs_api.py), by dataset/upload path:
+# POST /rv/ask {path, question} -> answer_id, items with ids, alternatives; POST /rv/review, /rv/calibrate, /rv/measure; GET /rv/answer?id=
+@app.api_route("/rv/{rest:path}", methods=["GET", "POST"], include_in_schema=False)
+async def review_api(request: Request, rest: str = ""):
+    from fastapi import Response
+    from starlette.concurrency import run_in_threadpool
+
+    from . import docs_api
+
+    body = await request.body()
+    status, headers, data = await run_in_threadpool(docs_api.handle, request.method, "/" + rest, request.url.query,
+                                                    dict(request.headers), body)
+    return Response(content=data, status_code=status, headers=headers)
+
+
+@app.get("/room/walls")
+def room_walls_get(path: str = "", space_id: str = ""):
+    """Walls bounding one IfcSpace (Xinran's engine.ifc.room_walls; sizes from the model's quantities, never estimated)."""
+    if not path or not space_id:
+        raise HTTPException(400, "path and space_id are required")
+    from engine import ifc as engine_ifc
+
+    full = drawings.resolve(path)
+    ifc_file = full if full.suffix.lower() == ".ifc" else full.with_suffix(".ifc")
+    if not ifc_file.is_file():
+        cand = config.DATA_DIR / "data" / "ifc_models" / f"{full.stem.split('_plan-')[0]}.ifc"
+        ifc_file = cand if cand.is_file() else ifc_file
+    if not ifc_file.is_file():
+        return {"walls": [], "room": None, "method": "none", "warnings": ["no IFC model for this drawing"]}
+    try:
+        return engine_ifc.room_walls(str(ifc_file), space_id)
+    except Exception as e:  # never fail the page because one model is odd
+        return {"walls": [], "room": None, "method": "error", "warnings": [f"{type(e).__name__}: {e}"]}

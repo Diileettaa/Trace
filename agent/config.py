@@ -21,6 +21,9 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "./data/junction-dataset-preview")).resolv
 CACHE_DIR = Path(os.getenv("CACHE_DIR", "./cache")).resolve()
 UPLOAD_PREFIX = "uploads/"  # paths of user-uploaded drawings, stored under CACHE_DIR/uploads
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+# Xinran's engine and review API read these names; keep them on the same folders as ours
+os.environ.setdefault("JUNCTION_DATA", str(DATA_DIR))
+os.environ.setdefault("JUNCTION_UPLOADS", str(CACHE_DIR / "uploads"))
 
 # Cost shown in the reasoning panel: USD per 1M tokens for GEMINI_MODEL (thinking billed as output).
 # Defaults match web/src/pricing.ts (Gemini 3.8 Flash, checked 2026-11-14); override in .env if the model changes. The engine itself is 0 tokens.
