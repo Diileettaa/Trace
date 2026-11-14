@@ -374,7 +374,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         world.scene = new OBC.SimpleScene(components)
         world.scene.setup()
         world.scene.three.background = new THREE.Color('#F7F6F2')
-        world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true })
+        world.renderer = new OBC.SimpleRenderer(components, box.current!, { preserveDrawingBuffer: true, logarithmicDepthBuffer: true })
         world.camera = new OBC.OrthoPerspectiveCamera(components)
         components.init()
         world.camera.controls.minDistance = 0.02
@@ -477,6 +477,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
         await world.camera.fitToItems()
         const modelBounds = new THREE.Box3().setFromObject(loadedModel.object)
         const modelDiameter = Math.max(modelBounds.getSize(new THREE.Vector3()).length(), 0.1)
+        world.camera.three.near = .08
+        world.camera.three.far = Math.max(modelDiameter * 5, 80)
+        world.camera.three.updateProjectionMatrix()
         world.camera.controls.maxDistance = modelDiameter * 3
         world.camera.enabled = true
         world.camera.controls.enabled = true
