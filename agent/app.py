@@ -201,7 +201,8 @@ def collab_status(body: StatusIn):
 @app.post("/collab/message")
 def collab_message(body: MessageIn):
     try:
-        return collab.post_message(body.space_id, body.text, body.author, body.role, body.notify, body.attachment)
+        collab.post_message(body.space_id, body.text, body.author, body.role, body.notify, body.attachment)
+        return collab.for_space(None, body.author)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

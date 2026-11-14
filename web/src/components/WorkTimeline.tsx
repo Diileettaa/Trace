@@ -28,12 +28,12 @@ export default function WorkTimeline({ collab, onChange }: { collab: CollabState
     {error && <p className="error">{error}</p>}
     {!me && <p className="dim small">Register your contact above to book work.</p>}
     {rooms.map(id => <div className="timeline-room" key={id}><b>{id}</b><div className="timeline-row">{bookings.filter(b => b.space_id === id).sort((a,b) => a.start-b.start).map(b => {
-      const clashes = overlapping(b); const winner = b.winner || (b.conflict_with ? bookings.find(x => x.id === b.conflict_with) : clashes.sort((a,c) => a.created_at-c.created_at)[0])
+      const clashes = overlapping(b); const winner = b.winner || (b.conflict_with ? bookings.find(x => x.id === b.conflict_with) : [b, ...clashes].sort((a,c) => a.created_at-c.created_at)[0])
       const owner = winner && collab.people?.find(p => p.id === winner.person)
       const invalidOrder = /toilet|wc/i.test(b.what) && bookings.some(x => x.space_id === b.space_id && /wall/i.test(x.what) && x.end > b.start)
       return <article key={b.id} className={`booking ${clashes.length ? 'conflict' : ''}`}>
         <strong>{b.trade}</strong> · {b.what}<br /><span>{hour(b.start)}–{hour(b.end)}</span>
-        {clashes.length > 0 && <div className="conflict-detail">⚠ SCHEDULE CONFLICT · first booking keeps the slot{owner && <><br />Contact: {owner.name} · {owner.email} · {owner.phone}<br /><a href={`mailto:${owner.email}?subject=Schedule%20conflict`}>Message first booker</a></>}</div>}
+        {clashes.length > 0 && <div className="conflict-detail">⚠ SCHEDULE CONFLICT · first booking keeps the slot{owner && <><br />Contact: {owner.name} · {owner.email} · {owner.phone}<br /><button onClick={() => window.dispatchEvent(new CustomEvent('trace-open-direct', { detail: owner.id }))}>Open private chat</button></>}</div>}
         {invalidOrder && <div className="order-warning">⚠ Wall work should finish before toilet installation.</div>}
       </article>
     })}</div></div>)}

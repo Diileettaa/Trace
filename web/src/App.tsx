@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ask, getCollab, inventory, renderMoodImage, sampleQuestions } from './api'
+import { ask, getCollab, inventory, postDirect, postRoomChat, renderMoodImage, sampleQuestions } from './api'
 import { DEMO_ITEMS, type DemoItem } from './demo'
 import DrawingViewer from './DrawingViewer'
 import IfcViewer, { type PlacedProduct } from './IfcViewer'
@@ -40,10 +40,16 @@ export default function App() {
   const [placedProducts, setPlacedProducts] = useState<PlacedProduct[]>([])
   const [renderSource, setRenderSource] = useState('')
   const [renderRoomName, setRenderRoomName] = useState('')
+  const [renderNote, setRenderNote] = useState('')
+  const [shareMode, setShareMode] = useState<'room' | 'direct'>('room')
+  const [shareRoomId, setShareRoomId] = useState('')
+  const [shareRecipient, setShareRecipient] = useState('')
+  const [shareMessage, setShareMessage] = useState('')
   const [renderStyle, setRenderStyle] = useState('Warm minimal')
   const [renderImageUrl, setRenderImageUrl] = useState('')
   const [renderError, setRenderError] = useState('')
   const [renderBusy, setRenderBusy] = useState(false)
+  const [shareError, setShareError] = useState('')
 
   useEffect(() => {
     sampleQuestions(source || undefined).then(setSamples)
@@ -162,6 +168,20 @@ export default function App() {
     }
   }
 
+  async function shareScreenshot() {
+    if (!renderSource) return
+    let me: { id: string; trade: string } | null = null
+    try { me = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') } catch { /* profile is optional until registration */ }
+    if (!me) { setShareError('Register your contact before sharing a screenshot.'); return }
+    try {
+      const message = shareMessage.trim() || renderNote || `3D screenshot · ${renderRoomName}`
+      const next = shareMode === 'room'
+        ? await postRoomChat(shareRoomId.trim() || space?.id || '', message, me.id, me.trade, renderSource)
+        : await postDirect(shareRecipient, message, me.id, renderSource)
+      setCollab(next); setShareMessage(''); setShareError('Screenshot sent.')
+    } catch (error) { setShareError(error instanceof Error ? error.message : String(error)) }
+  }
+
   function exportBom() {
     const rows: string[][] = [['Name', 'Quantity', 'Dimensions', 'Unit price (EUR)', 'Subtotal (EUR)']]
     const productGroups = new Map<string, { product: PlacedProduct; quantity: number }>()
@@ -246,7 +266,7 @@ export default function App() {
   return (
     <div className="app">
       <aside className="panel">
-        <ContactRegistration />
+        <ContactRegistration onRegister={setCollab} />
         <DirectMessages collab={collab} onChange={setCollab} />
         <WorkTimeline collab={collab} onChange={setCollab} />
         <header className="header">
@@ -444,9 +464,11 @@ export default function App() {
             selectedGuid={selectedGuid}
             onSelectGuid={setSelectedGuid}
             onPlacementsChange={setPlacedProducts}
-            onScreenshot={(dataUrl, roomName) => {
+            onScreenshot={(dataUrl, roomName, note) => {
               setRenderSource(dataUrl)
               setRenderRoomName(roomName)
+              setRenderNote(note)
+              setShareError('')
               setRenderError('')
             }}
           />
@@ -476,6 +498,13 @@ export default function App() {
               </button>
               {renderSource && <span className="dim small">Screenshot ready · {renderRoomName}</span>}
             </div>
+            <div className="render-actions screenshot-share">
+              <label>Send screenshot to<select value={shareMode} onChange={e => setShareMode(e.target.value as 'room' | 'direct')}><option value="room">Room chat</option><option value="direct">Private chat</option></select></label>
+              {shareMode === 'room' ? <label>Room ID<input value={shareRoomId} onChange={e => setShareRoomId(e.target.value)} placeholder={space?.id || 'Enter room ID'} /></label> : <label>Contact<select value={shareRecipient} onChange={e => setShareRecipient(e.target.value)}><option value="">Choose contact…</option>{(collab.people || []).map(p => <option key={p.id} value={p.id}>{p.name} · {p.trade}</option>)}</select></label>}
+              <label>Message<input value={shareMessage} onChange={e => setShareMessage(e.target.value)} placeholder={renderNote || '3D screenshot note'} /></label>
+              <button disabled={!renderSource || (shareMode === 'direct' ? !shareRecipient : !(shareRoomId.trim() || space?.id))} onClick={shareScreenshot}>Send screenshot</button>
+            </div>
+            {shareError && <p className={shareError === 'Screenshot sent.' ? 'small dim' : 'error'}>{shareError}</p>}
             {renderError && <p className="error">{renderError}</p>}
             {renderImageUrl && <div className="mood-result">
               <img src={renderImageUrl} alt={`Mood render for ${renderRoomName || 'selected room'}`} />

@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { getPeople, registerPerson } from '../api'
+import { getCollab, getPeople, registerPerson } from '../api'
 import type { CollabPerson } from '../types'
 
 const TRADES = ['architect', 'electrician', 'plumber', 'floor', 'wall', 'owner']
-export default function ContactRegistration() {
+export default function ContactRegistration({ onRegister }: { onRegister: (state: import('../types').CollabState) => void }) {
   const [people, setPeople] = useState<CollabPerson[]>([])
   const [profile, setProfile] = useState<CollabPerson | null>(() => {
     try { return JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') } catch { return null }
@@ -17,6 +17,7 @@ export default function ContactRegistration() {
       const saved = await registerPerson(form)
       localStorage.setItem('trace-collab-profile', JSON.stringify(saved)); setProfile(saved)
       setPeople(await getPeople())
+      onRegister(await getCollab())
     } catch (e) { setError(String(e)) }
   }
   return <section className="collab contact-card">

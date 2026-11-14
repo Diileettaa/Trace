@@ -79,7 +79,9 @@ def book(space_id: str, trade: str, person: str, start: float, end: float, what:
 def for_space(space_id: str | None, viewer: str | None = None) -> dict:
     data = load()
     messages = data["messages"]
-    if viewer:
+    if viewer is None:
+        messages = [m for m in messages if m.get("thread") != "direct"]
+    else:
         messages = [m for m in messages if m.get("thread") != "direct" or viewer in (m.get("author"), m.get("recipient"))]
     if space_id:
         messages = [m for m in messages if m.get("space_id") == space_id or (m.get("thread") == "direct" and viewer in (m.get("author"), m.get("recipient")))]

@@ -26,3 +26,4 @@
 | T-21 | 前端效果图面板：T-19 截图后点 "Render mood image"，调用 /render 显示结果并可下载；导出 BOM CSV | Codex | [?] | web/src/**；截图生成/预览/下载；CSV 汇总放置产品及当前答案计数；pytest 37 passed，web build 通过 |
 
 | T-18 | 数据引擎离线抽样评测 | Codex | [?] | scripts/eval_engine.py、docs/eval-results.md | pytest 31 passed；web build 通过；每来源 50 题离线抽样已记录 |
+| T-25 | 团队协作：联系人、房间/私聊、施工时间线冲突、3D 截图备注 | Codex | [?] | agent/collab.py、agent/app.py、web/src/**（不含 DrawingViewer.tsx）、tests/** | 四块分别提交；pytest 41 passed，web build 通过；a0f8ac5、13f51ae、74c531c、c4da309 |

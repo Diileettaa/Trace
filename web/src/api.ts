@@ -33,7 +33,9 @@ export async function inventory(path: string, page = 1): Promise<Evidence> {
 }
 
 export async function getCollab(): Promise<CollabState> {
-  const r = await fetch(`${BASE}/collab`)
+  let viewer = ''
+  try { viewer = JSON.parse(localStorage.getItem('trace-collab-profile') || 'null')?.id || '' } catch { /* contacts can be registered later */ }
+  const r = await fetch(`${BASE}/collab${viewer ? `?viewer=${encodeURIComponent(viewer)}` : ''}`)
   return r.ok ? r.json() : { status: {}, messages: [] }
 }
 

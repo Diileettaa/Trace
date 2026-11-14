@@ -11,7 +11,7 @@ interface Props {
   selectedGuid?: string | null
   onSelectGuid?: (guid: string) => void
   onPlacementsChange?: (placements: PlacedProduct[]) => void
-  onScreenshot?: (dataUrl: string, roomName: string) => void
+  onScreenshot?: (dataUrl: string, roomName: string, note: string) => void
 }
 
 export interface PlacedProduct {
@@ -177,6 +177,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
   const [catalog, setCatalog] = useState<CatalogProduct[]>([])
   const [rooms, setRooms] = useState<RoomOption[]>([])
   const [selectedRoomKey, setSelectedRoomKey] = useState('')
+  const [screenshotNote, setScreenshotNote] = useState('')
   const [selectedProductId, setSelectedProductId] = useState('')
   const [placed, setPlaced] = useState<PlacedProduct[]>([])
   const [selectedPlacementId, setSelectedPlacementId] = useState('')
@@ -379,9 +380,22 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
     const renderer = engine.current?.world.renderer
     if (!renderer) return
     renderer.three.render(engine.current!.world.scene.three, engine.current!.world.camera.three)
-    const dataUrl = renderer.three.domElement.toDataURL('image/png')
+    const source = renderer.three.domElement
+    const annotated = document.createElement('canvas')
+    annotated.width = source.width; annotated.height = source.height
+    const context = annotated.getContext('2d')
+    if (!context) return
+    context.drawImage(source, 0, 0)
+    const note = screenshotNote.trim()
+    if (note) {
+      const band = Math.max(52, Math.round(annotated.height * 0.075))
+      context.fillStyle = 'rgba(18, 24, 32, 0.82)'; context.fillRect(0, annotated.height - band, annotated.width, band)
+      context.fillStyle = '#fff'; context.font = `600 ${Math.max(18, Math.round(band * 0.38))}px system-ui, sans-serif`
+      context.textBaseline = 'middle'; context.fillText(note.slice(0, 240), 20, annotated.height - band / 2, annotated.width - 40)
+    }
+    const dataUrl = annotated.toDataURL('image/png')
     const roomName = rooms.find((room) => room.key === selectedRoomKey)?.name ?? 'Selected room'
-    onScreenshot?.(dataUrl, roomName)
+    onScreenshot?.(dataUrl, roomName, note)
     const link = document.createElement('a')
     link.href = dataUrl
     link.download = 'trace-room-layout.png'
@@ -473,6 +487,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onPlacementsChange, onScree
       <button disabled={!placed.length} onClick={rotateProduct}>Rotate 90°</button>
       <button disabled={!selectedPlacementId} onClick={removeProduct}>Delete</button>
       <span className="dim small">{placed.length} placed</span>
+      <input aria-label="Screenshot note" value={screenshotNote} onChange={event => setScreenshotNote(event.target.value)} placeholder="Screenshot note…" />
       <button disabled={!modelReady} onClick={screenshot}>Screenshot</button>
     </div>
     {status && <div className="status">{status}</div>}
