@@ -97,17 +97,17 @@ interface IfcElementInfo {
 interface ScreenClearanceLine { side: 'left' | 'right' | 'front' | 'rear'; value: number; x1: number; y1: number; x2: number; y2: number }
 
 /**
- * IFC uses Z as up. A room is shown as a dollhouse cut: retain only this
+ * A room is shown as a dollhouse cut: retain only this
  * shallow box instead of hiding its neighbours and putting the camera inside.
  */
 function sectionBoxForRoom(room: RoomOption, dims?: Props['roomDims']) {
   const center = room.box.getCenter(new THREE.Vector3())
   const source = room.box.getSize(new THREE.Vector3())
   const width = dims?.L && dims.L > 0 ? dims.L : source.x
-  const depth = dims?.B && dims.B > 0 ? dims.B : source.y
+  const depth = dims?.B && dims.B > 0 ? dims.B : source.z
   return new THREE.Box3(
-    new THREE.Vector3(center.x - width / 2 - .4, center.y - depth / 2 - .4, room.box.min.z - .05),
-    new THREE.Vector3(center.x + width / 2 + .4, center.y + depth / 2 + .4, room.box.min.z + 2),
+    new THREE.Vector3(center.x - width / 2 - .4, room.box.min.y - .05, center.z - depth / 2 - .4),
+    new THREE.Vector3(center.x + width / 2 + .4, room.box.min.y + 2, center.z + depth / 2 + .4),
   )
 }
 
