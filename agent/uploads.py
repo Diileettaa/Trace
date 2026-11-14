@@ -53,6 +53,29 @@ def save(filename: str, data: bytes) -> dict:
     if not out.exists():
         out.write_bytes(data)
     path = f"{config.UPLOAD_PREFIX}{out.name}"
+
+    # Persist metadata manifest for catalog and project cards
+    manifest_file = root / "manifest.json"
+    manifest: dict[str, dict] = {}
+    if manifest_file.is_file():
+        try:
+            import json
+
+            manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        except Exception:
+            manifest = {}
+    manifest[out.name] = {
+        "filename": Path(filename).name,
+        "path": path,
+        "size_bytes": len(data),
+    }
+    try:
+        import json
+
+        manifest_file.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
     from . import drawings
 
     pages = 1

@@ -165,14 +165,18 @@ def questions(source: str | None = None, limit: int = 50):
     if not f.exists():
         raise HTTPException(404, "questions.jsonl not found in DATA_DIR")
     out = []
+    match_str = f"/{source}/" if source else None
     with f.open(encoding="utf-8") as fh:
         for line in fh:
-            q = json.loads(line)
-            if source and f"/{source}/" not in q["path"]:
+            if match_str and match_str not in line:
                 continue
-            out.append(q)
-            if len(out) >= limit:
-                break
+            try:
+                q = json.loads(line)
+                out.append(q)
+                if len(out) >= limit:
+                    break
+            except Exception:
+                pass
     return out
 
 @app.get("/models")
@@ -600,6 +604,15 @@ def drawing_catalog(kind: str | None = None):
     from . import catalog
 
     return catalog.catalog(kind)
+
+
+@app.get("/catalog/projects")
+def catalog_projects(q: str = "", offset: int = 0, limit: int = 20):
+    """Search and paginate across all project cards (featured, auto, and uploaded)."""
+    from . import catalog
+
+    return catalog.search_projects(q=q, offset=offset, limit=limit)
+
 
 
 # ---------------------------------------------------------------------

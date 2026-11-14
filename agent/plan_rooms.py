@@ -200,7 +200,40 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
 
         return {"path": path, "image_size": image_size, "rooms": rooms}
 
-    # 3. CubiCasa5k and user uploaded raster plans
+    # 3. Direct IFC Model (3D spaces)
+    if full.suffix.lower() == ".ifc":
+        try:
+            from engine import ifc
+
+            M = ifc.load(str(full))
+            rooms = []
+            for s in M.get("spaces", []):
+                guid = s.get("guid") or str(s.get("id"))
+                name = s.get("long") or s.get("name") or "Space"
+                num = s.get("name")
+                rooms.append({
+                    "space_id": guid,
+                    "name": name,
+                    "number": num,
+                    "area_m2": s.get("area_m2"),
+                    "bbox_px": [0, 0, 0, 0],
+                    "polygon_px": None,
+                })
+            return {
+                "path": path,
+                "image_size": image_size,
+                "rooms": rooms,
+                "warnings": ["3D model spaces list (2D plan overlay not available)"] if not rooms else [],
+            }
+        except Exception as e:
+            return {
+                "path": path,
+                "image_size": image_size,
+                "rooms": [],
+                "warnings": [f"Failed to read IFC spaces: {e}"],
+            }
+
+    # 4. CubiCasa5k and user uploaded raster plans
     return {
         "path": path,
         "image_size": image_size,
