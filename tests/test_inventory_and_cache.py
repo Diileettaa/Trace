@@ -175,7 +175,7 @@ def test_engine_prior_is_not_presented_as_answer(monkeypatch):
     from agent import engine_adapter
 
     monkeypatch.setattr(ea, "answer", lambda p, q: {"value": 1, "unit": "count", "items": [], "sources": [],
-                                                    "method": "cubicasa:prior:toilet", "warnings": []})
+                                                    "method": "cubicasa:prior:toilet", "warnings": ["low confidence: no model"]})
     r = engine_adapter.answer("data/cubicasa5k/x.png", "How many toilets?")
     assert r["value"] is None and "count_in_drawing" in r["warnings"][0]
 
@@ -242,9 +242,12 @@ def test_route_by_engine_method():
 
     assert route("swiss_dxf:doors") == "geometry" and route("ifc:space_area[geometry:footprint]") == "geometry"
     assert route("cubicasa:vlm[yolo-cubicasa]:door") == "detector"
+    assert route("cubicasa:detector[yolo-cubicasa]:door") == "detector"
+    assert route("cubicasa:rooms[yolo-cubicasa-rooms]:bedroom") == "detector"
+    assert route("cubicasa:prior:bathroom", ["zero-API mode"]) == "prior"
     assert route("cubicasa:prior:kitchen") == "prior" and route("cubicasa:vlm+prior:shower_tub") == "prior"
     assert route("cubicasa:vlm[gemini:gemini-3.8-flash]:bedroom") == "vision"
-    assert route("cubicasa:prior:bedroom") == "needs_vision" and route("upload:no_vector_data") == "needs_vision"
+    assert route("cubicasa:prior:bedroom", ["low confidence: answered the most common value"]) == "needs_vision" and route("upload:no_vector_data") == "needs_vision"
 
 
 def test_geometry_answer_is_grey_badge_without_nemotron(monkeypatch):

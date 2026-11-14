@@ -121,48 +121,52 @@ SOURCE_LABEL = {"geometry": "exact from geometry", "detector": "trained detector
                 "vision": "vision LLM", "needs_vision": "no engine answer"}
 
 
-def route(method: str) -> str:
+def route(method: str, warnings=()) -> str:
     m = str(method or "")
     if m.startswith(("swiss_dxf:", "ifc:", "ifc_")):
         return "geometry"
-    if m.startswith("cubicasa:vlm[yolo"):
+    if m.startswith(("cubicasa:detector[", "cubicasa:rooms[", "cubicasa:vlm[yolo")):
         return "detector"
     if m.startswith(("cubicasa:prior:kitchen", "cubicasa:vlm+prior:")):
         return "prior"
     if m.startswith("cubicasa:vlm["):
         return "vision"
+    if m.startswith("cubicasa:prior:"):
+        # the engine picks the prior on purpose where it beats the models (kitchen, bathroom without VLM);
+        # "low confidence" means it had nothing better: let the agent try vision
+        return "needs_vision" if any("low confidence" in str(w) for w in warnings or ()) else "prior"
     return "needs_vision"
 
 
 def _cubicasa_fast(path: str, question: str) -> dict | None:
-    """Fixture/door/window counts straight from the YOLO detector, and kitchens from the prior.
-    engine.cubicasa.answer() asks the vision LLM first even when the detector will overrule it; skipping that call
-    here gives the same answer at zero tokens and ~1 s instead of ~20 s."""
+    """Categories the engine answers from local models or a prior whatever the vision model says
+    (doors/windows/fixtures -> detector, bedrooms -> room detector, kitchens -> prior).
+    engine.cubicasa.answer() asks the vision LLM first even then; skipping that call gives the same answer
+    at zero tokens and ~1 s instead of ~20 s."""
     import engine.answer as ea
     from engine import cubicasa
 
     c = cubicasa.category(question)
     if c is None:
         return None
-    if c in cubicasa.PRIOR_PREFERRED:
+    src = cubicasa.SOURCE_WITH_VLM.get(c)
+    if src == "prior":
         return {"value": cubicasa.CATS[c][2], "unit": "count", "items": [], "sources": [{"file": path}],
                 "method": f"cubicasa:prior:{c}",
-                "warnings": ["answered the most common value (more reliable than the vision model here)"]}
-    if c not in cubicasa.DETECTOR_CATS:
+                "warnings": ["answered the most common value (more reliable than the models for this category)"]}
+    if src not in ("detector", "rooms"):
         return None
     png = str((config.DATA_DIR / path).resolve())
     try:
-        boxes = cubicasa.detector_boxes(png, c)
-        w, h = ea._png_size(png)
+        boxes = cubicasa.detector_boxes(png, c) if src == "detector" else cubicasa.room_boxes(png, c)
+        if boxes is None:
+            return None
+        items = cubicasa._items(c, boxes, png, ea._png_size)
     except Exception:
         return None
-    if boxes is None:
-        return None
-    items = [{"category": c, "box_norm1000": b,
-              "png_bbox": [round(b[0] * w / 1000), round(b[1] * h / 1000), round(b[2] * w / 1000), round(b[3] * h / 1000)]}
-             for b in boxes]
+    method = f"cubicasa:detector[yolo-cubicasa]:{c}" if src == "detector" else f"cubicasa:rooms[yolo-cubicasa-rooms]:{c}"
     return {"value": len(boxes), "unit": "count", "items": items, "sources": [{"file": path}],
-            "method": f"cubicasa:vlm[yolo-cubicasa]:{c}", "warnings": []}
+            "method": method, "warnings": []}
 
 
 def answer(path: str, question: str) -> dict:
@@ -188,7 +192,7 @@ def answer(path: str, question: str) -> dict:
     if r is None:
         r = ea.answer(path, question)
     engine_ms = round((time.perf_counter() - t0) * 1000, 1)
-    source = route(r.get("method"))
+    source = route(r.get("method"), r.get("warnings") or ())
     out = _convert(path, question, r, source, early)
     out["source"] = source
     out["source_label"] = SOURCE_LABEL[source]
@@ -265,6 +269,9 @@ def _convert(path: str, question: str, r: dict, source: str, early=None) -> dict
         out["verified_by"] = r["verified_by"]
     if r.get("badge"):
         out["badge"] = r["badge"]
+    if r.get("evidence"):
+        # area answers: formula + per-room breakdown (+ excluded rooms with reason) so a judge can re-add it
+        out["evidence"] = r["evidence"]
     if model:
         out["model_file"] = model
     return out
