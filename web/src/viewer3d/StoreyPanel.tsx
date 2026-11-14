@@ -19,7 +19,7 @@ export function StoreyPanel({
 
   return (
     <div className="storey-sidebar">
-      <strong>Floors</strong>
+      <strong>Open a floor</strong>
         <button
           type="button"
           className={`storey-pill ${selectedStoreyId === null ? 'active' : ''}`}
@@ -43,7 +43,7 @@ export function StoreyPanel({
               className={`storey-pill ${isSelected ? 'active' : ''}`}
               onClick={() => onSelectStorey(isSelected ? null : storey.id)}
               disabled={disabled}
-              title={`Show ${storey.name} with 1.2 m cut-away (${elevLabel})`}
+          title={`Open ${storey.name} as a top-down floor plan (${elevLabel})`}
             >
               <span>{storey.name}</span><span className="storey-meta">{elevLabel} · {roomCounts[storey.id] ?? 0} rooms</span>
             </button>

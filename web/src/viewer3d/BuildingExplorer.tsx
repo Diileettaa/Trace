@@ -51,7 +51,7 @@ export function BuildingExplorer({
         disabled={disabled}
       />
       <section className="room-list-panel" aria-label="Room list">
-        <strong>Rooms <span className="room-list-count">{filteredRooms.length}</span></strong>
+        <strong>Open a room <span className="room-list-count">{filteredRooms.length}</span></strong>
         <input aria-label="Search rooms" placeholder="Search rooms…" value={roomQuery} onChange={event => setRoomQuery(event.target.value)} />
         <div className="room-list-scroll">
           {[...storeys].reverse().map(floor => {
@@ -85,7 +85,7 @@ export function BuildingExplorer({
       <div className="explorer-hint">
         <span className="hint-badge">💡 Hint:</span>
         <span>
-          Select a storey to isolate that floor and cut above it. Untick trades to hide their elements.
+          Click a floor for its plan view. Click a room for its floor plan and measurements.
         </span>
       </div>
     </div>

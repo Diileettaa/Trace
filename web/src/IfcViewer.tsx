@@ -309,6 +309,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [exploding, setExploding] = useState(false)
   const [peelStep, setPeelStep] = useState(0)
   const [planView, setPlanView] = useState(false)
+  const [roomPlanKey, setRoomPlanKey] = useState('')
   const [inspectedRoomKey, setInspectedRoomKey] = useState('')
   const [hoveredRoomKey, setHoveredRoomKey] = useState('')
   const [walkMode, setWalkMode] = useState(false)
@@ -325,7 +326,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
   const [tourStage, setTourStage] = useState(0)
   const [recording, setRecording] = useState(false)
   const [transparentCapture, setTransparentCapture] = useState(false)
-  const [buildingView, setBuildingView] = useState<'whole' | 'interior'>('whole')
   const [toolsOpen, setToolsOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(50)
   const showcaseLightsRef = useRef<THREE.Group | null>(null)
@@ -971,27 +971,23 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
   function selectStorey(id: string | null) {
     setSelectedStoreyId(id)
-    setPlanView(false)
+    setRoomPlanKey('')
+    setPlanView(Boolean(id))
     const floor = id ? storeys.find(item => item.id === id) : null
     if (!floor || floor.box.isEmpty()) { if (!id) fitModel(); return }
-    const e = engine.current
-    if (!e) return
-    const center = floor.box.getCenter(new THREE.Vector3())
-    const size = floor.box.getSize(new THREE.Vector3())
-    const distance = Math.max(size.x, size.z, 3) * 1.35
-    void e.world.camera.controls.setLookAt(center.x + distance, center.y + distance * .75, center.z - distance,
-      center.x, center.y, center.z, true)
   }
 
   useEffect(() => {
     const camera = engine.current?.world.camera
     if (!camera) return
     const selected = selectedStoreyId ? storeys.find(item => item.id === selectedStoreyId) : null
+    const selectedRoom = roomPlanKey ? rooms.find(room => room.key === roomPlanKey) : null
     if (planView && selected) {
       void camera.projection.set('Orthographic').then(() => {
         camera.set('Plan')
-        const center = selected.box.getCenter(new THREE.Vector3())
-        const size = selected.box.getSize(new THREE.Vector3())
+        const target = selectedRoom?.box ?? selected.box
+        const center = target.getCenter(new THREE.Vector3())
+        const size = target.getSize(new THREE.Vector3())
         const distance = Math.max(size.x, size.z, 5) * 1.4
         void camera.controls.setLookAt(center.x, center.y + distance, center.z, center.x, center.y, center.z, true)
       })
@@ -999,7 +995,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       camera.set('Orbit')
       void camera.projection.set('Perspective')
     }
-  }, [planView, selectedStoreyId, storeys])
+  }, [planView, roomPlanKey, rooms, selectedStoreyId, storeys])
 
   function selectRoom(key: string) {
     setSelectedRoomKey(key)
@@ -1011,22 +1007,13 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     const room = rooms.find(candidate => candidate.key === key)
     if (!room) return
     selectRoom(key)
+    setRoomPlanKey(key)
     setInspectedRoomKey(key)
     setSelectedElement(null)
     const rect = box.current?.getBoundingClientRect()
     setPopupPosition(popupAt || { x: Math.min((rect?.left || 16) + 16, window.innerWidth - 336), y: Math.min((rect?.top || 16) + 16, window.innerHeight - 300) })
     if (room.storeyId) setSelectedStoreyId(room.storeyId)
-    const e = engine.current
-    if (!e) return
-    const center = room.box.getCenter(new THREE.Vector3())
-    const size = room.box.getSize(new THREE.Vector3())
-    const target = new THREE.Vector3(center.x, center.y, room.box.min.z + 1.6)
-    const lateral = Math.max(Math.min(size.x, size.y) * 0.28, 0.7)
-    const controls = e.world.camera.controls
-    const oldSmoothTime = controls.smoothTime
-    controls.smoothTime = isolateSpaceGuid ? 0.6 : 0.8
-    void controls.setLookAt(target.x + lateral, target.y - lateral, target.z,
-      target.x, target.y, target.z, true).finally(() => { controls.smoothTime = oldSmoothTime })
+    setPlanView(true)
   }
 
   function startWalk() {
@@ -1484,8 +1471,7 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
     tourAnimationRef.current = null
     stopRecording()
     setExploded(false); setExploding(false); setPeelStep(0); setShowcase(false)
-    setTouring(false); setTourStage(0); setPlanView(false); setSelectedStoreyId(null)
-    setBuildingView('whole')
+    setTouring(false); setTourStage(0); setPlanView(false); setSelectedStoreyId(null); setRoomPlanKey('')
     setTrades(createInitialTrades())
     const model = modelRef.current
     if (model) void applyExplodedView(model, storeys, 0, 6, placementsRef.current)
@@ -1743,9 +1729,9 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
 
   const popupRoom = rooms.find(room => room.key === inspectedRoomKey)
   const popupSpaceId = popupRoom ? popupRoom.guid || popupRoom.key : ''
-  const measuredRoom = isolateSpaceGuid || planView || buildingView === 'interior'
-    ? rooms.find(room => room.guid === isolateSpaceGuid) ?? rooms.find(room => room.key === selectedRoomKey)
-    : undefined
+  const measuredRoom = isolateSpaceGuid
+    ? rooms.find(room => room.guid === isolateSpaceGuid)
+    : rooms.find(room => room.key === roomPlanKey)
 
   return <div className={`viewer ${showcase ? 'showcase-mode' : ''} ${recording ? 'showcase-recording' : ''} ${toolsOpen ? 'tools-open' : ''}`}>
     {modelReady && onlyTrade && <div className="viewer-trade-summary">{onlyTrade.key === 'plumbing'
@@ -1753,7 +1739,6 @@ function IfcViewerInner({ path, guids, selectedGuid, onSelectGuid, onPlacementsC
       : `This model contains only ${onlyTrade.label.toLowerCase()}.`}</div>}
     <div className="viewer-bar furniture-bar">
       <span className="path">{path}</span>
-      <div className="building-view-tabs" role="tablist" aria-label="3D view mode"><button role="tab" aria-selected={buildingView === 'whole'} className={buildingView === 'whole' ? 'active' : ''} onClick={() => { clearRoomClipping(); setBuildingView('whole'); setSelectedStoreyId(null); setPeelStep(0); setPlanView(false); requestAnimationFrame(() => fitModel()) }}>Whole Building</button><button role="tab" aria-selected={buildingView === 'interior'} className={buildingView === 'interior' ? 'active' : ''} onClick={() => { const room = rooms.find(item => item.key === selectedRoomKey) ?? rooms[0]; setBuildingView('interior'); if (room?.storeyId) setSelectedStoreyId(room.storeyId); setPeelStep(2); setPlanView(false) }}>Interior</button></div>
       <button className="viewer-tools-toggle" onClick={() => setToolsOpen(open => !open)}>{toolsOpen ? 'Tools ▴' : 'Tools ▾'}</button>
       <span className="catalog-label" title="Demo catalog">Demo catalog</span>
       {guids.length > 0 && <span>{guids.length} element{guids.length === 1 ? '' : 's'} highlighted</span>}
