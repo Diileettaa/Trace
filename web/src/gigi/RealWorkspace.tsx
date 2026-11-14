@@ -69,7 +69,11 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [scale, setScale] = useState<ScaleOption>('1:200');
   const [activeLayers, setActiveLayers] = useState<Record<LayerId, boolean>>({ architecture: true, sanitary: true, hvac: true, electrical: true, dimensions: true });
 
-  const activeFloor = sheetLabel(project, askPath);
+  // ours: storeys of the IFC model (reported by the 3D viewer) for the LEVEL switcher
+  const [storeys, setStoreys] = useState<{ id: string; name: string; elevation: number }[]>([]);
+  const [storeyId, setStoreyId] = useState<string | null>(null);
+  const chosenStorey = storeys.find((s) => s.id === storeyId);
+  const activeFloor = chosenStorey ? chosenStorey.name.toUpperCase() : sheetLabel(project, askPath);
   const [floorMenuOpen, setFloorMenuOpen] = useState<boolean>(false);
   const floorHoverTimer = useRef<number | null>(null);
 
@@ -194,6 +198,8 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
     setProjectMenuOpen(false);
     setFloorMenuOpen(false);
     setImageSize(null);
+    setStoreys([]);
+    setStoreyId(null);
   };
 
   const handleSelectChat = (chat: ChatSession) => {
@@ -480,7 +486,9 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               fixture={active3DFixture} siblingFixtures={scenarioFixtures}
               onSwitchMode={(m) => setViewMode(m === 'building' ? '3d-building' : '3d-room')}
               onSelectSibling={(id) => { if (fixtures[id]) setSelectedFixtureId(id); }} onBackTo2D={() => setViewMode('2d')}
-              onAsk={(q) => void runPromptInCurrentChat(q)} />
+              onAsk={(q) => void runPromptInCurrentChat(q)}
+              storeyId={storeyId} onStoreys={(list) => setStoreys([...list].sort((a, b) => b.elevation - a.elevation))}
+              visibleLayers={{ architecture: activeLayers.architecture, sanitary: activeLayers.sanitary, hvac: activeLayers.hvac, electrical: activeLayers.electrical }} />
           )}
         </div>
       </div>
@@ -655,9 +663,25 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             </button>
             {floorMenuOpen && (
               <div onMouseLeave={() => setFloorMenuOpen(false)} className="absolute left-0 top-full mt-1.5 w-72 rounded-xl bg-[#202427] border border-[#E9B949]/60 shadow-xl py-1.5 z-50">
-                <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-b border-white/10">Switch Sheet</div>
+                {project.model && (
+                  <>
+                    <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-b border-white/10">Building Floors (3D)</div>
+                    {storeys.length === 0 && <div className="px-3 py-2 text-[11px] text-[#A9AFB0]">Open the 3D view once to load the floors…</div>}
+                    {[{ id: '', name: 'Whole building', elevation: 0 }, ...storeys].map((st) => (
+                      <button key={st.id || 'all'} type="button" onClick={() => { setStoreyId(st.id || null); setViewMode('3d-building'); setFloorMenuOpen(false); }}
+                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${(storeyId || '') === st.id ? 'bg-[#E9B949]/20 text-[#E9B949]' : 'text-[#F7F6F2] hover:bg-white/10'}`}>
+                        <div className="min-w-0">
+                          <div className="font-mono font-semibold">{st.id ? st.name.toUpperCase() : 'WHOLE BUILDING'}</div>
+                          {st.id && <div className="text-[10px] text-[#A9AFB0] font-sans">+{st.elevation.toFixed(1)} m · only this floor, seen from above</div>}
+                        </div>
+                        {(storeyId || '') === st.id && <Check className="w-3.5 h-3.5 text-[#E9B949]" />}
+                      </button>
+                    ))}
+                  </>
+                )}
+                <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-y border-white/10">Switch Sheet (2D)</div>
                 {[project.plan, project.model].filter(Boolean).map((p) => (
-                  <button key={p!} type="button" onClick={() => { setAskPath(p!); setFloorMenuOpen(false); setViewMode(p!.toLowerCase().endsWith('.ifc') ? '3d-building' : '2d'); }}
+                  <button key={p!} type="button" onClick={() => { setAskPath(p!); setStoreyId(null); setFloorMenuOpen(false); setViewMode(p!.toLowerCase().endsWith('.ifc') ? '3d-building' : '2d'); }}
                     className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${askPath === p ? 'bg-[#E9B949]/20 text-[#E9B949]' : 'text-[#F7F6F2] hover:bg-white/10'}`}>
                     <div className="min-w-0">
                       <div className="font-mono font-semibold">{sheetLabel(project, p!)}</div>

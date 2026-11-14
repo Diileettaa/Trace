@@ -42,6 +42,10 @@
 .gigi-3d .camera-nav button:nth-of-type(3), .gigi-3d .camera-nav button:nth-of-type(4) { width:auto !important; padding:0 8px !important; font:500 10px/26px "IBM Plex Mono", monospace !important; letter-spacing:.02em; color:#A9AFB0 !important; }
 .gigi-3d .camera-nav button:hover { background:rgba(233,185,73,.22) !important; color:#E9B949 !important; }
 /* Explode / Peel are presentation effects for the Project page; Gigi's frame uses the LEVEL switcher instead */
-.gigi-3d .showcase-motion-controls, .gigi-3d .viewer-help-control, .gigi-3d .viewer-help-popover { display:none !important; }
+.gigi-3d .viewer-help-control, .gigi-3d .viewer-help-popover { display:none !important; }
+.gigi-3d .showcase-motion-controls { top:10px !important; right:10px !important; padding:3px !important; gap:2px !important; border-radius:999px !important; background:rgba(32,36,39,.85) !important; border:1px solid rgba(233,185,73,.45) !important; }
+.gigi-3d .showcase-motion-controls button { padding:3px 10px !important; border:0 !important; border-radius:999px !important; background:transparent !important; color:#F7F6F2 !important; font:500 11px/1.6 "DM Sans", sans-serif !important; }
+.gigi-3d .showcase-motion-controls button:hover { background:rgba(233,185,73,.22) !important; color:#E9B949 !important; }
+.gigi-3d .showcase-motion-controls span { color:#A9AFB0 !important; font:500 10px "IBM Plex Mono", monospace !important; padding-right:8px; }
 /* Walk entry: small dark pill, same family as the camera control */
 .gigi-3d .walk-inside-button { left:10px !important; bottom:10px !important; padding:5px 12px !important; font:600 11px/1.4 "DM Sans", sans-serif !important; border-radius:999px !important; background:rgba(32,36,39,.88) !important; color:#E9B949 !important; border:1px solid rgba(233,185,73,.45) !important; box-shadow:0 2px 8px rgba(0,0,0,.25) !important; }

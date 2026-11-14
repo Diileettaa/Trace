@@ -18,6 +18,9 @@ interface Props {
   onSelectSibling: (id: string) => void;
   onBackTo2D: () => void;
   onAsk?: (question: string) => void;   // ours: ask about the room the user clicked
+  storeyId?: string | null;              // LEVEL switcher in Gigi's top bar
+  onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void;
+  visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical', boolean>>;
 }
 
 const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
@@ -32,6 +35,7 @@ const ROWS: { key: string; label: string; accent?: boolean }[] = [
 
 export const Real3D: React.FC<Props> = ({
   mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D, onAsk,
+  storeyId, onStoreys, visibleLayers,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [roomCardOpen, setRoomCardOpen] = useState(true);
@@ -74,7 +78,7 @@ export const Real3D: React.FC<Props> = ({
           </div>
         </div>
         <span className="text-[11px] font-mono text-[#A9AFB0]">
-          {model ? 'BIM model · real geometry' : plan ? 'Rooms extruded from the vector plan (2.7 m)' : ''}
+          {model ? 'Explode = spread floors apart · Peel = lift roof, facade, slabs step by step' : plan ? 'Rooms extruded from the vector plan (2.7 m)' : ''}
         </span>
       </div>
 
@@ -109,7 +113,8 @@ export const Real3D: React.FC<Props> = ({
               elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, verified: f.verified, issue: f.status === 'Issue Reported' }))}
               clearances={mode === 'room' && fixture && isGuid(fixture.id) && fixture.clearanceMm ? { guid: fixture.id, ...fixture.clearanceMm } : undefined}
               roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
-              hideRoomLabels={mode === 'room'} />
+              hideRoomLabels={mode === 'room'}
+              storeyId={mode === 'building' ? storeyId ?? null : null} onStoreys={onStoreys} visibleLayers={visibleLayers} />
           ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (
             <PlanRooms3D path={plan} />
           ) : (
