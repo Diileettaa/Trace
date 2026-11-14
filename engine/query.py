@@ -3,7 +3,8 @@
     query(path, intent, category, scope)  -> same evidence dict as engine.answer(), plus "interpreted"
 query() turns the parameters into the dataset's canonical English question and runs the validated engine.answer(),
 so its accuracy is exactly the evaluated accuracy. Unsupported combinations return value=None with a reason;
-the engine never guesses a number."""
+the engine never guesses a number.
+    classify(path, question)              -> free-form question in any of en/zh/fi/sv/de/fr/it -> query parameters"""
 import os
 from . import answer as A, swiss, ifc, cubicasa
 
@@ -64,8 +65,8 @@ def inventory(path):
         return {"source": src, "kind": "raster floor plan image (no vector data)",
                 "count_categories": list(cubicasa.CATS.keys()),
                 "scopes": ["whole plan only"],
-                "note": "door/window/toilet/sink/shower_tub come from a trained detector (boxes as evidence); "
-                        "room types (bedroom, sauna, bathroom, wc_room, balcony, storey) need the vision model",
+                "note": "door/window/toilet/sink/shower_tub come from a trained detector, bedrooms from a room detector "
+                        "(boxes as evidence); other room types use the vision model, or the room detector in zero-API mode",
                 "not_supported": ["areas (plans are not to scale)", "counts inside one room"]}
     return {"source": src, "kind": "unsupported by the engine", "not_supported": ["everything: use the vision model"]}
 
@@ -148,7 +149,12 @@ def query(path, intent, category=None, scope=None):
     if q is None:
         return _unsupported(f"'{intent}' of '{cat}' with scope {scope or 'whole drawing'} is not supported for {src}; "
                             "call inventory() to see what is", interp)
-    r = A.answer(path, q)
+    r = A.answer(path, q, _fallback=False)
     if cat in DEFINITIONS and intent == "count": interp["definition"] = DEFINITIONS[cat]
     r["interpreted"] = interp; r["canonical_question"] = q
     return r
+
+
+def classify(path, question):
+    from .nlq import classify as _c
+    return _c(path, question)

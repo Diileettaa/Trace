@@ -55,6 +55,8 @@ def _find_space(M, room, storey):
 def answer(path, question, M):
     q = question; quoted = _quoted(q); warn = []; items = []
     is_model = bool(re.search(r"in the model|enthält das Modell|en el modelo|in het model|i modellen|mudelis|w modelu|Modell|nel modello|modelul|bevat het model|het model", q))
+    if not is_model and not quoted:   # dataset phrasings always quote the storey / room: anything else is free-form
+        return None, None, [], "ifc:unknown", ["question not recognised"]
     storey = None if is_model else (_storey_match(M, quoted[-1]) if quoted else None)
     bare = QUOTED.sub("X", q)   # keep quoted names out of keyword matching
     concept = next((c for c, (rx, _) in CLASSES.items() if re.search(rx, bare, re.I)), None)

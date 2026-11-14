@@ -133,7 +133,20 @@ def _png_size(png):
         return struct.unpack(">II", h[16:24]) if h[:8] == b"\x89PNG\r\n\x1a\n" else None
     except Exception: return None
 
-def answer(path, question):
+UNKNOWN = ("swiss_dxf:unknown", "ifc:unknown", "cubicasa:unknown")
+
+def answer(path, question, _fallback=True):
+    """Dataset phrasings go straight to the validated parsers; anything else is classified (engine.nlq) into a
+    structured query. A question that stays ambiguous returns method 'unrecognised_question', never a guess."""
+    r = _answer_templates(path, question)
+    if _fallback and r.get("method") in UNKNOWN:
+        from . import nlq
+        r2 = nlq.run(path, question)
+        r2.setdefault("warnings", []).insert(0, "free-form question: interpreted by engine.nlq, see 'classified'")
+        return r2
+    return r
+
+def _answer_templates(path, question):
     src = path.replace("\\", "/").split("/")
     source = src[src.index("data") + 1] if "data" in src else src[0]
     if source == "swiss_dwellings":
