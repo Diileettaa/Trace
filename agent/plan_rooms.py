@@ -115,11 +115,22 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
                 room_name = str(r.get("name")).strip() if r.get("name") else None
                 space_id = room_number or room_name or f"room_{len(rooms) + 1}"
 
+                dims_m = None
+                if bb:
+                    dx = abs(bb[2] - bb[0])
+                    dy = abs(bb[3] - bb[1])
+                    dims_m = {
+                        "L": round(max(dx, dy), 2),
+                        "B": round(min(dx, dy), 2),
+                        "H": None,
+                    }
+
                 rooms.append({
                     "space_id": space_id,
                     "name": room_name,
                     "number": room_number,
                     "area_m2": float(r["area"]) if r.get("area") is not None else None,
+                    "dims_m": dims_m,
                     "bbox_px": bbox_px,
                     "polygon_px": polygon_px,
                 })
@@ -141,15 +152,20 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
 
         # IFC metadata lookup if model is available
         space_map: dict[str, Any] = {}
+        space_box_map: dict[str, Any] = {}
         ifc_model = _find_matching_ifc(full)
         if ifc_model and ifc_model.is_file():
             try:
-                from engine import ifc, ifc_answer
+                from engine import ifc
 
                 M = ifc.load(str(ifc_model))
                 space_map = {s["guid"]: s for s in M.get("spaces", []) if "guid" in s}
+                from . import room_contents
+
+                idx = room_contents._build_ifc_spatial_index(ifc_model)
+                space_box_map = {sp["guid"]: sp.get("bbox") for sp in idx.get("spaces", []) if sp.get("bbox")}
             except Exception:
-                space_map = {}
+                pass
 
         rooms = []
         for attrs, guid, body in _G_GUID.findall(svg_text):
@@ -189,11 +205,30 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
                 number = data_name
                 area_m2 = None
 
+            dims_m = None
+            bbox_3d = space_box_map.get(guid)
+            if bbox_3d and len(bbox_3d) == 6:
+                dx = abs(bbox_3d[3] - bbox_3d[0])
+                dy = abs(bbox_3d[4] - bbox_3d[1])
+                dz = abs(bbox_3d[5] - bbox_3d[2])
+                dims_m = {
+                    "L": round(max(dx, dy), 2),
+                    "B": round(min(dx, dy), 2),
+                    "H": round(dz, 2) if dz > 0 else None,
+                }
+            elif s and isinstance(s, dict):
+                h_cand = s.get("height") or s.get("quantities", {}).get("Height")
+                h_val = round(float(h_cand), 2) if isinstance(h_cand, (int, float)) and h_cand > 0 else None
+                if area_m2:
+                    approx = round(area_m2 ** 0.5, 2)
+                    dims_m = {"L": approx, "B": approx, "H": h_val}
+
             rooms.append({
                 "space_id": guid,
                 "name": str(name) if name is not None else None,
                 "number": str(number) if number is not None else None,
                 "area_m2": area_m2,
+                "dims_m": dims_m,
                 "bbox_px": bbox_px,
                 "polygon_px": poly_px,
             })
@@ -206,16 +241,38 @@ def _rooms_geometry(path: str, page: int = 1) -> dict[str, Any]:
             from engine import ifc
 
             M = ifc.load(str(full))
+            space_box_map = {}
+            try:
+                from . import room_contents
+
+                idx = room_contents._build_ifc_spatial_index(full)
+                space_box_map = {sp["guid"]: sp.get("bbox") for sp in idx.get("spaces", []) if sp.get("bbox")}
+            except Exception:
+                pass
+
             rooms = []
             for s in M.get("spaces", []):
                 guid = s.get("guid") or str(s.get("id"))
                 name = s.get("long") or s.get("name") or "Space"
                 num = s.get("name")
+                bbox = space_box_map.get(guid)
+                dims_m = None
+                if bbox and len(bbox) == 6:
+                    dx = abs(bbox[3] - bbox[0])
+                    dy = abs(bbox[4] - bbox[1])
+                    dz = abs(bbox[5] - bbox[2])
+                    dims_m = {
+                        "L": round(max(dx, dy), 2),
+                        "B": round(min(dx, dy), 2),
+                        "H": round(dz, 2) if dz > 0 else None,
+                    }
+
                 rooms.append({
                     "space_id": guid,
                     "name": name,
                     "number": num,
                     "area_m2": s.get("area_m2"),
+                    "dims_m": dims_m,
                     "bbox_px": [0, 0, 0, 0],
                     "polygon_px": None,
                 })

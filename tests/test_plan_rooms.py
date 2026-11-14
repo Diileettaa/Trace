@@ -152,6 +152,7 @@ def test_swiss_dwellings_parsing(monkeypatch, tmp_path):
     assert r1["name"] == "Küche"
     assert r1["number"] == "1.01"
     assert r1["area_m2"] == 12.3
+    assert r1["dims_m"] == {"L": 4.0, "B": 3.0, "H": None}
     assert r1["bbox_px"] == [100, 200, 220, 290]
     assert r1["polygon_px"] is not None
     assert len(r1["polygon_px"]) == 4
