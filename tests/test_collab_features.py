@@ -25,3 +25,15 @@ def test_room_chat_and_direct_messages_are_threaded(tmp_path, monkeypatch):
     assert [message["text"] for message in thread] == ["Private"]
     room = client.get("/collab", params={"space_id": "R1"}).json()
     assert room["messages"][0]["text"] == "Room note"
+
+
+def test_overlapping_bookings_keep_first_booking_and_expose_winner_contact(tmp_path, monkeypatch):
+    monkeypatch.setattr(collab, "_file", lambda: tmp_path / "collab.json")
+    client = TestClient(app)
+    client.post("/collab/people", json={"name": "First", "trade": "wall", "email": "first@example.test", "phone": "123"})
+    first = client.post("/collab/bookings", json={"space_id": "A1", "trade": "wall", "person": "first@example.test", "start": 100, "end": 200, "what": "Repair wall"})
+    later = client.post("/collab/bookings", json={"space_id": "A1", "trade": "plumber", "person": "later@example.test", "start": 150, "end": 250, "what": "Install toilet"})
+    assert first.status_code == later.status_code == 200
+    booking = later.json()["bookings"][1]
+    assert booking["conflict_with"] == later.json()["bookings"][0]["id"]
+    assert booking["winner"]["person"] == "first@example.test"

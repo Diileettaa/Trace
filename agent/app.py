@@ -184,7 +184,9 @@ def collab_bookings():
 
 @app.post("/collab/bookings")
 def collab_booking(body: BookingIn):
-    try: return collab.book(body.space_id, body.trade, body.person, body.start, body.end, body.what)
+    try:
+        collab.book(body.space_id, body.trade, body.person, body.start, body.end, body.what)
+        return collab.for_space(None)
     except ValueError as exc: raise HTTPException(400, str(exc))
 
 

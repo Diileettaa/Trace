@@ -1,4 +1,5 @@
 import type { AskResponse, CollabState, CollabPerson, DatasetQuestion, Evidence, Role, RoomStatus } from './types'
+import type { CollabBooking } from './types'
 
 const BASE = '/api'
 
@@ -65,6 +66,12 @@ export const postRoomChat = (space_id: string, text: string, author: string, rol
 
 export async function postDirect(recipient: string, text: string, author: string, attachment = ''): Promise<CollabState> {
   const response = await fetch(`${BASE}/collab/direct`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipient, text, author, attachment }) })
+  if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
+  return response.json()
+}
+
+export async function bookWork(body: Pick<CollabBooking, 'space_id' | 'trade' | 'person' | 'start' | 'end' | 'what'>): Promise<CollabState> {
+  const response = await fetch(`${BASE}/collab/bookings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
   return response.json()
 }
