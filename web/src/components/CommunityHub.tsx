@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { getCollab } from '../api'
 import type { CollabState } from '../types'
 import ContactRegistration from './ContactRegistration'
+import CommunityFilesPanel from './CommunityFilesPanel'
 import DirectMessages from './DirectMessages'
-import DocsLibrary from './DocsLibrary'
 import TeamChannels from './TeamChannels'
 import WorkTimeline from './WorkTimeline'
 
@@ -25,7 +25,7 @@ export default function CommunityHub({ onBack }: { onBack: () => void }) {
       <section className="community-hub-main">
         {tab === 'Channels' && <TeamChannels collab={collab} onChange={setCollab} onOpenFiles={() => setTab('Files')} />}
         {tab === 'Schedule' && <WorkTimeline collab={collab} onChange={setCollab} onOpenDirect={openDirect} />}
-        {tab === 'Files' && <DocsLibrary />}
+        {tab === 'Files' && <CommunityFilesPanel onBack={() => setTab('Channels')} />}
         {tab === 'Private messages' && <DirectMessages collab={collab} onChange={setCollab} initialRecipient={recipient} />}
       </section>
     </div>

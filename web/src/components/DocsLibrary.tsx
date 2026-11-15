@@ -19,6 +19,11 @@ function timeAgo(value?: string | number) {
   if (days < 30) return `${days} d ago`
   return `${Math.floor(days / 30)} mo ago`
 }
+function eventDetail(value: unknown) {
+  if (typeof value === 'string') return value
+  if (value == null) return ''
+  try { return JSON.stringify(value) } catch { return String(value) }
+}
 function fileIcon(filename: string) {
   const ext = filename.split('.').pop()?.toLowerCase()
   if (ext === 'pdf') return 'PDF'
@@ -206,7 +211,7 @@ export default function DocsLibrary({ selectedDocumentId = null, onAskDocument }
         {['pending', 'conflict'].includes(selected.status) && <div className="docs-card-actions detail-actions">{selected.status === 'pending' ? <button disabled={busy} onClick={() => void resolve('approve')}>Approve</button> : <button disabled={busy} onClick={() => void resolve('make_latest')}>Keep this one</button>}<button disabled={busy} onClick={() => void resolve('reject')}>Reject</button></div>}
         {ext === 'pdf' && previewUrl ? <iframe className="docs-preview-frame" src={previewUrl} title={`Preview of ${selected.filename}`} /> : ['png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext || '') && previewUrl ? <img className="docs-preview-image" src={previewUrl} alt={selected.filename} /> : ['pdf', 'png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext || '') ? <div className="docs-preview-placeholder">{previewFile?.error || 'Loading preview…'}</div> : <div className="docs-preview-placeholder">Preview is not available for this file type.</div>}
         <h4>Version timeline</h4><ol className="docs-history">{versions.map(doc => <li key={doc.id} className={doc.id === selected.id ? 'current' : ''}><button onClick={() => setSelected(doc)}>{doc.rev_label ? `Rev ${doc.rev_label}` : 'Revision unknown'} · {statusText(doc, versions)}</button><small>{doc.filename} · {doc.uploaded_by || '—'} · {timeAgo(doc.uploaded_at)}</small></li>)}</ol>
-        <h4>Activity</h4><ul className="docs-history">{events.map((item, index) => <li key={`${item.ts}-${index}`}><span>{String(item.action || item.event || 'Document event')} · {item.actor || 'system'}</span><small>{item.detail || ''} {item.ts ? `· ${timeAgo(item.ts)}` : ''}</small></li>)}</ul>
+        <h4>Activity</h4><ul className="docs-history">{events.map((item, index) => <li key={`${item.ts}-${index}`}><span>{String(item.action || item.event || 'Document event')} · {String(item.actor || 'system')}</span><small>{eventDetail(item.detail)} {item.ts ? `· ${timeAgo(item.ts)}` : ''}</small></li>)}</ul>
       </> : <p className="dim">Select a file to preview its contents and history.</p>}</aside>
     </div>
     {feedback && <p className={feedback.startsWith('Document ') || feedback.startsWith('This revision') ? 'dim small' : 'error'}>{feedback}</p>}

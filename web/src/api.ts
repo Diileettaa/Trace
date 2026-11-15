@@ -184,7 +184,7 @@ export async function uploadDrawing(file: File): Promise<UploadResult> {
 }
 
 export interface ProjectDocument { id: number; project: string; doc_key: string; title?: string; filename: string; rev_label?: string; status: string; discipline?: string; permit?: string; uploaded_by?: string; uploaded_at?: string; source?: string; email_subject?: string; size?: number; url?: string }
-export interface DocEvent { action?: string; actor?: string; ts?: number; detail?: string; [key: string]: unknown }
+export interface DocEvent { action?: string; actor?: string; ts?: number; detail?: unknown; [key: string]: unknown }
 async function docsJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${url}`, init)
   if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`)
