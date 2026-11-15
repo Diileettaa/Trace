@@ -553,7 +553,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                 className={`px-2.5 py-0.5 text-xs font-medium rounded transition-colors cursor-pointer ${viewMode === '2d' ? 'bg-[#202427] text-[#F7F6F2]' : 'text-[#202427]/70'}`}>2D</button>
               <button type="button" onClick={() => setViewMode('3d-building')}
                 className={`px-2.5 py-0.5 text-xs font-medium rounded inline-flex items-center gap-1 transition-colors cursor-pointer ${viewMode !== '2d' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#202427]/70'}`}>
-                <Box className="w-3 h-3" /><span>3D</span>
+                <Box className="w-3 h-3" /><span>2.5D</span>
               </button>
             </div>
           </div>
@@ -645,12 +645,12 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                 onSelectFixtureFor3D={(id) => { setSelectedFixtureId(id); setViewMode('3d-room'); }} />
             ) : (
               <div className="h-[420px] flex flex-col items-center justify-center gap-2 bg-[#FCFCF9] blueprint-grid-bg text-center px-8">
-                <span className="text-sm font-semibold text-[#202427]">{project.plan && askPath !== project.plan ? "This is the 3D model — pick a 2D sheet from the sheet menu" : "This project is a BIM model without a 2D sheet"}</span>
-                <button type="button" onClick={() => setViewMode('3d-building')} className="px-3 py-1.5 rounded-md bg-[#E9B949] text-[#202427] text-xs font-semibold cursor-pointer">Open the 3D model →</button>
+                <span className="text-sm font-semibold text-[#202427]">{project.plan && askPath !== project.plan ? "This is the model source — choose 2.5D to view its measured plan" : "This project is a BIM model without a 2D sheet"}</span>
+                <button type="button" onClick={() => setViewMode('3d-building')} className="px-3 py-1.5 rounded-md bg-[#E9B949] text-[#202427] text-xs font-semibold cursor-pointer">Open 2.5D model →</button>
               </div>
             )
           ) : (
-            <Real3D mode={viewMode === '3d-building' ? 'building' : 'room'} scenario={scenario} model={project.model} plan={project.plan}
+            <Real3D mode={viewMode === '3d-building' ? 'building' : 'room'} scenario={scenario} model={project.model} plan={project.plan} page={sheetPage}
               fixture={active3DFixture} siblingFixtures={scenarioFixtures}
               onSwitchMode={(m) => setViewMode(m === 'building' ? '3d-building' : '3d-room')}
               onSelectSibling={(id) => { if (fixtures[id]) setSelectedFixtureId(id); }} onBackTo2D={() => setViewMode('2d')}
@@ -861,8 +861,8 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               <div onMouseLeave={() => setFloorMenuOpen(false)} className="absolute left-0 top-full mt-1.5 w-80 rounded-xl bg-[#202427] border border-[#E9B949]/60 shadow-xl py-1.5 z-50">
                 {project.model && (
                   <>
-                    <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-b border-white/10">Building Floors (3D)</div>
-                    {storeys.length === 0 && <div className="px-3 py-2 text-[11px] text-[#A9AFB0]">Open the 3D view once to load the floors…</div>}
+                    <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-b border-white/10">Building Floors (2.5D)</div>
+                    {storeys.length === 0 && <div className="px-3 py-2 text-[11px] text-[#A9AFB0]">Open the 2.5D view once to load the floors…</div>}
                     {[{ id: '', name: 'Whole building', elevation: 0 }, ...storeys].map((st) => (
                       <button key={st.id || 'all'} type="button" onClick={() => { setStoreyId(st.id || null); setViewMode('3d-building'); setFloorMenuOpen(false); }}
                         className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${(storeyId || '') === st.id ? 'bg-[#E9B949]/20 text-[#E9B949]' : 'text-[#F7F6F2] hover:bg-white/10'}`}>

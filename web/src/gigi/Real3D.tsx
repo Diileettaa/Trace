@@ -1,9 +1,6 @@
-// Gigi's 3D frame around our real IFC or drawing-derived 2.5D scene.
-// around our real 3D: the IFC model (IfcViewer) or, for 2D vector plans, rooms extruded from /api/plan/rooms.
+// Gigi's 2.5D frame around the geometry scene exported by the engine.
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Eye } from 'lucide-react';
-import IfcViewer from '../IfcViewer';
-import PlanRooms3D from '../components/PlanRooms3D';
 import GeometrySceneViewer from '../components/GeometrySceneViewer';
 import { isIllustrativeGeometryScene, isMeasuredGeometryScene, loadGeometryScene, type GeometryScene, type GeometrySource } from '../viewer3d/geometryScene';
 import type { FixtureVerification, QueryScenario } from './adapters';
@@ -13,6 +10,7 @@ interface Props {
   scenario: QueryScenario | null;
   model: string | null;   // IFC path when the project has one
   plan: string | null;    // 2D sheet path
+  page?: number;          // selected page when the source is a multi-page drawing
   fixture: FixtureVerification | null;
   siblingFixtures: FixtureVerification[];
   onSwitchMode: (mode: 'building' | 'room') => void;
@@ -29,11 +27,12 @@ const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
 
 export const Real3D: React.FC<Props> = ({
   mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
-  storeyId, onStoreys, visibleLayers, onOpenSource,
+  page = 1, storeyId, onStoreys, visibleLayers, onOpenSource,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
   const [geometryError, setGeometryError] = useState<string | null>(null);
+  const [geometryLoading, setGeometryLoading] = useState(false);
   const announcedGeometryStoreys = useRef<string>('');
   useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
   useEffect(() => {
@@ -41,14 +40,16 @@ export const Real3D: React.FC<Props> = ({
     let active = true;
     setGeometryScene(null);
     setGeometryError(null);
-    if (!source) return () => { active = false; };
-    void loadGeometryScene(source).then((result) => {
+    setGeometryLoading(!!source);
+    if (!source) { setGeometryError('No IFC model or drawing source is selected.'); return () => { active = false; }; }
+    void loadGeometryScene(source, page).then((result) => {
       if (!active) return;
       if (result.scene && (isMeasuredGeometryScene(result.scene) || isIllustrativeGeometryScene(result.scene))) setGeometryScene(result.scene);
       else setGeometryError(result.error ?? null);
+      setGeometryLoading(false);
     });
     return () => { active = false; };
-  }, [model, plan]);
+  }, [model, plan, page]);
   useEffect(() => {
     if (geometryScene?.storeys.length) {
       const signature = geometryScene.storeys.map((storey) => `${storey.id}:${storey.elevationM}`).join('|');
@@ -58,8 +59,6 @@ export const Real3D: React.FC<Props> = ({
       }
     }
   }, [geometryScene, onStoreys]);
-  const guids = (scenario?.targetIds || []).filter(isGuid);
-  const selectedGuid = mode === 'room' && fixture && isGuid(fixture.id) ? fixture.id : null;
   const roomLabel = scenario?.roomCode || 'Room';
   // Gigi's strip shows the elements of one room: keep the selected element's room, at most 8 chips
   const strip = (() => {
@@ -72,7 +71,7 @@ export const Real3D: React.FC<Props> = ({
 
   return (
     <div className="bg-[#202427] text-[#F7F6F2] flex flex-col">
-      {/* 3D Toolbar */}
+      {/* 2.5D Toolbar */}
       <div className="px-4 py-2.5 border-b border-white/10 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button type="button" onClick={onBackTo2D}
@@ -84,17 +83,17 @@ export const Real3D: React.FC<Props> = ({
             <button type="button" onClick={() => onSwitchMode('building')}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${mode === 'building' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#A9AFB0] hover:text-[#F7F6F2]'}`}>
               <Building2 className="w-3 h-3" />
-              <span>3D Building</span>
+              <span>2.5D Building</span>
             </button>
             <button type="button" onClick={() => onSwitchMode('room')}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${mode === 'room' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#A9AFB0] hover:text-[#F7F6F2]'}`}>
               <Eye className="w-3 h-3" />
-              <span>3D Floor</span>
+              <span>2.5D Floor</span>
             </button>
           </div>
         </div>
         <span className="text-[11px] font-mono text-[#A9AFB0]">
-          {model ? 'BIM geometry · choose a floor or room from the explorer' : plan ? '3D generated from the drawing · assumed wall height 2.7 m' : ''}
+          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? 'Measured 2.5D geometry · choose a floor or room' : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
         </span>
       </div>
 
@@ -122,34 +121,22 @@ export const Real3D: React.FC<Props> = ({
         )}
 
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
-          {geometryError && (
-            <div className="absolute z-10 left-3 top-3 max-w-xs rounded border border-amber-300/60 bg-[#202427]/95 px-3 py-2 text-[11px] text-[#F7F6F2] shadow-sm">
-              <strong className="block text-[#E9B949]">Scene not shown</strong>
-              {geometryError} Using the source view instead.
+          {geometryLoading ? (
+            <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-8">
+              <span className="text-sm font-semibold text-[#E9B949]">Loading 2.5D geometry…</span>
+              <span className="text-xs text-[#A9AFB0]">Reading rooms, walls, openings and source evidence.</span>
             </div>
-          )}
-          {geometryScene ? (
+          ) : geometryScene ? (
             <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling}
               onSelectRoom={setPickedRoom}
               onSelectSource={onOpenSource}
               storeyId={mode === 'room' ? storeyId : null} visibleLayers={visibleLayers}
               focusRoomId={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : pickedRoom?.id) : null} />
-          ) : model ? (
-            <IfcViewer path={model} guids={guids} selectedGuid={selectedGuid} onSelectGuid={(g) => onSelectSibling(g)}
-              onSelectRoom={setPickedRoom}
-              isolateSpaceGuid={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : (pickedRoom && isGuid(pickedRoom.id) ? pickedRoom.id : null)) : null}
-              elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, category: f.category, verified: f.verified, issue: f.status === 'Issue Reported' }))}
-              roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
-              hideRoomLabels={false}
-              storeyId={mode === 'building' ? storeyId ?? null : null} onStoreys={onStoreys} visibleLayers={{ architecture: visibleLayers?.architecture, sanitary: visibleLayers?.sanitary, hvac: visibleLayers?.hvac, electrical: visibleLayers?.electrical }} />
-          ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (
-            <PlanRooms3D path={plan} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-8">
-              <span className="text-sm font-semibold text-[#E9B949]">No 3D for this drawing</span>
+              <span className="text-sm font-semibold text-[#E9B949]">2.5D scene unavailable</span>
               <span className="text-xs text-[#A9AFB0] max-w-md">
-                3D needs a BIM model (IFC) or a vector plan with room outlines. This sheet is a scan or image, so
-                Trace shows the evidence on the 2D drawing instead.
+                {geometryError || 'The selected source has no exported rooms, walls, openings or objects yet.'}
               </span>
             </div>
           )}
