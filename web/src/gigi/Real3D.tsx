@@ -22,6 +22,8 @@ interface Props {
   /** A room selected from the 2D plan. It may be a plan number, not an IFC GUID. */
   focusRoomId?: string | null;
   onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void;
+  /** Expose the engine scene to the workspace navigation tree. */
+  onGeometryScene?: (scene: GeometryScene | null) => void;
   /** Keep the workspace LEVEL control in sync when Floor needs a real storey. */
   onSelectStorey?: (id: string) => void;
   visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'furniture', boolean>>;
@@ -45,7 +47,7 @@ const fixtureDescription = (fixture: FixtureVerification) => {
 
 export const Real3D: React.FC<Props> = ({
   mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
-  page = 1, storeyId, onStoreys, onSelectStorey, visibleLayers, onOpenSource, focusRoomId,
+  page = 1, storeyId, onStoreys, onGeometryScene, onSelectStorey, visibleLayers, onOpenSource, focusRoomId,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [roomFocusDismissed, setRoomFocusDismissed] = useState(false);
@@ -80,6 +82,7 @@ export const Real3D: React.FC<Props> = ({
       }
     }
   }, [geometryScene, onStoreys]);
+  useEffect(() => { onGeometryScene?.(geometryScene); }, [geometryScene, onGeometryScene]);
   const roomLabel = scenario?.roomCode || 'Room';
   // Gigi's strip shows the elements of one room: keep the selected element's room, at most 8 chips
   const strip = (() => {

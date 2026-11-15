@@ -1,9 +1,9 @@
 // Gigi's TraceWorkspace (design/gigi/src/components/TraceWorkspace.tsx), kept visually 1:1,
 // with every fake value replaced by our API through adapters.ts. Differences from Gigi are marked "ours".
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, ArrowDown, ArrowLeft, Box, Camera, Check, CheckCircle2, ChevronDown, Clock, Download, History,
-  Loader2, MessageSquare, Monitor, Plus, Send, SlidersHorizontal, Smartphone, Tablet, Upload, X,
+  ChevronRight, Loader2, MessageSquare, Monitor, Plus, Send, SlidersHorizontal, Smartphone, Tablet, Upload, X,
 } from 'lucide-react';
 import {
   api, toScenario, withElementInfo, type FixtureVerification, type LayerId, type QueryScenario, type ScaleOption,
@@ -11,7 +11,7 @@ import {
 } from './adapters';
 import { RealPlan } from './RealPlan';
 import { Real3D } from './Real3D';
-import type { GeometrySource } from '../viewer3d/geometryScene';
+import type { GeometryScene, GeometrySource } from '../viewer3d/geometryScene';
 import './gigi.css';
 
 interface ChatMessage {
@@ -121,6 +121,10 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   // ours: storeys of the IFC model (reported by the 3D viewer) for the LEVEL switcher
   const [storeys, setStoreys] = useState<{ id: string; name: string; elevation: number }[]>([]);
   const [storeyId, setStoreyId] = useState<string | null>(null);
+  const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
+  const [treeOpen, setTreeOpen] = useState<Record<string, boolean>>({});
+  const [treeRoomId, setTreeRoomId] = useState<string | null>(null);
+  const handleGeometryScene = useCallback((scene: GeometryScene | null) => setGeometryScene(scene), []);
   const chosenStorey = storeys.find((s) => s.id === storeyId);
   const currentSheet = sheetGroups.flatMap((g) => g.sheets).find((sh) => sh.path === askPath && (sh.page === sheetPage || /\.ifc$/i.test(askPath)));
   const activeFloor = chosenStorey ? chosenStorey.name.toUpperCase()
@@ -281,6 +285,9 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
     setImageSize(null);
     setStoreys([]);
     setStoreyId(null);
+    setGeometryScene(null);
+    setTreeOpen({});
+    setTreeRoomId(null);
   };
 
   const handleSelectChat = (chat: ChatSession) => {
@@ -610,6 +617,54 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
           })}
         </div>
       </div>
+
+      <div className="pt-3.5 border-t border-[#A9AFB0]/35">
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#202427]">Building structure</h2>
+          {geometryScene && <span className="text-[10px] font-mono text-[#202427]/55">{geometryScene.rooms.length} spaces</span>}
+        </div>
+        {!geometryScene ? (
+          <p className="text-[10px] leading-snug text-[#202427]/60">Open 2.5D once to load floors, rooms and recognised elements.</p>
+        ) : (
+          <div className="space-y-1">
+            {(geometryScene.storeys.length ? geometryScene.storeys : [{ id: '__unassigned__', name: 'Unassigned plan area', elevationM: 0 }]).map((storey) => {
+              const rooms = geometryScene.rooms.filter((room) => (room.storeyId || '__unassigned__') === storey.id);
+              const directObjects = geometryScene.objects.filter((item) => (item.storeyId || '__unassigned__') === storey.id && !item.roomId);
+              const open = !!treeOpen[storey.id];
+              return <div key={storey.id} className="rounded border border-[#A9AFB0]/25 bg-white/45 overflow-hidden">
+                <button type="button" onClick={() => { setTreeOpen((current) => ({ ...current, [storey.id]: !open })); if (storey.id !== '__unassigned__') { setStoreyId(storey.id); setTreeRoomId(null); setViewMode('3d-room'); } }}
+                  className="w-full px-1.5 py-1.5 flex items-center gap-1 text-left hover:bg-[#E9B949]/15 cursor-pointer">
+                  <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                  <span className="text-[10px] font-mono font-semibold truncate">{storey.name.toUpperCase()}</span>
+                  <span className="ml-auto text-[10px] text-[#202427]/55">{rooms.length} spaces</span>
+                </button>
+                {open && <div className="border-t border-[#A9AFB0]/20 py-0.5">
+                  {rooms.length === 0 && <p className="px-3 py-1 text-[10px] text-[#202427]/55">No rooms exported for this level.</p>}
+                  {rooms.map((room) => {
+                    const roomObjects = geometryScene.objects.filter((item) => item.roomId === room.id);
+                    const roomOpen = !!treeOpen[`room:${room.id}`];
+                    const title = [room.number, room.name].filter(Boolean).join(' · ') || room.id;
+                    return <div key={room.id}>
+                      <button type="button" onClick={() => { setTreeOpen((current) => ({ ...current, [`room:${room.id}`]: !roomOpen })); setTreeRoomId(room.id); if (room.storeyId) setStoreyId(room.storeyId); setViewMode('3d-room'); }}
+                        className={`w-full pl-5 pr-1.5 py-1 flex items-center gap-1 text-left text-[10px] hover:bg-[#202427]/5 cursor-pointer ${treeRoomId === room.id ? 'bg-[#E9B949]/25 text-[#202427] font-semibold' : 'text-[#202427]/80'}`}>
+                        <ChevronRight className={`w-2.5 h-2.5 shrink-0 transition-transform ${roomOpen ? 'rotate-90' : ''}`} />
+                        <span className="truncate">{title}</span>
+                        <span className="ml-auto text-[#202427]/50">{roomObjects.length ? `${roomObjects.length} items` : ''}</span>
+                      </button>
+                      {roomOpen && <div className="pl-8 pr-1.5 pb-1 space-y-0.5">
+                        {roomObjects.length === 0 ? <p className="text-[10px] text-[#202427]/50">No recognised elements.</p> : roomObjects.map((item) => (
+                          <p key={item.id} className="text-[10px] text-[#202427]/65 truncate" title={item.name || item.category}>• {item.name || item.category}</p>
+                        ))}
+                      </div>}
+                    </div>;
+                  })}
+                  {directObjects.map((item) => <p key={item.id} className="pl-5 pr-1.5 py-1 text-[10px] text-[#202427]/65 truncate">• {item.name || item.category}</p>)}
+                </div>}
+              </div>;
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -730,7 +785,9 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               onAsk={(q) => void runPromptInCurrentChat(q)}
               onOpenSource={(source) => { setEvidenceSource(source); setAskPath(source.file); setSheetPage(source.page ?? 1); setViewMode('2d'); }}
               storeyId={storeyId} onStoreys={(list) => setStoreys([...list].sort((a, b) => b.elevation - a.elevation))}
+              onGeometryScene={handleGeometryScene}
               onSelectStorey={(id) => setStoreyId(id)}
+              focusRoomId={treeRoomId || active3DFixture?.spaceId || null}
               visibleLayers={{ architecture: activeLayers.architecture, sanitary: activeLayers.sanitary, hvac: activeLayers.hvac, electrical: activeLayers.electrical, furniture: activeLayers.furniture }} />
           )}
         </div>
