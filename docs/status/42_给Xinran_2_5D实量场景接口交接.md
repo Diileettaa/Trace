@@ -220,6 +220,45 @@ Plan 11 提到 PDF point 与 norm1000，它们可以保留为引擎内部调试�
 所有问答和 2D 高亮共用的格式；若没有该换算，前端只会保留 3D 选择，不会跳转一个可能错位的
 原图框。
 
+### 未标定扫描图的安全格式
+
+扫描图在调用 `/calibrate` 前可交付可视化场景，但必须使用以下字段，前端只会把它作为
+相对空间示意显示：
+
+```json
+{
+  "quality": "illustrative",
+  "unit": "norm1000",
+  "coordinate_system": "image-norm1000"
+}
+```
+
+- `image-norm1000` 的平面点范围是图像宽、高各自的 `0..1000`。需要保留页面方向，不能将
+  `y` 轴悄悄翻转。
+- `illustrative` 时房间、墙、门窗和构件可以展示相对位置；页面不能显示米制比例尺、面积、
+  长宽高或“实量”措辞。
+- 未命名房间不要填假名称；若 CubiCasa 给出房型，使用其原始类别并保留 `method` 与
+  `confidence`。
+- 标定成功后，再输出 `quality: "measured"`、`unit: "m"` 与
+  `coordinate_system: "x-right,y-up,z-plan-north"`。
+
+### 家具分类
+
+`chair`、`table`、`desk`、`cabinet`、`furniture` 会归入前端的 Furniture 图层，默认关闭。
+它们仍可保留在 `objects`，但不会遮挡卫生构件、门窗和墙体。`toilet / wc / sink / basin /
+shower / bathtub` 继续使用 Sanitary 图层。
+
+### 首次联调命令
+
+队友交付真实 JSON 后，在仓库根目录运行：
+
+```powershell
+node scripts/check_geometry_scene.mjs <真实场景.json>
+```
+
+检查器会按 `measured` 或 `illustrative` 走相应合同，不会把 `norm1000` 场景误判成米制模型。
+通过后，再由后端在 `GET /api/geometry/scene?path=&page=` 返回同一 JSON，前端就可联调。
+
 ### 已接好前端范围
 
 - 实量场景校验：缺坐标、单位、尺寸、数组或有非法置信度时拒绝展示为 measured。
