@@ -114,6 +114,8 @@ its commits are prefixed `feat(codex):`.
 | `POST /upload` | your own drawing (PDF, PNG, JPG, DXF, IFC) |
 | `GET/POST /collab/...` | Room Board, messages, people, bookings, room media |
 | `GET /verify/status?path=&ids=` | on-site verification status, photo counts, and latest photo for elements |
+| `POST /verify/item` | update verification status and note for an element without photo |
+| `GET /element/info?path=&id=` | element specification, dimensions (L, B, H), and 3D clearances (mm) |
 | `GET /plan/rooms?path=` | room outlines, dimensions (dims_m: L, B, H), area, and status |
 | `GET /room/contents?path=&room=` | list fixtures, doors, windows, and equipment inside one room |
 | `GET /catalog/projects?q=` | search and paginate all featured, auto, and uploaded projects |
