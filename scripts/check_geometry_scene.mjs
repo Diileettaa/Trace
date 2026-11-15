@@ -32,9 +32,13 @@ try { scene = JSON.parse(await readFile(file, 'utf8')) } catch (error) {
 }
 
 if (!scene || typeof scene !== 'object' || Array.isArray(scene)) errors.push('scene must be a JSON object')
-if (scene?.unit !== 'm') errors.push('unit must be "m"')
-if (scene?.coordinate_system !== 'x-right,y-up,z-plan-north') errors.push('coordinate_system must be "x-right,y-up,z-plan-north"')
-if (scene?.quality !== 'measured') errors.push('quality must be "measured" for the 2.5D metric renderer')
+const measured = scene?.quality === 'measured'
+const illustrative = scene?.quality === 'illustrative'
+if (!measured && !illustrative) errors.push('quality must be "measured" or "illustrative"')
+if (measured && scene?.unit !== 'm') errors.push('measured scenes require unit "m"')
+if (measured && scene?.coordinate_system !== 'x-right,y-up,z-plan-north') errors.push('measured scenes require x-right, y-up, z-plan-north coordinates')
+if (illustrative && scene?.unit !== 'norm1000' && scene?.unit !== 'px') errors.push('illustrative scenes require unit "norm1000" or "px"')
+if (illustrative && !['image-norm1000', 'drawing-norm1000', 'drawing-pixels'].includes(scene?.coordinate_system)) errors.push('illustrative scenes require image-norm1000, drawing-norm1000, or drawing-pixels coordinates')
 if (typeof scene?.project_id !== 'string' || !scene.project_id) errors.push('project_id is required')
 for (const key of ['rooms', 'walls', 'openings', 'objects']) if (!Array.isArray(scene?.[key])) errors.push(`${key} must be an array`)
 
@@ -87,4 +91,4 @@ if (errors.length) {
   for (const error of errors) console.error(`- ${error}`)
   process.exit(1)
 }
-console.log(`Scene contract passed: ${scene.project_id} (${scene.rooms.length} rooms, ${scene.walls.length} walls, ${scene.objects.length} objects)`)
+console.log(`Scene contract passed: ${scene.project_id} · ${scene.quality} (${scene.rooms.length} rooms, ${scene.walls.length} walls, ${scene.objects.length} objects)`)

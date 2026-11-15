@@ -1,0 +1,13 @@
+{
+  "project_id": "CONTRACT-EXAMPLE-SCAN-ONLY",
+  "source_kind": "raster-drawing",
+  "unit": "norm1000",
+  "coordinate_system": "image-norm1000",
+  "quality": "illustrative",
+  "warnings": ["MOCK DATA — contract fixture only; this uncalibrated scan must not be presented as a measured model."],
+  "rooms": [{"id": "scan-room-1", "polygon": [[120, 180], [500, 180], [500, 440], [120, 440]], "confidence": 0.7, "source": {"file": "data/example/scan.png", "page": 1, "bbox": [120, 180, 500, 440]}}],
+  "walls": [{"id": "scan-wall-1", "points": [[120, 180], [500, 180]], "thickness_m": 16, "base_y_m": 0, "height_m": 50, "confidence": 0.7, "source": {"file": "data/example/scan.png", "page": 1, "bbox": [120, 170, 500, 196]}}],
+  "openings": [],
+  "objects": [{"id": "scan-wc-1", "category": "toilet", "position": [260, 0, 300], "confidence": 0.6, "method": "fallback-detector", "source": {"file": "data/example/scan.png", "page": 1, "bbox": [240, 275, 285, 340]}}],
+  "systems": []
+}
