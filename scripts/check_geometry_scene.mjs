@@ -73,7 +73,10 @@ for (const [index, opening] of (scene?.openings ?? []).entries()) {
   if (measured) positive(opening?.width_m, `${label}.width_m`)
   else if (opening?.width_m !== undefined && opening.width_m !== null) positive(opening.width_m, `${label}.width_m`)
   if (opening?.height_m !== undefined && opening.height_m !== null) positive(opening.height_m, `${label}.height_m`)
-  if (measured && !isNumber(opening?.rotation_deg)) errors.push(`${label}.rotation_deg must be a number for measured scenes`)
+  // A source plan can establish an opening's metric position and width without
+  // encoding its swing direction. The viewer uses a neutral symbol direction
+  // in that case; orientation is not a measured acceptance criterion.
+  if (opening?.rotation_deg !== undefined && opening.rotation_deg !== null && !isNumber(opening.rotation_deg)) errors.push(`${label}.rotation_deg must be a number when provided`)
   evidence(opening, label)
 }
 for (const [index, object] of (scene?.objects ?? []).entries()) {
