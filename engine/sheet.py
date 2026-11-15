@@ -311,7 +311,7 @@ Return JSON only:
  "rooms": ["<rooms: room ids r0, r1 ... to use>"], "field": "area_m2" | "perimeter_m" | "baseboard_m",
  "prefix": "<count_tags: tag prefix, e.g. FP>", "distinct": true,
  "mark_group": "<count_marks: m0, m1 ...>",
- "doors": "leaves" | "doorsets",
+ "doors": "leaves" (default: every door leaf, a double door = 2) | "doorsets" (only if the question explicitly says door sets / doorways),
  "expr": "<expr: arithmetic over dimension ids, e.g. (d12*d40)/1e6 + d3*d7/1e6>",
  "unit": "<unit of the answer>",
  "cite": ["<ids of text lines / dims used>"],
@@ -361,16 +361,17 @@ def compute(f, r):
         except Exception: return None, None, [], ["unknown mark group"]
         return g["count"], "count", [{"box": b} for b in g["boxes"]], warn
     if op == "count_doors":
-        if r.get("doors") == "leaves":
-            return len(f["door_leaves"]), "count", [{"box": L["box"], "radius_m": L["radius_m"]} for L in f["door_leaves"]], warn
-        items = []
+        # default basis = door LEAVES (each swinging leaf counted; a double door = 2); door sets offered as the alternative
+        sets = []
         for s in f["doorsets"]:
             bs = [f["door_leaves"][i]["box"] for i in s["leaves"]]
-            items.append({"type": s["type"], "box": [min(b[0] for b in bs), min(b[1] for b in bs), max(b[2] for b in bs), max(b[3] for b in bs)]})
-        warn.append("doors drawn without a swing arc (sliding, folding) are not counted")
-        f["_alternatives"] = [{"label": "door sets (a double door = 1)", "value": len(items)},
-                              {"label": "door leaves (a double door = 2)", "value": len(f["door_leaves"])}]
-        return len(items), "count", items, warn
+            sets.append({"type": s["type"], "box": [min(b[0] for b in bs), min(b[1] for b in bs), max(b[2] for b in bs), max(b[3] for b in bs)]})
+        leaves = [{"box": L["box"], "radius_m": L["radius_m"]} for L in f["door_leaves"]]
+        warn.append("counted per door leaf (a double door = 2); doors drawn without a swing arc (sliding, folding) are not counted")
+        f["_alternatives"] = [{"label": "door leaves (a double door = 2)", "value": len(leaves)},
+                              {"label": "door sets (a double door = 1)", "value": len(sets)}]
+        if r.get("doors") in ("sets", "doorsets"): return len(sets), "count", sets, warn
+        return len(leaves), "count", leaves, warn
     if op == "count_windows":
         ws = f.get("windows", []); n = sum(w.get("panes", 1) for w in ws)
         f["_alternatives"] = [{"label": "window panes (an opening split by a mullion = 2)", "value": n},

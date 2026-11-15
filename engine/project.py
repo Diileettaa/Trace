@@ -117,7 +117,46 @@ answers it. Never pick sheets of another building than the one asked about. Do n
 def answer(sheets, question, ask_sheet, call_model=None):
     """call_model=None (or a failing model): rules only - engine.sheetset.pick chooses the sheet."""
     from .confidence import attach
-    return attach(_answer(sheets, question, ask_sheet, call_model))
+    out = attach(_answer(sheets, question, ask_sheet, call_model))
+    try: _cross_check_doors(out, sheets, question, ask_sheet)
+    except Exception as e: out.setdefault("warnings", []).append(f"door schedule cross-check failed: {type(e).__name__}")
+    return out
+
+DOOR_COUNT_Q = re.compile(r"\bhow many\b.*\bdoors?\b|\bnumber of doors\b|\bdoor count\b", re.I)
+
+def _cross_check_doors(out, sheets, question, ask_sheet):
+    """A door count from a plan is checked against the project's door schedule (a printed table, read from text).
+    The schedule lists the whole building, so for one floor it is an upper bound; for the whole building it should match.
+    Never changes the answer: adds evidence.cross_check and a warning when they disagree or the plan gave no number."""
+    if not DOOR_COUNT_Q.search(question or "") or re.search(r"\bschedule\b", question, re.I): return
+    used = set((out.get("evidence") or {}).get("sheets_used") or [])
+    sch = [s for s in sheets if s["class"].get("kind") == "schedule" and s["id"] not in used]
+    if not sch: return
+    s = sch[0]; r = ask_sheet(s, "How many doors are listed in the door schedule?")
+    n = _num(r.get("value"))
+    if n is None: return
+    one_floor = bool(re.search(r"\b(first|second|third|ground|basement|level|floor|storey)\b", question, re.I))
+    v = _num(out.get("value"))
+    cc = {"sheet": s["id"], "sheet_no": s["class"].get("sheet_no"), "schedule_doors": int(n), "answer_id": r.get("answer_id"),
+          "scope": "whole building (upper bound for one floor)" if one_floor else "whole building"}
+    w = out.setdefault("warnings", [])
+    if v is None:
+        cc["status"] = "plan gave no number"
+        w.append(f"the plan gave no count; the door schedule ({cc['sheet_no']}) lists {int(n)} doors for the whole building")
+    elif v == 0 and n > 0:
+        cc["status"] = "plan count is 0 but the schedule lists doors"
+        w.append(f"the plan count is 0, but the door schedule ({cc['sheet_no']}) lists {int(n)} doors: the plan reading is probably wrong, please review")
+    elif one_floor and v > n:
+        cc["status"] = "plan count exceeds the whole-building schedule"
+        w.append(f"plan count {v:g} is more than the {int(n)} doors in the whole-building schedule ({cc['sheet_no']}): please review")
+    elif not one_floor and abs(v - n) > max(1, 0.1 * n):
+        cc["status"] = "disagree"
+        w.append(f"plan count {v:g} differs from the door schedule ({cc['sheet_no']}: {int(n)} doors): please review")
+    else:
+        cc["status"] = "consistent"
+    out.setdefault("evidence", {})["cross_check"] = cc
+    if cc["status"] != "consistent" and out.get("confidence") in ("high", "medium"):
+        out["confidence"], out["confidence_reason"] = "low", "plan count and door schedule disagree"
 
 def _answer(sheets, question, ask_sheet, call_model=None):
     if call_model is None:

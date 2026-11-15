@@ -92,11 +92,30 @@ def _normalise_scene(r):
             el.setdefault("assumed", False)
     return r
 
+CORS_ORIGINS = [o.strip() for o in os.environ.get("DOCS_CORS_ORIGINS",
+                "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000").split(",") if o.strip()]
+
+def _cors(headers):
+    """CORS for the local frontend dev servers (DOCS_CORS_ORIGINS, comma-separated; '*' allows any origin)."""
+    origin = next((v for k, v in (headers or {}).items() if k.lower() == "origin"), None)
+    if not origin or not ("*" in CORS_ORIGINS or origin in CORS_ORIGINS): return {}
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Docs-Token", "Access-Control-Max-Age": "600"}
+
 def handle(method, path, query, headers, body, S=None):
+    st, h, b = _handle(method, path, query, headers, body, S)
+    return st, {**h, **_cors(headers)}, b
+
+def _handle(method, path, query, headers, body, S=None):
+    if method == "OPTIONS": return 204, {}, b""                        # CORS preflight: no auth, no body
+    path = path.rstrip("/") or "/"
+    # every route is served both bare (/ask) and under /api (/api/ask); /api/scene is the B side's and is not ours
+    if path == "/api/scene": return _j(404, {"error": "/api/scene is served by the B-side backend, not the Trace engine"})
+    if path.startswith("/api/") and path != "/api/geometry/scene": path = path[4:]
     S = S or docs_tools.store()
     if not _authorised(headers): return _j(401, {"error": "missing or wrong token"})
     q = {k: v[-1] for k, v in urllib.parse.parse_qs(query or "").items()}
-    path = path.rstrip("/") or "/"
     proj = q.get("project") or os.environ.get("DOCS_PROJECT", "default")
     try:
         if len(body or b"") > MAX_BODY: return _j(413, {"error": "request too large"})
@@ -262,7 +281,7 @@ def serve(port=8765, host="127.0.0.1"):
             self.send_response(st)
             for k, v in h.items(): self.send_header(k, v)
             self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
-        do_GET = do_POST = _go
+        do_GET = do_POST = do_OPTIONS = _go
         def log_message(self, *a): pass
     print(f"docs api on http://{host}:{port}/docs"); ThreadingHTTPServer((host, port), H).serve_forever()
 

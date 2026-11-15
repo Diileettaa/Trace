@@ -428,9 +428,16 @@ def _answer(image_bytes, question, call_model, votes=2, tile_from=int(os.environ
         m = (_marks_answer(groups, raw) if groups else None) or (_windows_answer(ws, raw) if ws else None) or (_doors_answer(ds, raw) if ds else None)
         if m: return _door_check(m, image_bytes, question, call_model)
         whole = normalise(raw, True)
+        if whole["found"] and _num(whole["value"]) == 0 and (DOOR_Q.search(question) or WINDOW_Q.search(question)):
+            whole = {**whole, "found": False}   # "0 doors" on a shrunk big sheet = not seen; check tile by tile
         if not whole["found"]:
-            return {"value": None, "unit": "count", "items": [], "method": "scan:vlm", "warnings": ["not shown on this drawing"],
-                    "evidence": {"reason": whole["reason"], "readings": [None]}}
+            # the shrunk whole sheet can miss small symbols entirely: count tile by tile before saying "not shown"
+            try: probe = count_tiled(image_bytes, question, call_model, grid)
+            except Exception: probe = []
+            if not probe:
+                return {"value": None, "unit": "count", "items": [], "method": "scan:vlm", "warnings": ["not shown on this drawing"],
+                        "evidence": {"reason": whole["reason"], "readings": [None, 0]}}
+            whole = {**whole, "found": True, "value": None, "items": []}
         b = _num(whole["value"])
         if b is not None and b < SMALL_COUNT and not label_q:
             # few, large or labelled items (5 pumps, 3 slab types): the whole sheet sees them; tiles only add look-alikes
@@ -450,7 +457,13 @@ def _answer(image_bytes, question, call_model, votes=2, tile_from=int(os.environ
             try: items2 = count_tiled(image_bytes, question, call_model, g2)
             except Exception: items2 = None
             c = len(items2) if items2 is not None else None
-            if c is not None:
+            if c is not None and b is None:
+                # whole sheet saw nothing: only the two tile counts are readings; never let the empty reading win
+                readings.append(c)
+                if not close(a, c): method += ":uncertain"
+                warn.append(f"whole-sheet reading found none; tile counts {grid[0]}x{grid[1]}: {a}, {g2[0]}x{g2[1]}: {c}"
+                            + ("" if close(a, c) else "; uncertain, please review the boxes"))
+            elif c is not None:
                 readings.append(c)
                 trio = sorted([(a, "tiles", items), (b if b is not None else -1, "whole", whole["items"]), (c, "tiles2", items2)], key=lambda t: t[0])
                 value, src_name, src_items = trio[1]
