@@ -170,7 +170,7 @@ def declined_text(question: str, r: dict) -> str:
     return f"I can't give a reliable number from this drawing: {why}. (Checked by: {src})"
 
 
-def _direct(question: str, path: str | None) -> dict | None:
+def _direct(question: str, path: str | None, force: bool = False) -> dict | None:
     import os
     import time
 
@@ -181,7 +181,7 @@ def _direct(question: str, path: str | None) -> dict | None:
     r = tools.call("answer_from_engine", args)
     method = str(r.get("method") or "")
     free_form_miss = any(m in method for m in ("unrecognised_question", "query:unsupported"))
-    if r.get("value") is None and (free_form_miss or os.getenv("TRACE_LLM_FALLBACK") == "1"):
+    if not force and r.get("value") is None and (free_form_miss or os.getenv("TRACE_LLM_FALLBACK") == "1"):
         return None  # the engine could not read the question at all: the agent may still look it up
     if r.get("value") is not None and r.get("source") not in DIRECT_SOURCES and os.getenv("TRACE_LLM_FALLBACK") == "1":
         return None
@@ -199,6 +199,17 @@ def _direct(question: str, path: str | None) -> dict | None:
 
 
 def ask(question: str, path: str | None = None, role: str | None = None, client=None) -> dict:
+    try:
+        return _ask(question, path, role, client)
+    except Exception as e:  # language model down (bad key, quota): still answer from the engine, never a 500
+        fb = _direct(question, path, force=True) if path else None
+        if fb is None:
+            raise
+        fb["answer_text"] += f" (The language model is unavailable right now: {type(e).__name__}.)"
+        return fb
+
+
+def _ask(question: str, path: str | None = None, role: str | None = None, client=None) -> dict:
     from google.genai import types
 
     direct = _direct(question, path)
