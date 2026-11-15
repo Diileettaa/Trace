@@ -12,7 +12,15 @@ function Root() {
   const legacy = new URLSearchParams(window.location.search).get('legacy') === '1'
   // the Projects page is hidden for the demo (unfinished; only reachable with ?legacy=1)
   if (legacy && hash !== '#off') return <App />
-  return <Site />
+  return <Site onOpenProjects={() => {
+    // The public Gigi site is the default entry point. Project collaboration
+    // keeps its own workspace state, so enter it through the explicit URL
+    // switch instead of leaving a hidden, unreachable page behind.
+    const target = new URL(window.location.href)
+    target.searchParams.set('legacy', '1')
+    target.hash = ''
+    window.location.assign(target.toString())
+  }} />
 }
 
 createRoot(document.getElementById('root')!).render(
