@@ -623,7 +623,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             <div className="inline-flex items-center gap-0.5 p-0.5 rounded-md bg-[#F7F6F2] border border-[#A9AFB0]/35">
               <button type="button" onClick={() => setViewMode('2d')}
                 className={`px-2.5 py-0.5 text-xs font-medium rounded transition-colors cursor-pointer ${viewMode === '2d' ? 'bg-[#202427] text-[#F7F6F2]' : 'text-[#202427]/70'}`}>2D</button>
-              <button type="button" onClick={() => setViewMode('3d-building')}
+              <button type="button" onClick={() => { setStoreyId(null); setViewMode('3d-building'); }}
                 className={`px-2.5 py-0.5 text-xs font-medium rounded inline-flex items-center gap-1 transition-colors cursor-pointer ${viewMode !== '2d' ? 'bg-[#E9B949] text-[#202427] font-semibold' : 'text-[#202427]/70'}`}>
                 <Box className="w-3 h-3" /><span>2.5D</span>
               </button>
@@ -725,7 +725,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             <Real3D mode={viewMode === '3d-building' ? 'building' : 'room'} scenario={scenario}
               model={/\.ifc$/i.test(askPath) ? askPath : null} plan={!/\.ifc$/i.test(askPath) ? askPath : null} page={sheetPage}
               fixture={active3DFixture} siblingFixtures={scenarioFixtures}
-              onSwitchMode={(m) => setViewMode(m === 'building' ? '3d-building' : '3d-room')}
+              onSwitchMode={(m) => { if (m === 'building') setStoreyId(null); setViewMode(m === 'building' ? '3d-building' : '3d-room'); }}
               onSelectSibling={(id) => { if (fixtures[id]) setSelectedFixtureId(id); }} onBackTo2D={() => setViewMode('2d')}
               onAsk={(q) => void runPromptInCurrentChat(q)}
               onOpenSource={(source) => { setEvidenceSource(source); setAskPath(source.file); setSheetPage(source.page ?? 1); setViewMode('2d'); }}

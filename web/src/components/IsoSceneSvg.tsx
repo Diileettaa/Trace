@@ -103,12 +103,16 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     // Every wall on a generated storey is shown at one coherent visual height.
     // This preserves the plan's real wall network while making an incomplete
     // elevation drawing readable as a buildable 2.5D layout.
-    const suppliedStoreyHeight = storeyOrder.length === 1 ? storeyOrder[0]?.heightM : undefined
     const sourceHeights = walls.map((wall) => wall.heightM).filter((height) => height > 0).sort((a, b) => a - b)
-    const visualWallHeightM = suppliedStoreyHeight && suppliedStoreyHeight > 0
-      ? suppliedStoreyHeight
-      : sourceHeights[Math.floor(sourceHeights.length / 2)] ?? 2.7
-    const wallHeight = () => visualWallHeightM
+    const fallbackWallHeightM = sourceHeights[Math.floor(sourceHeights.length / 2)] ?? 2.7
+    const storeyHeights = new Map(scene.storeys.map((storey) => [storey.id, storey.heightM]))
+    // A floor is a buildable schematic: all of its walls meet at one datum.
+    // IFC may include short parapets and isolated fragments, but those are not
+    // separate room-wall heights in this viewer.
+    const wallHeight = (storey?: string) => {
+      const supplied = storey ? storeyHeights.get(storey) : undefined
+      return supplied && supplied > 0 ? supplied : fallbackWallHeightM
+    }
     // The IFC authoring axes are arbitrary.  A fixed isometric camera can look
     // straight down a long building axis and collapse it into a thin vertical
     // strip (the Tallinn Level 04 failure).  Choose the wider of the two
@@ -126,7 +130,7 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
       return Math.max(...values) - Math.min(...values)
     }
     const projectionYawDeg = projectedWidth(90) > projectedWidth(0) ? 90 : 0
-    return { focus, focusBounds, rooms, walls, openings, objects, systems, lift, wallHeight, visualWallHeightM, projectionYawDeg }
+    return { focus, focusBounds, rooms, walls, openings, objects, systems, lift, wallHeight, projectionYawDeg }
   }, [focusRoomId, scene, storeyId, visibleLayers])
 
   useEffect(() => {
@@ -139,10 +143,17 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const addPlan = (points: PlanPoint[], y: number) => points.forEach(([x, z]) => addPoint(allBounds, [x, y, z]))
     drawing.rooms.forEach(room => addPlan(room.polygon, (room.floorYM ?? 0) + drawing.lift(room.storeyId)))
     drawing.walls.forEach(wall => {
-      const segments = wall.pieces ?? [{ from: wall.points[0], to: wall.points[wall.points.length - 1], y0M: 0, y1M: drawing.wallHeight() }]
-      segments.forEach(piece => { addPlan([piece.from, piece.to], wall.baseYM + piece.y0M + drawing.lift(wall.storeyId)); addPlan([piece.from, piece.to], wall.baseYM + piece.y1M + drawing.lift(wall.storeyId)) })
+      const segments = wall.pieces ?? [{ from: wall.points[0], to: wall.points[wall.points.length - 1], y0M: 0, y1M: drawing.wallHeight(wall.storeyId) }]
+      const height = drawing.wallHeight(wall.storeyId)
+      segments.forEach(piece => {
+        const y0 = Math.max(0, Math.min(piece.y0M, height)); const y1 = Math.max(y0, Math.min(piece.y1M, height))
+        addPlan([piece.from, piece.to], wall.baseYM + y0 + drawing.lift(wall.storeyId)); addPlan([piece.from, piece.to], wall.baseYM + y1 + drawing.lift(wall.storeyId))
+      })
     })
-    drawing.openings.forEach(opening => addPoint(allBounds, [opening.position[0], opening.position[1] + (opening.sillYM ?? 0) + opening.heightM + drawing.lift(), opening.position[2]]))
+    drawing.openings.forEach(opening => {
+      const relativeSill = Math.abs(opening.position[1]) < .001 ? (opening.sillYM ?? 0) : 0
+      addPoint(allBounds, [opening.position[0], opening.position[1] + relativeSill + opening.heightM + drawing.lift(), opening.position[2]])
+    })
     drawing.objects.forEach(object => { const y = object.position[1] + drawing.lift(object.storeyId); addPlan(footprint(object), y); addPlan(footprint(object), y + (object.heightM ?? .7)) })
     drawing.systems.forEach(system => system.points.forEach(([x, y, z]) => addPoint(allBounds, [x, y + drawing.lift(system.storeyId), z])))
     if (!validBounds(allBounds)) { addPoint(allBounds, [-2, 0, -2]); addPoint(allBounds, [2, 3, 2]) }
@@ -310,16 +321,27 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     // Far walls first means their faces naturally stay behind fixtures.
     drawing.walls.slice().sort((a, b) => midpoint(a.points)[0] + midpoint(a.points)[1] - midpoint(b.points)[0] - midpoint(b.points)[1]).forEach(wall => {
       const y = wall.baseYM + drawing.lift(wall.storeyId)
-      const pieces = wall.pieces ?? wall.points.slice(1).map((to, index) => ({ from: wall.points[index], to, y0M: 0, y1M: drawing.wallHeight() }))
+      const height = drawing.wallHeight(wall.storeyId)
+      const pieces = wall.pieces ?? wall.points.slice(1).map((to, index) => ({ from: wall.points[index], to, y0M: 0, y1M: height }))
       pieces.forEach(piece => {
+        // IFC pieces occasionally arrive in an absolute site datum although
+        // their contract is relative to the wall.  Clamp them to this
+        // storey's height so they cannot grow into visual "spikes".
+        const bottom = Math.max(0, Math.min(piece.y0M, height))
+        const pieceTop = Math.max(bottom, Math.min(piece.y1M, height))
+        if (pieceTop <= bottom) return
         // A room view is a cutaway: keep the lower wall and leave the space open above it.
-        const top = y + (drawing.focus ? Math.min(piece.y1M, 1.2) : piece.y1M)
-        addSlab(piece.from, piece.to, wall.thicknessM, y + piece.y0M, top, wall.assumed ? '#A9AFB0' : '#D9D4C7', { title: wall.assumed ? `${wall.id} · inferred wall` : wall.id || 'Wall', source: wall.source }, wall.assumed ? .62 : .7)
+        const top = y + (drawing.focus ? Math.min(pieceTop, 1.2) : pieceTop)
+        addSlab(piece.from, piece.to, wall.thicknessM, y + bottom, top, wall.assumed ? '#A9AFB0' : '#D9D4C7', { title: wall.assumed ? `${wall.id} · inferred wall` : wall.id || 'Wall', source: wall.source }, wall.assumed ? .62 : .7)
       })
     })
 
     drawing.openings.forEach(opening => {
-      const [x, rawY, z] = opening.position; const y = rawY + (opening.sillYM ?? 0) + drawing.lift(); const height = opening.heightM; const radians = opening.rotationDeg * Math.PI / 180
+      const [x, rawY, z] = opening.position
+      // IFC position already is the opening's bottom elevation.  Drawing
+      // scenes use y=0 plus a relative sill, so only those need the sill.
+      const relativeSill = Math.abs(rawY) < .001 ? (opening.sillYM ?? 0) : 0
+      const y = rawY + relativeSill + drawing.lift(); const height = opening.heightM; const radians = opening.rotationDeg * Math.PI / 180
       const dx = Math.cos(radians) * opening.widthM / 2; const dz = Math.sin(radians) * opening.widthM / 2
       const points: Point3[] = [[x - dx, y, z - dz], [x + dx, y, z + dz], [x + dx, y + height, z + dz], [x - dx, y + height, z - dz]]
       const color = opening.kind === 'window' ? '#7FA7C9' : '#2B3A4D'
