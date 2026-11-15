@@ -2,7 +2,7 @@ import type { PlanRoom, PlanRoomsResult } from '../api'
 
 export type SceneQuality = 'measured' | 'illustrative'
 export type SceneSourceKind = 'ifc' | 'vector-drawing' | 'raster-drawing'
-export type SceneCoordinateSystem = 'x-right,y-up,z-plan-north' | 'drawing-pixels' | 'image-norm1000' | 'drawing-norm1000'
+export type SceneCoordinateSystem = 'x-right,y-up,z-plan-north' | 'x-right,y-up,z-plan-down' | 'drawing-pixels' | 'drawing-points' | 'image-norm1000' | 'drawing-norm1000'
 export type PlanPoint = [number, number]
 export type WorldPoint = [number, number, number]
 
@@ -10,6 +10,8 @@ export interface GeometrySource {
   file: string
   page?: number | null
   bbox?: [number, number, number, number]
+  /** 0..1000 source-page rectangle; converted to the displayed PNG only in the UI. */
+  bboxNorm1000?: [number, number, number, number]
   guid?: string
   label?: string
 }
@@ -95,7 +97,9 @@ export interface GeometryScene {
   quality: SceneQuality
   /** Exact metric scene: X right, Y up, Z plan north. */
   coordinateSystem: SceneCoordinateSystem
-  unit: 'm' | 'px' | 'norm1000'
+  unit: 'm' | 'px' | 'pt' | 'norm1000'
+  /** Direction of up on the source plan, [X,Z]; never guessed by the renderer. */
+  planUpVector?: PlanPoint
   warnings: string[]
   storeys: GeometryStorey[]
   rooms: GeometryRoom[]
@@ -151,14 +155,14 @@ export function illustrativeSceneFromPlanRooms(result: PlanRoomsResult): Geometr
 export function isMeasuredGeometryScene(value: GeometryScene): boolean {
   return value.quality === 'measured'
     && value.unit === 'm'
-    && value.coordinateSystem === 'x-right,y-up,z-plan-north'
+    && (value.coordinateSystem === 'x-right,y-up,z-plan-north' || value.coordinateSystem === 'x-right,y-up,z-plan-down')
 }
 
 /** Uncalibrated scans may be useful spatial illustrations, never metric models. */
 export function isIllustrativeGeometryScene(value: GeometryScene): boolean {
   return value.quality === 'illustrative'
-    && (value.unit === 'norm1000' || value.unit === 'px')
-    && (value.coordinateSystem === 'image-norm1000' || value.coordinateSystem === 'drawing-norm1000' || value.coordinateSystem === 'drawing-pixels')
+    && (value.unit === 'norm1000' || value.unit === 'px' || value.unit === 'pt')
+    && (value.coordinateSystem === 'image-norm1000' || value.coordinateSystem === 'drawing-norm1000' || value.coordinateSystem === 'drawing-pixels' || value.coordinateSystem === 'drawing-points')
 }
 
 type JsonRecord = Record<string, unknown>
@@ -171,7 +175,9 @@ const source = (value: unknown): GeometrySource | undefined => {
   const raw = record(value); const file = text(raw?.file)
   if (!raw || !file) return undefined
   const bbox = Array.isArray(raw.bbox) && raw.bbox.length === 4 && raw.bbox.every(item => number(item) !== undefined) ? raw.bbox as [number, number, number, number] : undefined
-  return { file, page: number(raw.page) ?? null, bbox, guid: text(raw.guid), label: text(raw.label) }
+  const bboxNorm1000Raw = raw.bbox_norm1000 ?? raw.bboxNorm1000
+  const bboxNorm1000 = Array.isArray(bboxNorm1000Raw) && bboxNorm1000Raw.length === 4 && bboxNorm1000Raw.every(item => number(item) !== undefined) ? bboxNorm1000Raw as [number, number, number, number] : undefined
+  return { file, page: number(raw.page) ?? null, bbox, bboxNorm1000, guid: text(raw.guid), label: text(raw.label) }
 }
 const assumed = (value: unknown): boolean | undefined => {
   if (typeof value === 'boolean') return value
@@ -183,20 +189,37 @@ const evidence = (item: JsonRecord): GeometryEvidence => ({
 })
 const records = (value: unknown) => Array.isArray(value) ? value.map(record).filter((item): item is JsonRecord => item !== null) : []
 const defined = <T,>(value: T | null): value is T => value !== null
+// A plan normally contains reliable horizontal geometry but no elevation.
+// These are visual-only defaults, explicitly marked `assumed` below; they are
+// never used as a reported measurement.
+const DEFAULT_WALL_HEIGHT_M = 2.7
+const DEFAULT_DOOR_HEIGHT_M = 2.1
+const DEFAULT_WINDOW_HEIGHT_M = 1.2
+const ILLUSTRATIVE_WALL_HEIGHT = 52
+const ILLUSTRATIVE_OPENING_SIZE = 16
+const sceneCoordinateSystem = (value: string | undefined, unit: string | undefined): SceneCoordinateSystem | null => {
+  if (value === 'x-right,y-up,z-plan-north' || value === 'x-right,y-up,z-plan-down' || value === 'drawing-pixels' || value === 'drawing-points' || value === 'image-norm1000' || value === 'drawing-norm1000') return value
+  // Xinran's exported JSON describes the exact source axes in human-readable
+  // form. Preserve its plan-up vector separately and canonicalise the type.
+  if (/X right,\s*Y up,\s*Z down/i.test(value ?? '') || /web-ifc world[\s\S]*X\s*=\s*x_ifc[\s\S]*Y\s*=\s*z_ifc[\s\S]*Z\s*=\s*-y_ifc/i.test(value ?? '')) return unit === 'norm1000' ? 'image-norm1000' : unit === 'pt' ? 'drawing-points' : 'x-right,y-up,z-plan-down'
+  return null
+}
 
 /** Converts the engine's snake_case JSON contract to the renderer's camelCase model. */
 export function normalizeGeometryScene(value: unknown): GeometryScene | null {
   const raw = record(value)
   if (!raw) return null
   const projectId = text(raw.project_id) ?? text(raw.projectId)
-  const sourceKind = text(raw.source_kind) ?? text(raw.sourceKind)
+  const rawSourceKind = text(raw.source_kind) ?? text(raw.sourceKind)
   const quality = text(raw.quality)
-  const coordinateSystem = text(raw.coordinate_system) ?? text(raw.coordinateSystem)
+  const rawCoordinateSystem = text(raw.coordinate_system) ?? text(raw.coordinateSystem)
   const unit = text(raw.unit)
+  const sourceKind = rawSourceKind === 'pdf_vector' ? 'vector-drawing' : rawSourceKind === 'scan' ? 'raster-drawing' : rawSourceKind
+  const coordinateSystem = sceneCoordinateSystem(rawCoordinateSystem, unit)
   if (!projectId || (sourceKind !== 'ifc' && sourceKind !== 'vector-drawing' && sourceKind !== 'raster-drawing')
     || (quality !== 'measured' && quality !== 'illustrative')
-    || (coordinateSystem !== 'x-right,y-up,z-plan-north' && coordinateSystem !== 'drawing-pixels' && coordinateSystem !== 'image-norm1000' && coordinateSystem !== 'drawing-norm1000')
-    || (unit !== 'm' && unit !== 'px' && unit !== 'norm1000')) return null
+    || !coordinateSystem
+    || (unit !== 'm' && unit !== 'px' && unit !== 'pt' && unit !== 'norm1000')) return null
   const rooms: GeometryRoom[] = records(raw.rooms).map((item): GeometryRoom | null => {
     const polygon = (Array.isArray(item.polygon) ? item.polygon.map(planarPoint).filter((point): point is PlanPoint => point !== null) : [])
     const id = text(item.id)
@@ -207,14 +230,23 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const outline = Array.isArray(item.outline) ? item.outline.map(planarPoint).filter((point): point is PlanPoint => point !== null) : undefined
     return id && name && elevationM !== undefined ? { id, name, elevationM, heightM: number(item.height_m) ?? number(item.heightM), outline, source: source(item.source), ...evidence(item) } : null
   }).filter(defined)
+  const illustrative = quality === 'illustrative'
   const walls: GeometryWall[] = records(raw.walls).map((item): GeometryWall | null => {
     const points = (Array.isArray(item.points) ? item.points.map(planarPoint).filter((point): point is PlanPoint => point !== null) : [])
-    const id = text(item.id); const thicknessM = number(item.thickness_m) ?? number(item.thicknessM); const baseYM = number(item.base_y_m) ?? number(item.baseYM); const heightM = number(item.height_m) ?? number(item.heightM)
-    return id && points.length >= 2 && thicknessM !== undefined && baseYM !== undefined && heightM !== undefined ? { id, storeyId: text(item.storey_id) ?? text(item.storeyId), points, thicknessM, baseYM, heightM, source: source(item.source), ...evidence(item) } as GeometryWall : null
+    const id = text(item.id); const rawThickness = number(item.thickness_m) ?? number(item.thicknessM) ?? number(item.thickness_norm1000); const rawBaseY = number(item.base_y_m) ?? number(item.baseYM); const rawHeight = number(item.height_m) ?? number(item.heightM)
+    const thicknessM = rawThickness
+    const baseYM = rawBaseY ?? 0
+    const heightM = rawHeight ?? (illustrative ? ILLUSTRATIVE_WALL_HEIGHT : DEFAULT_WALL_HEIGHT_M)
+    const defaulted = rawBaseY === undefined || rawHeight === undefined
+    return id && points.length >= 2 && thicknessM !== undefined ? { id, storeyId: text(item.storey_id) ?? text(item.storeyId), points, thicknessM, baseYM, heightM, source: source(item.source), ...evidence(item), assumed: assumed(item.assumed) ?? (defaulted || undefined) } as GeometryWall : null
   }).filter(defined)
   const openings: GeometryOpening[] = records(raw.openings).map((item): GeometryOpening | null => {
-    const id = text(item.id); const kind = text(item.kind); const position = worldPoint(item.position); const rotationDeg = number(item.rotation_deg) ?? number(item.rotationDeg); const widthM = number(item.width_m) ?? number(item.widthM); const heightM = number(item.height_m) ?? number(item.heightM)
-    return id && (kind === 'door' || kind === 'window') && position && rotationDeg !== undefined && widthM !== undefined && heightM !== undefined ? { id, kind, wallId: text(item.wall_id) ?? text(item.wallId), position, rotationDeg, widthM, heightM, source: source(item.source), ...evidence(item) } as GeometryOpening : null
+    const id = text(item.id); const kind = text(item.kind); const position = worldPoint(item.position); const rawRotation = number(item.rotation_deg) ?? number(item.rotationDeg); const rawWidth = number(item.width_m) ?? number(item.widthM); const rawHeight = number(item.height_m) ?? number(item.heightM)
+    const rotationDeg = rawRotation ?? 0
+    const widthM = rawWidth ?? (illustrative ? ILLUSTRATIVE_OPENING_SIZE : undefined)
+    const heightM = rawHeight ?? (illustrative ? ILLUSTRATIVE_OPENING_SIZE : kind === 'door' ? DEFAULT_DOOR_HEIGHT_M : DEFAULT_WINDOW_HEIGHT_M)
+    const defaulted = rawRotation === undefined || rawWidth === undefined || rawHeight === undefined
+    return id && (kind === 'door' || kind === 'window') && position && widthM !== undefined ? { id, kind, wallId: text(item.wall_id) ?? text(item.wallId), position, rotationDeg, widthM, heightM, source: source(item.source), ...evidence(item), assumed: assumed(item.assumed) ?? (defaulted || undefined) } as GeometryOpening : null
   }).filter(defined)
   const objects: GeometryObject[] = records(raw.objects).map((item): GeometryObject | null => {
     const id = text(item.id); const category = text(item.category); const position = worldPoint(item.position); const footprintRaw = record(item.footprint); const footprintWidth = number(footprintRaw?.width_m) ?? number(footprintRaw?.widthM); const footprintDepth = number(footprintRaw?.depth_m) ?? number(footprintRaw?.depthM)
@@ -225,7 +257,8 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const diameterM = number(item.diameter_m) ?? number(item.diameterM)
     return id && kind && points.length >= 2 ? { id, kind, storeyId: text(item.storey_id) ?? text(item.storeyId), points, diameterM, fromId: text(item.from_id) ?? text(item.fromId), toId: text(item.to_id) ?? text(item.toId), source: source(item.source), ...evidence(item) } : null
   }).filter(defined)
-  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem: coordinateSystem as SceneCoordinateSystem, unit: unit as GeometryScene['unit'], warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
+  const planUpVector = planarPoint(raw.plan_up_vector ?? raw.planUpVector) ?? undefined
+  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem, unit: unit as GeometryScene['unit'], planUpVector, warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
 }
 
 export function isGeometryScene(value: unknown): value is GeometryScene {
