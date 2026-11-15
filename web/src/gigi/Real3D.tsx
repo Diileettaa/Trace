@@ -22,7 +22,7 @@ interface Props {
   onOpenSource?: (source: GeometrySource) => void;
   storeyId?: string | null;              // LEVEL switcher in Gigi's top bar
   onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void;
-  visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical', boolean>>;
+  visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'furniture', boolean>>;
 }
 
 const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
@@ -141,7 +141,7 @@ export const Real3D: React.FC<Props> = ({
               elementTags={mode !== 'room' ? [] : strip.filter((f) => isGuid(f.id)).map((f) => ({ guid: f.id, code: f.code, category: f.category, verified: f.verified, issue: f.status === 'Issue Reported' }))}
               roomDims={mode === 'room' && scenario?.roomDimsM ? { L: scenario.roomDimsM.L, B: scenario.roomDimsM.B, H: scenario.roomDimsM.H ?? undefined } : undefined}
               hideRoomLabels={false}
-              storeyId={mode === 'building' ? storeyId ?? null : null} onStoreys={onStoreys} visibleLayers={visibleLayers} />
+              storeyId={mode === 'building' ? storeyId ?? null : null} onStoreys={onStoreys} visibleLayers={{ architecture: visibleLayers?.architecture, sanitary: visibleLayers?.sanitary, hvac: visibleLayers?.hvac, electrical: visibleLayers?.electrical }} />
           ) : plan && /swiss_dwellings|\.dxf$/i.test(plan) ? (
             <PlanRooms3D path={plan} />
           ) : (

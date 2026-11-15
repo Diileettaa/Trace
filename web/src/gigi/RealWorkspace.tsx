@@ -38,6 +38,7 @@ const LAYER_GUIDE: { id: LayerId; label: string; code: string }[] = [
   { id: 'sanitary', label: 'Sanitary & Plumbing', code: 'SAN-02' },
   { id: 'hvac', label: 'Ventilation (HVAC)', code: 'TGA-LUF' },
   { id: 'electrical', label: 'Electrical & Lighting', code: 'ELT-04' },
+  { id: 'furniture', label: 'Furniture', code: 'FF&E-06' },
   { id: 'dimensions', label: 'Dimension Chains', code: 'DIM-05' },
 ];
 
@@ -77,7 +78,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [chats, setChats] = useState<ChatSession[]>(() => load(chatKey, [] as ChatSession[]).map((c) => ({ ...c, messages: c.messages.map((m) => m.pending ? { ...m, pending: false, error: true, text: 'Interrupted (page reloaded) — ask again.' } : m) })));
   const [activeChatId, setActiveChatId] = useState<string>(() => chats[0]?.id || '');
   const [scale, setScale] = useState<ScaleOption>('1:200');
-  const [activeLayers, setActiveLayers] = useState<Record<LayerId, boolean>>({ architecture: true, sanitary: true, hvac: true, electrical: true, dimensions: true });
+  const [activeLayers, setActiveLayers] = useState<Record<LayerId, boolean>>({ architecture: true, sanitary: true, hvac: true, electrical: true, furniture: false, dimensions: true });
 
   // ours: storeys of the IFC model (reported by the 3D viewer) for the LEVEL switcher
   const [storeys, setStoreys] = useState<{ id: string; name: string; elevation: number }[]>([]);
@@ -651,7 +652,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               onAsk={(q) => void runPromptInCurrentChat(q)}
               onOpenSource={(source) => { setEvidenceSource(source); setAskPath(source.file); setSheetPage(source.page ?? 1); setViewMode('2d'); }}
               storeyId={storeyId} onStoreys={(list) => setStoreys([...list].sort((a, b) => b.elevation - a.elevation))}
-              visibleLayers={{ architecture: activeLayers.architecture, sanitary: activeLayers.sanitary, hvac: activeLayers.hvac, electrical: activeLayers.electrical }} />
+              visibleLayers={{ architecture: activeLayers.architecture, sanitary: activeLayers.sanitary, hvac: activeLayers.hvac, electrical: activeLayers.electrical, furniture: activeLayers.furniture }} />
           )}
         </div>
       </div>

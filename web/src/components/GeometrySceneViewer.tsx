@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { GeometryObject, GeometryOpening, GeometryRoom, GeometryScene, GeometrySource, GeometrySystem, GeometryWall, PlanPoint } from '../viewer3d/geometryScene'
 
-type SceneLayer = 'architecture' | 'sanitary' | 'hvac' | 'electrical'
+type SceneLayer = 'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'furniture'
 
 interface Props {
   scene: GeometryScene
@@ -20,6 +20,7 @@ const layerFor = (kind: string): SceneLayer => {
   if (/electric|light|socket|power|cable/.test(value)) return 'electrical'
   if (/hvac|vent|duct|air/.test(value)) return 'hvac'
   if (/toilet|wc|sink|basin|wash|shower|bath|water|drain|plumb|pipe/.test(value)) return 'sanitary'
+  if (/chair|table|desk|furniture|cabinet/.test(value)) return 'furniture'
   return 'architecture'
 }
 const layerVisible = (layer: SceneLayer, visibleLayers?: Partial<Record<SceneLayer, boolean>>) => visibleLayers?.[layer] !== false

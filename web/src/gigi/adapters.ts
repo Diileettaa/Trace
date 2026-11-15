@@ -5,7 +5,7 @@
 // Written by Claude.
 import { roomEnglish } from '../roomNames';
 
-export type LayerId = 'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'dimensions';
+export type LayerId = 'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'furniture' | 'dimensions';
 export type ScaleOption = '1:200' | '1:100' | '1:50' | '1:20';
 export type VerificationStatus = 'Installed' | 'In Progress' | 'Issue Reported' | 'Not checked';
 
@@ -73,6 +73,7 @@ const CATEGORY_LAYER: Record<string, LayerId> = {
   flowterminal: 'sanitary', pipe: 'sanitary',
   duct: 'hvac', damper: 'hvac', hvac: 'hvac', air_terminal: 'hvac',
   light: 'electrical', socket: 'electrical', switch: 'electrical', electrical: 'electrical', lamp: 'electrical',
+  chair: 'furniture', table: 'furniture', desk: 'furniture', furniture: 'furniture', cabinet: 'furniture',
 };
 export const layerOf = (category: string): LayerId =>
   CATEGORY_LAYER[(category || '').toLowerCase()] ?? 'architecture';
