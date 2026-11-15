@@ -293,10 +293,10 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
               <button
                 type="button"
                 onClick={onOpenProjects}
-                title="Project tools: files, schedule, team, full 3D model"
+                title="Community: team channels, files, private messages and schedule"
                 className="hidden lg:inline-flex px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border border-white/15 text-[#F7F6F2] hover:border-[#E9B949] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
-                Projects
+                Community
               </button>
             )}
             <button
