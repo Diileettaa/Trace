@@ -17,6 +17,7 @@ interface AccountModalProps {
   onOpenPlans: () => void;
   onOpenEducation: () => void;
   onOpenDemo: () => void;
+  onSubscriptionChange?: (hasSub: boolean, planName?: string) => void;
 }
 
 export const AccountModal: React.FC<AccountModalProps> = ({
@@ -25,6 +26,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   onOpenPlans,
   onOpenEducation,
   onOpenDemo,
+  onSubscriptionChange,
 }) => {
   const [signedInUser, setSignedInUser] = useState<{
     name: string;
@@ -37,9 +39,9 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     name: 'Elena Lindholm',
     email: 'elena@studio-nordic.fi',
     org: 'Nordic Interior & MEP Partners',
-    plan: 'Trace Pro (Yearly · -30%)',
-    seats: '4 of 5 seats active',
-    billing: 'Renews 14 Nov 2027 · €55 / seat / mo',
+    plan: 'Trace Pro (Yearly · Save up to 30%)',
+    seats: '1 seat · 500 Tokens / mo · 8 sheets / mo',
+    billing: 'Renews 14 Nov 2027 · €39 / mo (€468 / year, excl. VAT)',
   });
 
   const [loginEmail, setLoginEmail] = useState('elena@studio-nordic.fi');
@@ -50,14 +52,16 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.includes('@')) return;
+    const planLabel = 'Trace Pro (Yearly · Save up to 30%)';
     setSignedInUser({
       name: loginEmail.split('@')[0].replace('.', ' '),
       email: loginEmail,
       org: 'Stoa Partner Studio',
-      plan: 'Trace Pro (Yearly · -30%)',
-      seats: '1 of 5 seats active',
-      billing: 'Active · 30% yearly discount applied',
+      plan: planLabel,
+      seats: '1 seat · 500 Tokens / mo · 8 sheets / mo',
+      billing: 'Active · €39 / mo · €468 / year (excl. VAT)',
     });
+    onSubscriptionChange?.(true, planLabel);
   };
 
   return (
@@ -111,7 +115,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setSignedInUser(null)}
+                onClick={() => {
+                  setSignedInUser(null);
+                  onSubscriptionChange?.(false);
+                }}
                 className="text-xs font-medium text-[#202427]/70 hover:text-[#202427] inline-flex items-center gap-1 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -127,7 +134,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   ACTIVE SUBSCRIPTION
                 </span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#E9B949] text-[#202427] font-semibold">
-                  -30% Yearly
+                  Yearly · Save up to 30%
                 </span>
               </div>
               <div>
@@ -139,11 +146,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               <div className="pt-2 border-t border-white/10 grid grid-cols-2 gap-2 text-xs">
                 <div className="flex items-center gap-1.5 text-[#F7F6F2]/85">
                   <Check className="w-3.5 h-3.5 text-[#E9B949]" />
-                  <span>2D/3D + AI Scale LoD</span>
+                  <span>Geometry Core &amp; Proof Lens</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[#F7F6F2]/85">
                   <Check className="w-3.5 h-3.5 text-[#E9B949]" />
-                  <span>Desktop &amp; iPad Sync</span>
+                  <span>10 GB EU Trace Cloud</span>
                 </div>
               </div>
             </div>
@@ -169,7 +176,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 className="py-2.5 px-3.5 rounded-lg bg-white border border-[#A9AFB0]/60 text-xs font-semibold text-[#202427] hover:border-[#202427] transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <GraduationCap className="w-3.5 h-3.5" />
-                <span>Verify Student Free Pass</span>
+                <span>Verify Trace Academy</span>
               </button>
             </div>
 
@@ -187,7 +194,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         ) : (
           <form onSubmit={handleSignIn} className="p-6 space-y-4">
             <p className="text-xs text-[#202427]/75 leading-relaxed">
-              Sign in with your Stoa or studio account to manage Trace. Draft, Sketch, Pro, or Business licenses and sync local projects.
+              Sign in with your Stoa or studio account to manage Trace Sketch, Pro, Studio, Site, Masterplan, or Trace Academy licences.
             </p>
             <div>
               <label

@@ -26,9 +26,9 @@
 
 .blueprint-grid-bg {
   background-image:
-    linear-gradient(to right, rgba(169, 175, 176, 0.16) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(169, 175, 176, 0.16) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(to right, rgba(169, 175, 176, 0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(169, 175, 176, 0.13) 1px, transparent 1px);
+  background-size: 36px 36px;
 }
 
 .blueprint-grid-dark {

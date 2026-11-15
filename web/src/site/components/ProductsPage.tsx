@@ -1,14 +1,19 @@
 // @ts-nocheck -- Gigi's design code copied from design/gigi (AI Studio), kept as-is
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { type ProductPlan } from '../data/traceData';
+import { type BillingCycle, type ProductPlan } from '../data/traceData';
 import { PricingSection } from './PricingSection';
 
 interface ProductsPageProps {
-  activeCategory: 'individual' | 'business';
-  onCategoryChange: (category: 'individual' | 'business') => void;
-  onSelectPlan: (plan: ProductPlan, billing: 'annual' | 'monthly') => void;
+  activeCategory: 'individual' | 'business' | 'university';
+  onCategoryChange: (category: 'individual' | 'business' | 'university') => void;
+  onSelectPlan: (
+    plan: ProductPlan,
+    billing: BillingCycle,
+    options?: { premiumSla?: boolean; masterplanSeats?: number }
+  ) => void;
   onOpenEducation: () => void;
+  onContactUs: () => void;
   onBackHome: () => void;
 }
 
@@ -17,6 +22,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   onCategoryChange,
   onSelectPlan,
   onOpenEducation,
+  onContactUs,
   onBackHome,
 }) => {
   return (
@@ -37,6 +43,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         onCategoryChange={onCategoryChange}
         onSelectPlan={onSelectPlan}
         onOpenEducation={onOpenEducation}
+        onContactUs={onContactUs}
       />
     </div>
   );

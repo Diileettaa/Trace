@@ -19,7 +19,7 @@ import RealWorkspace from '../gigi/RealWorkspace';
 import '../gigi/gigi.css';
 import { UserCasesPage } from './components/UserCasesPage';
 import { WorkspaceLoopDemo } from './components/WorkspaceLoopDemo';
-import { PRODUCT_PLANS, type ProductPlan } from './data/traceData';
+import { type BillingCycle, PRODUCT_META, PRODUCT_PLANS, type ProductPlan } from './data/traceData';
 
 type PageMode =
   | 'home'
@@ -31,15 +31,26 @@ type PageMode =
 
 export default function App({ onOpenProjects }: { onOpenProjects?: () => void }) {
   const [pageMode, setPageMode] = useState<PageMode>('home');
-  const [pricingCategory, setPricingCategory] = useState<'individual' | 'business'>(
-    'individual'
-  );
+  const [pricingCategory, setPricingCategory] = useState<
+    'individual' | 'business' | 'university'
+  >('individual');
   const [productsMenuOpen, setProductsMenuOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [scrollToEducationSeminars, setScrollToEducationSeminars] =
+    useState(false);
+  const [subscriptionState, setSubscriptionState] = useState<{
+    active: boolean;
+    planName: string;
+  }>({
+    active: true,
+    planName: 'Trace Pro (Yearly)',
+  });
   const [checkoutState, setCheckoutState] = useState<{
     plan: ProductPlan | null;
-    billing: 'annual' | 'monthly';
-  }>({ plan: null, billing: 'annual' });
+    billing: BillingCycle;
+    premiumSla?: boolean;
+    masterplanSeats?: number;
+  }>({ plan: null, billing: 'yearly', premiumSla: false, masterplanSeats: 20 });
 
   const productsDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -58,11 +69,18 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
 
   const individualPlans = PRODUCT_PLANS.filter((p) => p.category === 'individual');
   const businessPlans = PRODUCT_PLANS.filter((p) => p.category === 'business');
+  const universityPlans = PRODUCT_PLANS.filter((p) => p.category === 'university');
+  const proPlan = PRODUCT_PLANS.find((p) => p.id === 'pro') || PRODUCT_PLANS[1];
 
-  const navigateToPage = (target: PageMode) => {
+  const navigateToPage = (target: PageMode, scrollToTop = true) => {
     setProductsMenuOpen(false);
+    if (target !== 'education') {
+      setScrollToEducationSeminars(false);
+    }
     setPageMode(target);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scrollToTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleSelectProductFromRunner = (plan: ProductPlan) => {
@@ -71,10 +89,16 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
   };
 
   const openCheckout = (
-    plan: ProductPlan = PRODUCT_PLANS[2],
-    billing: 'annual' | 'monthly' = 'annual'
+    plan: ProductPlan = proPlan,
+    billing: BillingCycle = 'yearly',
+    options?: { premiumSla?: boolean; masterplanSeats?: number }
   ) => {
-    setCheckoutState({ plan, billing });
+    setCheckoutState({
+      plan,
+      billing,
+      premiumSla: Boolean(options?.premiumSla),
+      masterplanSeats: options?.masterplanSeats ?? 20,
+    });
   };
 
   return (
@@ -141,11 +165,11 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
               </button>
 
               {productsMenuOpen && (
-                <div className="absolute left-0 top-full mt-3 w-[480px] rounded-xl bg-[#202427] border border-white/15 shadow-2xl p-5 text-[#F7F6F2] z-50">
-                  <div className="grid grid-cols-2 gap-5">
+                <div className="absolute left-0 top-full mt-3 w-[640px] rounded-xl bg-[#202427] border border-white/15 shadow-2xl p-5 text-[#F7F6F2] z-50">
+                  <div className="grid grid-cols-3 gap-5">
                     <div>
                       <div className="text-[11px] font-mono uppercase tracking-wider text-[#E9B949] mb-2.5">
-                        Individual Editions
+                        Individual
                       </div>
                       <div className="space-y-1.5">
                         {individualPlans.map((p) => (
@@ -167,7 +191,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                     </div>
                     <div className="border-l border-white/10 pl-5">
                       <div className="text-[11px] font-mono uppercase tracking-wider text-[#E9B949] mb-2.5">
-                        Business Suites
+                        Business
                       </div>
                       <div className="space-y-1.5">
                         {businessPlans.map((p) => (
@@ -187,17 +211,39 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                         ))}
                       </div>
                     </div>
+                    <div className="border-l border-white/10 pl-5">
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#E9B949] mb-2.5">
+                        University
+                      </div>
+                      <div className="space-y-1.5">
+                        {universityPlans.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProductFromRunner(p)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                          >
+                            <div className="text-sm font-semibold text-[#F7F6F2]">
+                              {p.name}
+                            </div>
+                            <div className="text-[11px] text-[#A9AFB0] leading-snug">
+                              {p.tagline}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
                     <span className="text-[11px] font-mono text-[#A9AFB0]">
-                      Save up to 30% with a yearly subscription
+                      Yearly Save up to 30% · Prices excl. VAT
                     </span>
                     <button
                       type="button"
                       onClick={() => navigateToPage('products')}
-                      className="text-xs font-semibold text-[#E9B949] hover:underline cursor-pointer"
+                      className="text-xs font-semibold text-[#E9B949] hover:underline cursor-pointer shrink-0"
                     >
-                      Compare all plans →
+                      Compare all 6 plans →
                     </button>
                   </div>
                 </div>
@@ -257,7 +303,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
               type="button"
               onClick={() => {
                 if (pageMode === 'workspace') {
-                  openCheckout(PRODUCT_PLANS[2], 'annual');
+                  openCheckout(proPlan, 'yearly');
                 } else {
                   navigateToPage('workspace');
                 }
@@ -330,8 +376,11 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
           <ProductsPage
             activeCategory={pricingCategory}
             onCategoryChange={setPricingCategory}
-            onSelectPlan={(plan, billing) => openCheckout(plan, billing)}
+            onSelectPlan={(plan, billing, options) =>
+              openCheckout(plan, billing, options)
+            }
             onOpenEducation={() => navigateToPage('education')}
+            onContactUs={() => navigateToPage('support')}
             onBackHome={() => navigateToPage('home')}
           />
         </main>
@@ -344,13 +393,27 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
         </main>
       ) : pageMode === 'education' ? (
         <main className="flex-1">
-          <EducationPortal onBackToCommercial={() => navigateToPage('home')} />
+          <EducationPortal
+            hasActiveSubscription={subscriptionState.active}
+            activePlanName={subscriptionState.planName}
+            scrollToSeminars={scrollToEducationSeminars}
+            onScrolledToSeminars={() => setScrollToEducationSeminars(false)}
+            onBackToCommercial={() => navigateToPage('home')}
+            onOpenPlans={() => navigateToPage('products')}
+            onOpenAccount={() => setAccountModalOpen(true)}
+            onUnlockSubscription={(planName) =>
+              setSubscriptionState({ active: true, planName })
+            }
+          />
         </main>
       ) : pageMode === 'support' ? (
         <main className="flex-1">
           <SupportPage
             onBackHome={() => navigateToPage('home')}
-            onOpenEducation={() => navigateToPage('education')}
+            onOpenEducation={() => {
+              setScrollToEducationSeminars(true);
+              navigateToPage('education', false);
+            }}
           />
         </main>
       ) : (
@@ -367,7 +430,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                     Trace. · A Product by Stoa
                   </p>
                   <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[#202427] mt-1">
-                    Construction drawing intelligence, verified on site.
+                    {PRODUCT_META.tagline}
                   </h1>
                 </div>
                 <button
@@ -426,7 +489,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                       Products &amp; Pricing
                     </h3>
                     <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
-                      Individual (Draft, Sketch, Pro) &amp; Business (Studio, Site, Masterplan). Monthly or Yearly · Save 30%.
+                      Individual (Sketch, Pro), Business (Studio, Site, Masterplan) &amp; University (Academy). Yearly Save up to 30%.
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
@@ -462,15 +525,27 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                 >
                   <div>
                     <GraduationCap className="w-5 h-5 text-[#9A7218] mb-3" />
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="relative text-xs font-mono text-[#202427]/50 px-0.5">
+                        €49/mo
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-0 right-0 top-1/2 -rotate-12 h-[2px] bg-[#E9B949]"
+                        />
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#E9B949] text-[#202427] text-sm font-display font-bold">
+                        €0
+                      </span>
+                    </div>
                     <h3 className="text-base font-semibold text-[#202427]">
-                      Education · Free
+                      University · Trace Academy
                     </h3>
                     <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
-                      Completely FREE for students at licensed universities—including live workshops &amp; certification.
+                      €0 per student ID if your university is registered. Otherwise Individual plans (Sketch or Pro) apply.
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
-                    <span>Open Education</span>
+                    <span>Verify Trace Academy</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
                 </button>
@@ -561,10 +636,19 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
 
       {/* Subscription Checkout Modal */}
       <CheckoutModal
-        key={checkoutState.plan?.id || 'closed'}
+        key={`${checkoutState.plan?.id || 'closed'}-${checkoutState.premiumSla ? 'sla' : 'std'}-${checkoutState.masterplanSeats || 20}`}
         plan={checkoutState.plan}
         initialBilling={checkoutState.billing}
+        initialPremiumSla={checkoutState.premiumSla}
+        initialMasterplanSeats={checkoutState.masterplanSeats}
         onClose={() => setCheckoutState((prev) => ({ ...prev, plan: null }))}
+        onContactUs={() => {
+          setCheckoutState((prev) => ({ ...prev, plan: null }));
+          navigateToPage('support');
+        }}
+        onSubscribed={(planName) =>
+          setSubscriptionState({ active: true, planName })
+        }
         onLaunchWorkspace={() => {
           setCheckoutState((prev) => ({ ...prev, plan: null }));
           navigateToPage('workspace');
@@ -578,6 +662,12 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
         onOpenPlans={() => navigateToPage('products')}
         onOpenEducation={() => navigateToPage('education')}
         onOpenDemo={() => navigateToPage('workspace')}
+        onSubscriptionChange={(active, planName) =>
+          setSubscriptionState({
+            active,
+            planName: planName || 'Trace Pro',
+          })
+        }
       />
     </div>
   );

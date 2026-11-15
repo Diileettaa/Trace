@@ -1,117 +1,268 @@
-import React, { useState } from 'react';
-import { ArrowRight, Building2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ArrowRight,
+  Building2,
+  ChevronDown,
+  GraduationCap,
+  HelpCircle,
+  Layers,
+  User,
+} from 'lucide-react';
+import { AccountModal } from './components/AccountModal';
 import { CheckoutModal } from './components/CheckoutModal';
 import { EducationPortal } from './components/EducationPortal';
-import { PricingSection } from './components/PricingSection';
+import { FactSlidesCarousel } from './components/FactSlidesCarousel';
+import { ProductsPage } from './components/ProductsPage';
+import { SupportPage } from './components/SupportPage';
 import { TraceWorkspace } from './components/TraceWorkspace';
-import { VerificationShowcase } from './components/VerificationShowcase';
-import { PLAN_TIERS, PlanTier } from './data/traceData';
+import { UserCasesPage } from './components/UserCasesPage';
+import { WorkspaceLoopDemo } from './components/WorkspaceLoopDemo';
+import { BillingCycle, PRODUCT_META, PRODUCT_PLANS, ProductPlan } from './data/traceData';
+
+type PageMode =
+  | 'home'
+  | 'products'
+  | 'user-cases'
+  | 'education'
+  | 'support'
+  | 'workspace';
 
 export default function App() {
-  const [pageMode, setPageMode] = useState<'commercial' | 'workspace' | 'education'>(
-    'commercial'
-  );
+  const [pageMode, setPageMode] = useState<PageMode>('home');
+  const [pricingCategory, setPricingCategory] = useState<
+    'individual' | 'business' | 'university'
+  >('individual');
+  const [productsMenuOpen, setProductsMenuOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [scrollToEducationSeminars, setScrollToEducationSeminars] =
+    useState(false);
+  const [subscriptionState, setSubscriptionState] = useState<{
+    active: boolean;
+    planName: string;
+  }>({
+    active: true,
+    planName: 'Trace Pro (Yearly)',
+  });
   const [checkoutState, setCheckoutState] = useState<{
-    plan: PlanTier | null;
-    billing: 'annual' | 'monthly';
-  }>({ plan: null, billing: 'annual' });
-  const [siteHeroImgError, setSiteHeroImgError] = useState(false);
+    plan: ProductPlan | null;
+    billing: BillingCycle;
+    premiumSla?: boolean;
+    masterplanSeats?: number;
+  }>({ plan: null, billing: 'yearly', premiumSla: false, masterplanSeats: 20 });
 
-  const openCheckout = (
-    plan: PlanTier = PLAN_TIERS[2],
-    billing: 'annual' | 'monthly' = 'annual'
-  ) => {
-    setCheckoutState({ plan, billing });
+  const productsDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        productsDropdownRef.current &&
+        !productsDropdownRef.current.contains(event.target as Node)
+      ) {
+        setProductsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const individualPlans = PRODUCT_PLANS.filter((p) => p.category === 'individual');
+  const businessPlans = PRODUCT_PLANS.filter((p) => p.category === 'business');
+  const universityPlans = PRODUCT_PLANS.filter((p) => p.category === 'university');
+  const proPlan = PRODUCT_PLANS.find((p) => p.id === 'pro') || PRODUCT_PLANS[1];
+
+  const navigateToPage = (target: PageMode, scrollToTop = true) => {
+    setProductsMenuOpen(false);
+    if (target !== 'education') {
+      setScrollToEducationSeminars(false);
+    }
+    setPageMode(target);
+    if (scrollToTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
-  const navigateToSection = (sectionId: string) => {
-    if (pageMode !== 'commercial') {
-      setPageMode('commercial');
-      window.setTimeout(() => {
-        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-      }, 60);
-    } else {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-    }
+  const handleSelectProductFromRunner = (plan: ProductPlan) => {
+    setPricingCategory(plan.category);
+    navigateToPage('products');
+  };
+
+  const openCheckout = (
+    plan: ProductPlan = proPlan,
+    billing: BillingCycle = 'yearly',
+    options?: { premiumSla?: boolean; masterplanSeats?: number }
+  ) => {
+    setCheckoutState({
+      plan,
+      billing,
+      premiumSla: Boolean(options?.premiumSla),
+      masterplanSeats: options?.masterplanSeats ?? 20,
+    });
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F6F2] text-[#202427]">
-      {/* Dark #202427 Top Bar matching reference screenshot */}
+      {/* Dark #202427 Top Runner Bar */}
       <header className="sticky top-0 z-40 bg-[#202427] text-[#F7F6F2] border-b border-white/10">
-        <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between gap-8">
-          {/* Zone 1: Amber Viewfinder Icon + Wordmark */}
-          <a
-            href="#top"
-            onClick={(e) => {
-              e.preventDefault();
-              setPageMode('commercial');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="inline-flex items-center gap-2.5 text-lg font-display font-bold tracking-tight text-[#F7F6F2] whitespace-nowrap shrink-0"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-              className="text-[#E9B949] shrink-0"
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          {/* Left: Amber Viewfinder Icon + TRACE. (Main Page) + by Stoa */}
+          <div className="flex items-center gap-3 shrink-0">
+            <a
+              href="#home"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToPage('home');
+              }}
+              className="inline-flex items-center gap-2.5 text-lg font-display font-bold tracking-tight text-[#F7F6F2] whitespace-nowrap shrink-0"
             >
-              <path
-                d="M4 9V5.5C4 4.67 4.67 4 5.5 4H9M15 4H18.5C19.33 4 20 4.67 20 5.5V9M20 15V18.5C20 19.33 19.33 20 18.5 20H15M9 20H5.5C4.67 20 4 19.33 4 18.5V15"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              />
-              <circle cx="12" cy="12" r="2.2" fill="currentColor" />
-            </svg>
-            <span>TRACE.</span>
-          </a>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                className="text-[#E9B949] shrink-0"
+              >
+                <path
+                  d="M4 9V5.5C4 4.67 4.67 4 5.5 4H9M15 4H18.5C19.33 4 20 4.67 20 5.5V9M20 15V18.5C20 19.33 19.33 20 18.5 20H15M9 20H5.5C4.67 20 4 19.33 4 18.5V15"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+                <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+              </svg>
+              <span>TRACE.</span>
+            </a>
+            <span className="hidden sm:inline-block text-[11px] font-mono text-[#A9AFB0] border-l border-white/15 pl-2.5 whitespace-nowrap">
+              by Stoa
+            </span>
+          </div>
 
-          {/* Zone 2: Clean single-line nav links */}
+          {/* Center Nav Runners: Each Runner Opens Its Dedicated Page */}
           <nav
             aria-label="Primary navigation"
-            className="hidden md:flex items-center gap-7 text-sm font-medium text-[#A9AFB0]"
+            className="hidden md:flex items-center gap-6 text-sm font-medium text-[#A9AFB0]"
           >
+            {/* Products Runner (Dropdown + Page) */}
+            <div ref={productsDropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setProductsMenuOpen((o) => !o)}
+                aria-expanded={productsMenuOpen}
+                className={`inline-flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  pageMode === 'products' || productsMenuOpen
+                    ? 'text-[#E9B949]'
+                    : 'hover:text-[#F7F6F2]'
+                }`}
+              >
+                <span>Products</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform ${
+                    productsMenuOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {productsMenuOpen && (
+                <div className="absolute left-0 top-full mt-3 w-[640px] rounded-xl bg-[#202427] border border-white/15 shadow-2xl p-5 text-[#F7F6F2] z-50">
+                  <div className="grid grid-cols-3 gap-5">
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#E9B949] mb-2.5">
+                        Individual
+                      </div>
+                      <div className="space-y-1.5">
+                        {individualPlans.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProductFromRunner(p)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                          >
+                            <div className="text-sm font-semibold text-[#F7F6F2]">
+                              {p.name}
+                            </div>
+                            <div className="text-[11px] text-[#A9AFB0] leading-snug">
+                              {p.tagline}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-l border-white/10 pl-5">
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#E9B949] mb-2.5">
+                        Business
+                      </div>
+                      <div className="space-y-1.5">
+                        {businessPlans.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProductFromRunner(p)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                          >
+                            <div className="text-sm font-semibold text-[#F7F6F2]">
+                              {p.name}
+                            </div>
+                            <div className="text-[11px] text-[#A9AFB0] leading-snug">
+                              {p.tagline}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-l border-white/10 pl-5">
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#E9B949] mb-2.5">
+                        University
+                      </div>
+                      <div className="space-y-1.5">
+                        {universityPlans.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProductFromRunner(p)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                          >
+                            <div className="text-sm font-semibold text-[#F7F6F2]">
+                              {p.name}
+                            </div>
+                            <div className="text-[11px] text-[#A9AFB0] leading-snug">
+                              {p.tagline}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-mono text-[#A9AFB0]">
+                      Yearly Save up to 30% · Prices excl. VAT
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigateToPage('products')}
+                      className="text-xs font-semibold text-[#E9B949] hover:underline cursor-pointer shrink-0"
+                    >
+                      Compare all 6 plans →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
-              onClick={() => navigateToSection('how-it-works')}
+              onClick={() => navigateToPage('user-cases')}
               className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                pageMode === 'commercial'
-                  ? 'text-[#F7F6F2]'
-                  : 'hover:text-[#F7F6F2]'
-              }`}
-            >
-              How it works
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPageMode('workspace');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                pageMode === 'workspace'
+                pageMode === 'user-cases'
                   ? 'text-[#E9B949]'
                   : 'hover:text-[#F7F6F2]'
               }`}
             >
-              Workspace
+              User Cases
             </button>
+
             <button
               type="button"
-              onClick={() => navigateToSection('plans')}
-              className="hover:text-[#F7F6F2] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              Plans
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPageMode('education');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onClick={() => navigateToPage('education')}
               className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 pageMode === 'education'
                   ? 'text-[#E9B949]'
@@ -120,299 +271,391 @@ export default function App() {
             >
               Education
             </button>
+
+            <button
+              type="button"
+              onClick={() => navigateToPage('support')}
+              className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                pageMode === 'support'
+                  ? 'text-[#E9B949]'
+                  : 'hover:text-[#F7F6F2]'
+              }`}
+            >
+              Learning &amp; Support
+            </button>
           </nav>
 
-          {/* Zone 3: Amber primary CTA */}
-          <div className="flex items-center shrink-0">
+          {/* Right: Prominent Demo Version CTA + Small Account Icon */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
                 if (pageMode === 'workspace') {
-                  openCheckout(PLAN_TIERS[2], 'annual');
+                  openCheckout(proPlan, 'yearly');
                 } else {
-                  setPageMode('workspace');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  navigateToPage('workspace');
                 }
               }}
-              className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-[#E9B949] text-[#202427] hover:bg-[#E9B949]/90 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-[#E9B949] text-[#202427] hover:bg-[#E9B949]/90 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              {pageMode === 'workspace' ? 'Subscribe' : 'Launch Demo'}
+              {pageMode === 'workspace' ? 'Subscribe' : 'Demo Version'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAccountModalOpen(true)}
+              aria-label="Sign in and manage subscriptions"
+              title="Account & Subscriptions"
+              className="w-9 h-9 rounded-lg border border-white/20 bg-white/5 text-[#F7F6F2] hover:border-[#E9B949] hover:text-[#E9B949] transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+            >
+              <User className="w-4 h-4" />
             </button>
           </div>
         </div>
+
+        {/* Compact Mobile Runner Strip */}
+        <div className="md:hidden border-t border-white/10 px-4 py-2 flex items-center gap-4 overflow-x-auto text-xs font-medium text-[#A9AFB0]">
+          <button
+            type="button"
+            onClick={() => navigateToPage('products')}
+            className={`whitespace-nowrap shrink-0 cursor-pointer ${
+              pageMode === 'products' ? 'text-[#E9B949]' : 'hover:text-[#F7F6F2]'
+            }`}
+          >
+            Products
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateToPage('user-cases')}
+            className={`whitespace-nowrap shrink-0 cursor-pointer ${
+              pageMode === 'user-cases' ? 'text-[#E9B949]' : 'hover:text-[#F7F6F2]'
+            }`}
+          >
+            User Cases
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateToPage('education')}
+            className={`whitespace-nowrap shrink-0 cursor-pointer ${
+              pageMode === 'education' ? 'text-[#E9B949]' : 'hover:text-[#F7F6F2]'
+            }`}
+          >
+            Education
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateToPage('support')}
+            className={`whitespace-nowrap shrink-0 cursor-pointer ${
+              pageMode === 'support' ? 'text-[#E9B949]' : 'hover:text-[#F7F6F2]'
+            }`}
+          >
+            Learning &amp; Support
+          </button>
+        </div>
       </header>
 
+      {/* Dedicated Route Rendering per Runner */}
       {pageMode === 'workspace' ? (
         <main className="flex-1">
           <TraceWorkspace />
         </main>
+      ) : pageMode === 'products' ? (
+        <main className="flex-1">
+          <ProductsPage
+            activeCategory={pricingCategory}
+            onCategoryChange={setPricingCategory}
+            onSelectPlan={(plan, billing, options) =>
+              openCheckout(plan, billing, options)
+            }
+            onOpenEducation={() => navigateToPage('education')}
+            onContactUs={() => navigateToPage('support')}
+            onBackHome={() => navigateToPage('home')}
+          />
+        </main>
+      ) : pageMode === 'user-cases' ? (
+        <main className="flex-1">
+          <UserCasesPage
+            onBackHome={() => navigateToPage('home')}
+            onOpenDemo={() => navigateToPage('workspace')}
+          />
+        </main>
       ) : pageMode === 'education' ? (
         <main className="flex-1">
-          <EducationPortal onBackToCommercial={() => setPageMode('commercial')} />
+          <EducationPortal
+            hasActiveSubscription={subscriptionState.active}
+            activePlanName={subscriptionState.planName}
+            scrollToSeminars={scrollToEducationSeminars}
+            onScrolledToSeminars={() => setScrollToEducationSeminars(false)}
+            onBackToCommercial={() => navigateToPage('home')}
+            onOpenPlans={() => navigateToPage('products')}
+            onOpenAccount={() => setAccountModalOpen(true)}
+            onUnlockSubscription={(planName) =>
+              setSubscriptionState({ active: true, planName })
+            }
+          />
         </main>
-      ) : (
-        <main id="top" className="flex-1">
-          {/* Clean Editorial Hero matching reference screenshot */}
-          <section className="pt-12 pb-16 sm:pt-14 sm:pb-20">
-            <div className="max-w-[1200px] mx-auto px-6">
-              <div className="max-w-3xl">
-                <p className="text-xs font-mono font-semibold tracking-wider uppercase text-[#9A7218] mb-3">
-                  Construction Intelligence
-                </p>
-                <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-semibold tracking-tight text-[#202427] leading-[1.08] [text-wrap:balance]">
-                  Every answer. Backed by evidence.
-                </h1>
-                <p className="mt-4 text-base sm:text-lg text-[#202427]/75 leading-relaxed max-w-2xl">
-                  Ask your construction drawings anything. Get precise answers in 1–2 seconds—highlighted inside real 1:50 execution plans, inspectable in 3D with dimensions, and verified with dated site photos.
-                </p>
-
-                <div className="mt-7 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPageMode('workspace');
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="px-5 py-3 rounded-lg bg-[#202427] text-[#F7F6F2] text-sm font-semibold hover:bg-[#202427]/90 transition-colors inline-flex items-center gap-2 whitespace-nowrap cursor-pointer"
-                  >
-                    <span>Try Live Demo</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigateToSection('how-it-works')}
-                    className="px-5 py-3 rounded-lg bg-white border border-[#A9AFB0]/60 text-sm font-medium text-[#202427] hover:border-[#202427] transition-colors whitespace-nowrap cursor-pointer"
-                  >
-                    How it works
-                  </button>
-                </div>
-              </div>
-
-              {/* Clean White Drawing Analysis Card directly below */}
-              <div id="verification" className="mt-10">
-                <VerificationShowcase
-                  onOpenSubscribe={() => openCheckout(PLAN_TIERS[2], 'annual')}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* How It Works & Core Pillars */}
-          <section id="how-it-works" className="py-20 border-t border-[#A9AFB0]/35">
-            <div className="max-w-[1200px] mx-auto px-6">
-              <div className="max-w-2xl mb-12">
-                <p className="text-xs font-mono font-semibold tracking-wider uppercase text-[#9A7218] mb-2">
-                  How Trace. Works
-                </p>
-                <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#202427] [text-wrap:balance]">
-                  Built to cut through real 1:50 execution-plan chaos.
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 p-7 rounded-2xl border border-[#A9AFB0]/45 bg-white flex flex-col justify-between">
-                  <div>
-                    <div className="text-xs font-mono text-[#9A7218] font-medium mb-2">
-                      01. Click-to-3D Spatial Verification
-                    </div>
-                    <h3 className="text-xl font-semibold text-[#202427]">
-                      From dense CAD hatchings straight into 3D dimensions.
-                    </h3>
-                    <p className="mt-3 text-sm text-[#202427]/80 leading-relaxed max-w-xl">
-                      Real construction drawings pack structural walls, insulation hatches, dimension chains, door tags, and MEP ducts onto one sheet. Trace. isolates the exact element in 1–2 seconds in amber—and one click opens the 3D spatial model with clear heights and offsets.
-                    </p>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-[#A9AFB0]/25 flex flex-wrap gap-x-6 gap-y-2 text-xs font-mono text-[#202427]/70">
-                    <span>Vector PDF</span>
-                    <span aria-hidden="true">·</span>
-                    <span>DWG / DXF</span>
-                    <span aria-hidden="true">·</span>
-                    <span>IFC / BIM Models</span>
-                    <span aria-hidden="true">·</span>
-                    <span>Multilingual Drawings</span>
-                  </div>
-                </div>
-
-                <div className="p-7 rounded-2xl border border-[#202427] bg-[#202427] text-[#F7F6F2] flex flex-col justify-between">
-                  <div>
-                    <div className="text-xs font-mono text-[#E9B949] mb-2">
-                      02. As-Built Photo Memory
-                    </div>
-                    <h3 className="text-xl font-semibold">
-                      Snap once on site. Proven forever.
-                    </h3>
-                    <p className="mt-3 text-sm text-[#F7F6F2]/80 leading-relaxed">
-                      Take a photo on site during inspection and pin it to that drawing coordinate. Date, time, and author lock automatically—so anyone searching weeks after drywall closes sees real photo evidence.
-                    </p>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-[#A9AFB0]/20 text-xs font-mono text-[#A9AFB0]">
-                    Auto-Timestamp · Author Lock
-                  </div>
-                </div>
-
-                <div className="p-7 rounded-2xl border border-[#A9AFB0]/45 bg-white flex flex-col justify-between">
-                  <div>
-                    <div className="text-xs font-mono text-[#9A7218] font-medium mb-2">
-                      03. Permits, Invoices &amp; Claims
-                    </div>
-                    <h3 className="text-xl font-semibold text-[#202427]">
-                      Commercial proof linked to geometry.
-                    </h3>
-                    <p className="mt-3 text-sm text-[#202427]/80 leading-relaxed">
-                      Cross-search building permits, invoices, bank transfers, and defect claims. Tie every variation order directly to the exact drawing sheet and site photo.
-                    </p>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-[#A9AFB0]/25 text-xs font-mono text-[#202427]/70">
-                    Permits · Invoices · Claims
-                  </div>
-                </div>
-
-                <div className="lg:col-span-2 p-7 rounded-2xl border border-[#A9AFB0]/45 bg-white flex flex-col justify-between">
-                  <div>
-                    <div className="text-xs font-mono text-[#9A7218] font-medium mb-2">
-                      04. Parallel Trade Workflows &amp; Low Inference Cost
-                    </div>
-                    <h3 className="text-xl font-semibold text-[#202427]">
-                      Coordinate every trade without expensive full-sheet scans.
-                    </h3>
-                    <p className="mt-3 text-sm text-[#202427]/80 leading-relaxed max-w-xl">
-                      Track parallel trade schedules, handovers, and sequence dependencies. Under the hood, Trace. indexes drawing coordinates once and inspects only the relevant region—delivering 92% lower compute cost per query.
-                    </p>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-[#A9AFB0]/25 flex flex-wrap gap-x-6 gap-y-2 text-xs font-mono text-[#202427]/70">
-                    <span>Trade Sequencing</span>
-                    <span aria-hidden="true">·</span>
-                    <span>92% Lower Cost</span>
-                    <span aria-hidden="true">·</span>
-                    <span>1–2s Response</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Field Proof Banner */}
-              <div className="mt-10 rounded-2xl overflow-hidden border border-[#A9AFB0]/45 bg-[#202427] grid grid-cols-1 lg:grid-cols-12 items-stretch">
-                <div className="lg:col-span-7 relative min-h-[240px]">
-                  {!siteHeroImgError ? (
-                    <img
-                      src="/src/assets/images/hero_architectural_site_1794662440229.jpg"
-                      alt="Timber and concrete Nordic construction atrium during interior coordination"
-                      referrerPolicy="no-referrer"
-                      onError={() => setSiteHeroImgError(true)}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-[#F7F6F2] bg-[#202427]">
-                      <Building2 className="w-10 h-10 text-[#E9B949] mb-2" />
-                      <span className="text-sm font-medium">
-                        Nordic Construction Site Proof
-                      </span>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-transparent" />
-                </div>
-                <div className="lg:col-span-5 p-7 sm:p-9 text-[#F7F6F2] flex flex-col justify-between">
-                  <div>
-                    <p className="text-xs font-mono text-[#E9B949] mb-2">
-                      Site Impact
-                    </p>
-                    <h3 className="text-2xl font-semibold tracking-tight leading-snug">
-                      Hours saved daily. Rework caught before closure.
-                    </h3>
-                    <p className="mt-3 text-sm text-[#A9AFB0] leading-relaxed">
-                      Site engineers verify concealed installations before walls close and trace every answer directly back to 3D geometry and dated field photos.
-                    </p>
-                  </div>
-                  <div className="mt-6 pt-5 border-t border-[#A9AFB0]/20 grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-2xl font-display font-semibold tabular-nums text-[#E9B949]">
-                        4.2 hrs
-                      </div>
-                      <div className="text-xs text-[#A9AFB0]">
-                        Saved daily per site lead
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-display font-semibold tabular-nums text-[#E9B949]">
-                        100%
-                      </div>
-                      <div className="text-xs text-[#A9AFB0]">
-                        Source-traceable answers
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Adobe-Style Pricing & Comparison Table */}
-          <PricingSection
-            onSelectPlan={(plan, billing) => openCheckout(plan, billing)}
+      ) : pageMode === 'support' ? (
+        <main className="flex-1">
+          <SupportPage
+            onBackHome={() => navigateToPage('home')}
             onOpenEducation={() => {
-              setPageMode('education');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              setScrollToEducationSeminars(true);
+              navigateToPage('education', false);
             }}
           />
+        </main>
+      ) : (
+        /* MAIN PAGE ("home" when clicking TRACE. logo):
+           1. Continuously Looping 4-Slide Showcase as Main Focus
+           2. Concise Workspace Trailer + 4 Runner Teaser Cards below */
+        <main id="home" className="flex-1 blueprint-grid-bg">
+          {/* Top Focus: Stoa Header + Continuous 4-Slide Fact Carousel */}
+          <section className="pt-8 pb-12 sm:pt-10 sm:pb-14">
+            <div className="max-w-[1200px] mx-auto px-6">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-xs font-mono font-semibold tracking-wider uppercase text-[#9A7218]">
+                    Trace. · A Product by Stoa
+                  </p>
+                  <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[#202427] mt-1">
+                    {PRODUCT_META.tagline}
+                  </h1>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigateToPage('workspace')}
+                  className="px-4 py-2.5 rounded-lg bg-[#202427] text-[#F7F6F2] text-xs sm:text-sm font-semibold hover:bg-[#202427]/90 transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
+                >
+                  <span>Open Demo Version</span>
+                  <ArrowRight className="w-4 h-4 text-[#E9B949]" />
+                </button>
+              </div>
+
+              {/* Main 4-Slide Auto-Loop */}
+              <FactSlidesCarousel
+                onAction={(target) => {
+                  if (target === 'demo') navigateToPage('workspace');
+                  else if (target === 'education') navigateToPage('education');
+                  else navigateToPage('products');
+                }}
+              />
+            </div>
+          </section>
+
+          {/* Compact Workspace Trailer + Explorer Cards to Dedicated Runner Pages */}
+          <section className="py-12 border-t border-[#A9AFB0]/35">
+            <div className="max-w-[1200px] mx-auto px-6 space-y-10">
+              {/* Concise Trailer Intro + Animated Workspace Loop */}
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
+                  <div>
+                    <p className="text-xs font-mono font-semibold uppercase tracking-wider text-[#9A7218]">
+                      Workspace Trailer
+                    </p>
+                    <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#202427] mt-1">
+                      See Trace. cut through 1:50 plan chaos in 15 seconds.
+                    </h2>
+                  </div>
+                  <p className="text-sm text-[#202427]/70 max-w-md">
+                    Ask existing projects your own questions in the interactive Demo Version—or explore each section below.
+                  </p>
+                </div>
+
+                <WorkspaceLoopDemo onOpenDemo={() => navigateToPage('workspace')} />
+              </div>
+
+              {/* 4 Concise Runner Portals (Directing Visitors to Dedicated Pages) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigateToPage('products')}
+                  className="text-left p-5 rounded-xl border border-[#A9AFB0]/50 bg-white hover:border-[#202427] transition-colors flex flex-col justify-between gap-4 group cursor-pointer"
+                >
+                  <div>
+                    <Layers className="w-5 h-5 text-[#9A7218] mb-3" />
+                    <h3 className="text-base font-semibold text-[#202427]">
+                      Products &amp; Pricing
+                    </h3>
+                    <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
+                      Individual (Sketch, Pro), Business (Studio, Site, Masterplan) &amp; University (Academy). Yearly Save up to 30%.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
+                    <span>Explore Products</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigateToPage('user-cases')}
+                  className="text-left p-5 rounded-xl border border-[#A9AFB0]/50 bg-white hover:border-[#202427] transition-colors flex flex-col justify-between gap-4 group cursor-pointer"
+                >
+                  <div>
+                    <Building2 className="w-5 h-5 text-[#9A7218] mb-3" />
+                    <h3 className="text-base font-semibold text-[#202427]">
+                      User Cases
+                    </h3>
+                    <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
+                      Mentored European construction projects and Nordic partner companies building with Trace.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
+                    <span>View Case Studies</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigateToPage('education')}
+                  className="text-left p-5 rounded-xl border border-[#A9AFB0]/50 bg-white hover:border-[#202427] transition-colors flex flex-col justify-between gap-4 group cursor-pointer"
+                >
+                  <div>
+                    <GraduationCap className="w-5 h-5 text-[#9A7218] mb-3" />
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="relative text-xs font-mono text-[#202427]/50 px-0.5">
+                        €49/mo
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-0 right-0 top-1/2 -rotate-12 h-[2px] bg-[#E9B949]"
+                        />
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-[#E9B949] text-[#202427] text-sm font-display font-bold">
+                        €0
+                      </span>
+                    </div>
+                    <h3 className="text-base font-semibold text-[#202427]">
+                      University · Trace Academy
+                    </h3>
+                    <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
+                      €0 per student ID if your university is registered. Otherwise Individual plans (Sketch or Pro) apply.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
+                    <span>Verify Trace Academy</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigateToPage('support')}
+                  className="text-left p-5 rounded-xl border border-[#A9AFB0]/50 bg-white hover:border-[#202427] transition-colors flex flex-col justify-between gap-4 group cursor-pointer"
+                >
+                  <div>
+                    <HelpCircle className="w-5 h-5 text-[#9A7218] mb-3" />
+                    <h3 className="text-base font-semibold text-[#202427]">
+                      Learning &amp; Support
+                    </h3>
+                    <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
+                      Technical Q&amp;As, onboarding guides, and direct contact with Stoa’s engineering desk.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
+                    <span>Visit Help Center</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              </div>
+            </div>
+          </section>
         </main>
       )}
 
       {/* Quiet Architectural Footer (Website Views Only) */}
       {pageMode !== 'workspace' && (
-        <footer className="border-t border-[#A9AFB0]/40 bg-[#F7F6F2] py-10">
+        <footer className="border-t border-[#A9AFB0]/40 bg-[#F7F6F2] py-8">
           <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
-              <span className="text-lg font-display font-bold tracking-tight text-[#202427]">
-                TRACE.
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-display font-bold tracking-tight text-[#202427]">
+                  TRACE.
+                </span>
+                <span className="text-xs font-mono text-[#9A7218] font-semibold">
+                  A Product by Stoa
+                </span>
+              </div>
               <p className="text-xs text-[#202427]/65 mt-1">
-                Verifiable construction drawing &amp; site memory platform · Helsinki &amp; Munich
+                Verifiable construction drawing intelligence &amp; site memory · stoabuild.com
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-[#202427]/75">
+            <div className="flex flex-wrap items-center gap-5 text-xs font-medium text-[#202427]/75">
               <button
                 type="button"
-                onClick={() => {
-                  setPageMode('workspace');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onClick={() => navigateToPage('workspace')}
                 className="hover:text-[#202427] cursor-pointer"
               >
-                Workspace App
+                Demo Version
               </button>
               <button
                 type="button"
-                onClick={() => navigateToSection('plans')}
+                onClick={() => navigateToPage('products')}
                 className="hover:text-[#202427] cursor-pointer"
               >
-                Plans
+                Products
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setPageMode('education');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onClick={() => navigateToPage('user-cases')}
                 className="hover:text-[#202427] cursor-pointer"
               >
-                Trace Campus (Education)
+                User Cases
               </button>
-              <span className="text-[#202427]/50">© 2026 Trace.</span>
+              <button
+                type="button"
+                onClick={() => navigateToPage('education')}
+                className="hover:text-[#202427] cursor-pointer"
+              >
+                Education
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateToPage('support')}
+                className="hover:text-[#202427] cursor-pointer"
+              >
+                Learning &amp; Support
+              </button>
+              <span className="text-[#202427]/50">© 2026 Stoa / Trace.</span>
             </div>
           </div>
         </footer>
       )}
 
-      {/* Adobe-Style Subscription Modal */}
+      {/* Subscription Checkout Modal */}
       <CheckoutModal
-        key={checkoutState.plan?.id || 'closed'}
+        key={`${checkoutState.plan?.id || 'closed'}-${checkoutState.premiumSla ? 'sla' : 'std'}-${checkoutState.masterplanSeats || 20}`}
         plan={checkoutState.plan}
         initialBilling={checkoutState.billing}
+        initialPremiumSla={checkoutState.premiumSla}
+        initialMasterplanSeats={checkoutState.masterplanSeats}
         onClose={() => setCheckoutState((prev) => ({ ...prev, plan: null }))}
+        onContactUs={() => {
+          setCheckoutState((prev) => ({ ...prev, plan: null }));
+          navigateToPage('support');
+        }}
+        onSubscribed={(planName) =>
+          setSubscriptionState({ active: true, planName })
+        }
         onLaunchWorkspace={() => {
           setCheckoutState((prev) => ({ ...prev, plan: null }));
-          setPageMode('workspace');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          navigateToPage('workspace');
         }}
+      />
+
+      {/* Account & Subscriptions Modal */}
+      <AccountModal
+        isOpen={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+        onOpenPlans={() => navigateToPage('products')}
+        onOpenEducation={() => navigateToPage('education')}
+        onOpenDemo={() => navigateToPage('workspace')}
+        onSubscriptionChange={(active, planName) =>
+          setSubscriptionState({
+            active,
+            planName: planName || 'Trace Pro',
+          })
+        }
       />
     </div>
   );
