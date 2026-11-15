@@ -1,7 +1,7 @@
 // Gigi's 2.5D frame around the geometry scene exported by the engine.
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Eye } from 'lucide-react';
-import GeometrySceneViewer from '../components/GeometrySceneViewer';
+import IsoSceneSvg from '../components/IsoSceneSvg';
 import { isIllustrativeGeometryScene, isMeasuredGeometryScene, loadGeometryScene, type GeometryScene, type GeometrySource } from '../viewer3d/geometryScene';
 import type { FixtureVerification, QueryScenario } from './adapters';
 
@@ -34,7 +34,9 @@ export const Real3D: React.FC<Props> = ({
   const [geometryError, setGeometryError] = useState<string | null>(null);
   const [geometryLoading, setGeometryLoading] = useState(false);
   const announcedGeometryStoreys = useRef<string>('');
-  useEffect(() => { setPickedRoom(null); }, [fixture?.id, mode]);
+  // Keep a room selected while changing from the building tab to its floor view.
+  // Only a new answer/fixture should clear the local room focus.
+  useEffect(() => { setPickedRoom(null); }, [fixture?.id]);
   useEffect(() => {
     const source = model || plan;
     let active = true;
@@ -93,7 +95,7 @@ export const Real3D: React.FC<Props> = ({
           </div>
         </div>
         <span className="text-[11px] font-mono text-[#A9AFB0]">
-          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? 'Measured 2.5D geometry · choose a floor or room' : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
+          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? (mode === 'room' ? 'Measured 2.5D floor cut · selected room' : 'Measured 2.5D geometry · click a room to inspect') : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
         </span>
       </div>
 
@@ -127,10 +129,11 @@ export const Real3D: React.FC<Props> = ({
               <span className="text-xs text-[#A9AFB0]">Reading rooms, walls, openings and source evidence.</span>
             </div>
           ) : geometryScene ? (
-            <GeometrySceneViewer scene={geometryScene} onSelectObject={onSelectSibling}
-              onSelectRoom={setPickedRoom}
+            <IsoSceneSvg scene={geometryScene} onSelectObject={onSelectSibling}
+              onSelectRoom={(room) => { setPickedRoom(room); onSwitchMode('room'); }}
               onSelectSource={onOpenSource}
-              storeyId={mode === 'room' ? storeyId : null} visibleLayers={visibleLayers}
+              onBackToFloor={() => { setPickedRoom(null); onSwitchMode('building'); }}
+              storeyId={mode === 'building' ? null : storeyId} visibleLayers={visibleLayers}
               focusRoomId={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : pickedRoom?.id) : null} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-8">

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@elchininet/isometric": "^4.0.0",
     "@thatopen/components": "^3.6.0",
     "@thatopen/fragments": "^3.6.1",
     "lucide-react": "^1.73.0",
