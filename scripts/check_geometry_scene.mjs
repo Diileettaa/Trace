@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 
 const file = process.argv[2]
 if (!file) {
-  console.error('Usage: node scripts/check_geometry_scene.mjs <scene.json>')
+  console.error('Usage: node scripts/check_geometry_scene.mjs <scene.json|->')
   process.exit(2)
 }
 
@@ -18,6 +18,7 @@ const source = (value, label) => {
   if (value === undefined) return
   if (!value || typeof value !== 'object' || typeof value.file !== 'string') errors.push(`${label}.source needs a file`)
   if (value?.bbox !== undefined && (!Array.isArray(value.bbox) || value.bbox.length !== 4 || !value.bbox.every(isNumber))) errors.push(`${label}.source.bbox must be four drawing-PNG pixel values`)
+  if (value?.bbox_norm1000 !== undefined && (!Array.isArray(value.bbox_norm1000) || value.bbox_norm1000.length !== 4 || !value.bbox_norm1000.every(isNumber))) errors.push(`${label}.source.bbox_norm1000 must be four 0..1000 source-page values`)
 }
 const evidence = (value, label) => {
   if (value?.confidence !== undefined && (!isNumber(value.confidence) || value.confidence < 0 || value.confidence > 1)) errors.push(`${label}.confidence must be within 0..1`)
@@ -25,8 +26,14 @@ const evidence = (value, label) => {
   source(value?.source, label)
 }
 
+const stdinText = async () => {
+  const chunks = []
+  for await (const chunk of process.stdin) chunks.push(chunk)
+  return Buffer.concat(chunks).toString('utf8')
+}
+
 let scene
-try { scene = JSON.parse(await readFile(file, 'utf8')) } catch (error) {
+try { scene = JSON.parse(file === '-' ? await stdinText() : await readFile(file, 'utf8')) } catch (error) {
   console.error(`Could not read JSON: ${error instanceof Error ? error.message : String(error)}`)
   process.exit(2)
 }
@@ -36,9 +43,9 @@ const measured = scene?.quality === 'measured'
 const illustrative = scene?.quality === 'illustrative'
 if (!measured && !illustrative) errors.push('quality must be "measured" or "illustrative"')
 if (measured && scene?.unit !== 'm') errors.push('measured scenes require unit "m"')
-if (measured && scene?.coordinate_system !== 'x-right,y-up,z-plan-north') errors.push('measured scenes require x-right, y-up, z-plan-north coordinates')
+if (measured && scene?.coordinate_system !== 'x-right,y-up,z-plan-north' && !/X right,\s*Y up,\s*Z down/i.test(scene?.coordinate_system || '') && !/web-ifc world[\s\S]*X\s*=\s*x_ifc[\s\S]*Y\s*=\s*z_ifc[\s\S]*Z\s*=\s*-y_ifc/i.test(scene?.coordinate_system || '')) errors.push('measured scenes require declared X-right, Y-up, Z plan coordinates')
 if (illustrative && scene?.unit !== 'norm1000' && scene?.unit !== 'px') errors.push('illustrative scenes require unit "norm1000" or "px"')
-if (illustrative && !['image-norm1000', 'drawing-norm1000', 'drawing-pixels'].includes(scene?.coordinate_system)) errors.push('illustrative scenes require image-norm1000, drawing-norm1000, or drawing-pixels coordinates')
+if (illustrative && !['image-norm1000', 'drawing-norm1000', 'drawing-pixels'].includes(scene?.coordinate_system) && !/X right,\s*Y up,\s*Z down/i.test(scene?.coordinate_system || '')) errors.push('illustrative scenes require declared image or drawing coordinates')
 if (typeof scene?.project_id !== 'string' || !scene.project_id) errors.push('project_id is required')
 for (const key of ['rooms', 'walls', 'openings', 'objects']) if (!Array.isArray(scene?.[key])) errors.push(`${key} must be an array`)
 
@@ -52,8 +59,10 @@ for (const [index, wall] of (scene?.walls ?? []).entries()) {
   const label = `walls[${index}]`
   if (typeof wall?.id !== 'string') errors.push(`${label}.id is required`)
   if (!Array.isArray(wall?.points) || wall.points.length < 2 || !wall.points.every(point2)) errors.push(`${label}.points needs at least two [x,z] points`)
-  positive(wall?.thickness_m, `${label}.thickness_m`); positive(wall?.height_m, `${label}.height_m`)
-  if (!isNumber(wall?.base_y_m)) errors.push(`${label}.base_y_m must be a number`)
+  const thickness = wall?.thickness_m ?? wall?.thickness_norm1000
+  positive(thickness, `${label}.thickness_m or .thickness_norm1000`)
+  if (wall?.height_m !== undefined && wall.height_m !== null) positive(wall.height_m, `${label}.height_m`)
+  if (wall?.base_y_m !== undefined && wall.base_y_m !== null && !isNumber(wall.base_y_m)) errors.push(`${label}.base_y_m must be a number when provided`)
   evidence(wall, label)
 }
 for (const [index, opening] of (scene?.openings ?? []).entries()) {
@@ -61,8 +70,10 @@ for (const [index, opening] of (scene?.openings ?? []).entries()) {
   if (typeof opening?.id !== 'string') errors.push(`${label}.id is required`)
   if (!['door', 'window'].includes(opening?.kind)) errors.push(`${label}.kind must be door or window`)
   if (!point3(opening?.position)) errors.push(`${label}.position must be [x,y,z]`)
-  positive(opening?.width_m, `${label}.width_m`); positive(opening?.height_m, `${label}.height_m`)
-  if (!isNumber(opening?.rotation_deg)) errors.push(`${label}.rotation_deg must be a number`)
+  if (measured) positive(opening?.width_m, `${label}.width_m`)
+  else if (opening?.width_m !== undefined && opening.width_m !== null) positive(opening.width_m, `${label}.width_m`)
+  if (opening?.height_m !== undefined && opening.height_m !== null) positive(opening.height_m, `${label}.height_m`)
+  if (measured && !isNumber(opening?.rotation_deg)) errors.push(`${label}.rotation_deg must be a number for measured scenes`)
   evidence(opening, label)
 }
 for (const [index, object] of (scene?.objects ?? []).entries()) {
