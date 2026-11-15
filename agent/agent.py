@@ -98,7 +98,7 @@ def _client():
 
 # Engine answers that need no LLM at all: the number is exact (geometry), from our trained detectors, or a prior that
 # beats every model. For these the answer sentence is a template: 0 tokens, ~1 s. Set TRACE_ALWAYS_LLM=1 to disable.
-DIRECT_SOURCES = {"geometry", "detector", "prior", "sheet", "schedule"}  # engine already did the work
+DIRECT_SOURCES = {"geometry", "detector", "prior", "sheet", "schedule", "scan"}  # engine already did the work
 _UNIT = {"count": "", "m2": " m²", "m3": " m³", "m": " m"}
 _CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
 
@@ -162,6 +162,14 @@ def direct_answer_text(question: str, r: dict) -> str:
     return " ".join(parts)
 
 
+def declined_text(question: str, r: dict) -> str:
+    """The engine looked and will not give a number: say why instead of letting a model guess."""
+    warn = [str(w) for w in r.get("warnings") or [] if "free-form question" not in str(w)]
+    why = "; ".join(warn) or "the drawing does not show this clearly enough to count or measure"
+    src = str(r.get("method", "")).removeprefix("engine:")
+    return f"I can't give a reliable number from this drawing: {why}. (Checked by: {src})"
+
+
 def _direct(question: str, path: str | None) -> dict | None:
     import os
     import time
@@ -171,9 +179,13 @@ def _direct(question: str, path: str | None) -> dict | None:
     t0 = time.perf_counter()
     args = {"path": path, "question": question}
     r = tools.call("answer_from_engine", args)
-    if r.get("value") is None or r.get("source") not in DIRECT_SOURCES:
+    method = str(r.get("method") or "")
+    free_form_miss = any(m in method for m in ("unrecognised_question", "query:unsupported"))
+    if r.get("value") is None and (free_form_miss or os.getenv("TRACE_LLM_FALLBACK") == "1"):
+        return None  # the engine could not read the question at all: the agent may still look it up
+    if r.get("value") is not None and r.get("source") not in DIRECT_SOURCES and os.getenv("TRACE_LLM_FALLBACK") == "1":
         return None
-    text = direct_answer_text(question, r)
+    text = direct_answer_text(question, r) if r.get("value") is not None else declined_text(question, r)
     evidence = [{"tool": "answer_from_engine", **r}]
     tool_calls = [{"name": "answer_from_engine", "args": args}]
     timing = {"total_s": round(time.perf_counter() - t0, 2), "gemini_calls_s": [], "tools_s": [r.get("elapsed_s")]}

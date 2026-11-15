@@ -40,7 +40,6 @@ def project_files(p: dict) -> list[Path]:
     else:
         stems = {re.sub(r"_plan-.*$", "", Path(x).stem) for x in paths}
         files = [f for f in first.parent.iterdir() if f.is_file() and any(f.name.startswith(s) for s in stems)]
-    files = [f for f in files if "_archive" not in f.as_posix().lower() and not any(b in f.name.lower() for b in ("colored_shapes", "detail_yorik", "stairs.blend", "autopsy"))]  # superseded issues, test fragments
     files = [f for f in files if not f.name.startswith(".") and f.suffix.lower() not in SKIP and f.name.upper() != "LICENSE.MD"]
     return sorted(set(files))[:300]
 

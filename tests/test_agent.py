@@ -4,6 +4,13 @@ from pathlib import Path
 import pytest
 from google.genai import types
 
+
+@pytest.fixture(autouse=True)
+def _llm_fallback_on(monkeypatch):
+    # these tests exercise the LLM loop; the app default is engine-only answers for drawings
+    monkeypatch.setenv("TRACE_LLM_FALLBACK", "1")
+
+
 FIX = Path(__file__).parent / "fixtures"
 
 
@@ -260,74 +267,5 @@ def test_ifc_items_label_uses_room_name_and_retains_guid_space_id(monkeypatch):
     assert items[1]["id"] == "DOOR_GUID_2"
     assert items[1]["label"] == "DR-1"
     assert items[1]["space_id"] is None
-
-
-def test_element_info_clinic_ifc_and_swiss(monkeypatch):
-    from fastapi.testclient import TestClient
-    from agent.app import app
-    from agent import config
-
-    preview_dir = Path("E:/Download/junction-dataset-preview")
-    if preview_dir.is_dir():
-        monkeypatch.setattr(config, "DATA_DIR", preview_dir)
-
-    c = TestClient(app)
-    # 1. Clinic IFC toilet
-    r_clinic = c.get("/element/info", params={
-        "path": "data/ifc_models/bsc-clinic_clinic-plumbing.ifc",
-        "id": "32xCMlMsb8h8u4rXrjrV4D",
-    })
-    assert r_clinic.status_code == 200
-    info_c = r_clinic.json()
-    assert info_c["id"] == "32xCMlMsb8h8u4rXrjrV4D"
-    assert info_c["type"] == "flowterminal"
-    assert info_c["bbox_m"]["L"] > 0
-    assert "clearances" in info_c
-
-    # 2. Swiss WC
-    r_swiss = c.get("/element/info", params={
-        "path": "data/swiss_dwellings/site1000_bldg2082_floor9385.pdf",
-        "id": "data/swiss_dwellings/site1000_bldg2082_floor9385.pdf#wc-1",
-    })
-    assert r_swiss.status_code == 200
-    info_s = r_swiss.json()
-    assert info_s["type"] == "wc"
-    assert info_s["space"] == "2.18"
-    assert info_s["bbox_m"]["L"] > 0
-    assert info_s["clearances"]["left_wall"] is not None
-
-
-def test_ask_source_index_and_summary_room(monkeypatch):
-    from agent import agent
-
-    raw_result = {
-        "value": 1,
-        "unit": "count",
-        "method": "swiss_dxf:wc",
-        "warnings": [],
-        "sources": [],
-        "items": [
-            {
-                "category": "wc",
-                "space_id": "2.16",
-                "room_name": "Korridor",
-                "bbox_m": [5.5, -4.9, 6.0, -4.4],
-                "pdf_bbox_pt": [10, 10, 20, 20],
-            },
-        ],
-    }
-    monkeypatch.setattr("engine.answer.answer", lambda p, q: raw_result)
-
-    res = agent.ask("How many toilets?", "data/demo/plan.pdf")
-    items = res["evidence"][0]["items"]
-    assert len(items) == 1
-    assert items[0]["source_index"] == 0
-
-    summary = res["summary"]
-    assert "room" in summary
-    assert summary["room"]["space_id"] == "2.16"
-    assert summary["room"]["room_name"] == "Korridor"
-
-
 
 

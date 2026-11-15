@@ -23,6 +23,8 @@ GET  /scene/history  ?model=&limit=50                         -> recent placemen
 """
 from __future__ import annotations
 
+import re
+
 import json
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -67,7 +69,7 @@ def health():
 def ask(body: AskIn, fresh: bool = False):
     if body.path:
         try:
-            drawings.resolve(body.path)
+            drawings.resolve(re.sub(r"#p\d+$", "", body.path))
         except drawings.DrawingError as e:
             raise HTTPException(404, str(e))
     import hashlib

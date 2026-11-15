@@ -23,7 +23,8 @@ interface ChatMessage {
   followUps?: { id: string; question: string }[];
   pending?: boolean;
   error?: boolean;
-  source?: { label: string; path: string; page: number; why: string[] };  // ours: which sheet answered (engine.sheetset pick)
+  source?: { label: string; path: string; page: number; why: string[] };
+  engine?: { confidence?: string; reason?: string; warnings: string[]; zoom?: string; alternatives?: { label?: string; value?: unknown }[] };  // Xinran's engine: confidence + evidence image  // ours: which sheet answered (engine.sheetset pick)
 }
 // ours: Xinran's sheet set — every drawing of the project by discipline and level
 interface Sheet { path: string; page: number; kind?: string | null; discipline: string; level?: string | null; title?: string | null; sheet_no?: string | null; why: string[]; score?: number }
@@ -300,7 +301,11 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
           if (usePath !== askPath || usePage !== sheetPage) { setAskPath(usePath); setSheetPage(usePage); }
         }
       }
-      const ask = await api.ask(usePath, promptText);
+      const ask = await api.ask(usePage > 1 && /\.pdf$/i.test(usePath) ? `${usePath}#p${usePage}` : usePath, promptText);
+      const ev0: any = ask?.evidence?.[0] || {};
+      const engine: ChatMessage['engine'] = ev0.method ? { confidence: ev0.confidence, reason: ev0.confidence_reason,
+        warnings: (ev0.warnings || []).filter((w: string) => !/free-form question/.test(String(w))).map(String),
+        zoom: ev0.evidence_images?.zoom, alternatives: Array.isArray(ev0.alternatives) ? ev0.alternatives : [] } : undefined;
       const items: any[] = ask?.evidence?.[0]?.items || [];
       const ids = items.map((it: any) => String(it.id)).filter(Boolean);
       const [plan, verify] = await Promise.all([
@@ -316,7 +321,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
       setActiveLayers((prev) => { const u = { ...prev }; sc.requiredLayers.forEach((l) => { u[l] = true; }); return u; });
       patchChat(chatId, (c) => ({ ...c, messages: c.messages.map((m) => m.id !== pendingId ? m : {
         id: pendingId, role: 'assistant', text: sc.aiSummary || 'No answer.', bigMetric: sc.bigMetric, scenario: sc,
-        followUps: sc.followUpQuestions.map((f) => ({ id: f.id, question: f.question })), source,
+        followUps: sc.followUpQuestions.map((f) => ({ id: f.id, question: f.question })), source, engine,
       }) }));
     } catch (e) {
       patchChat(chatId, (c) => ({ ...c, messages: c.messages.map((m) => m.id !== pendingId ? m : {
@@ -692,6 +697,25 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                 {msg.pending && <Loader2 className="w-4 h-4 animate-spin text-[#9A7218] mb-1" />}
                 {msg.bigMetric && <div className="text-2xl font-display font-semibold text-[#202427] tabular-nums mb-1">{msg.bigMetric}</div>}
                 <p className="whitespace-pre-line">{msg.text}</p>
+                {msg.engine?.confidence && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10.5px]" title={msg.engine.reason || ''}>
+                    <span className={`px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide ${msg.engine.confidence === 'high' ? 'bg-emerald-100 text-emerald-800' : msg.engine.confidence === 'medium' ? 'bg-[#FFF3D6] text-[#7A5200]' : 'bg-red-50 text-red-800'}`}>{msg.engine.confidence} confidence</span>
+                    {msg.engine.reason && <span className="text-[#202427]/60 truncate">{msg.engine.reason}</span>}
+                  </div>
+                )}
+                {!!msg.engine?.warnings?.length && (
+                  <ul className="mt-1.5 space-y-0.5 text-[10.5px] text-[#7A5200]">
+                    {msg.engine.warnings.slice(0, 4).map((w, i) => <li key={i}>⚠ {w}</li>)}
+                  </ul>
+                )}
+                {!!msg.engine?.alternatives?.length && (
+                  <div className="mt-1.5 text-[10.5px] text-[#202427]/70">Other readings: {msg.engine.alternatives.slice(0, 3).map((a) => String(a.label ?? a.value ?? JSON.stringify(a))).join(' · ')}</div>
+                )}
+                {msg.engine?.zoom && (
+                  <a href={msg.engine.zoom.replace('view=zoom', 'view=full')} target="_blank" rel="noreferrer" className="block mt-2" title="Evidence: every counted item boxed on the source page (click for the whole page)">
+                    <img src={msg.engine.zoom} alt="Evidence on the drawing" loading="lazy" className="w-full rounded border border-[#A9AFB0]/45" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
+                  </a>
+                )}
                 {msg.source && (
                   <button type="button" onClick={() => { setAskPath(msg.source!.path); setSheetPage(msg.source!.page); setViewMode(/\.ifc$/i.test(msg.source!.path) ? '3d-building' : '2d'); }}
                     title={`Why this sheet: ${msg.source.why.join(' · ')}`}

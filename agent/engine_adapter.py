@@ -258,8 +258,28 @@ def answer(path: str, question: str) -> dict:
     if r is None:
         r = ea.answer(path, question)
     engine_ms = round((time.perf_counter() - t0) * 1000, 1)
+    # Xinran's review store: answer_id -> /evidence images, /review corrections, alternatives
+    reg = {}
+    try:
+        from engine import review as R
+
+        f = path.rsplit("#p", 1)[0] if re.search(r"#p\d+$", path) else path
+        full = str(drawings.resolve(f))
+        reg = R.register(dict(r), full, question) or {}
+    except Exception as e:  # evidence is extra; never lose the answer over it
+        reg = {"_register_error": str(e)[:200]}
+    path = path.rsplit("#p", 1)[0] if re.search(r"#p\d+$", path) else path
     source = route(r.get("method"), r.get("warnings") or ())
     out = _convert(path, question, r, source, early)
+    for k in ("answer_id", "alternatives"):
+        if reg.get(k) is not None:
+            out[k] = reg[k]
+    for k in ("confidence", "confidence_reason"):
+        if (r.get(k) or reg.get(k)) is not None:
+            out[k] = r.get(k) or reg.get(k)
+    if out.get("answer_id"):
+        out["evidence_images"] = {"zoom": f"/api/rv/evidence?answer_id={out['answer_id']}&view=zoom",
+                                  "full": f"/api/rv/evidence?answer_id={out['answer_id']}&view=full"}
     out["source"] = source
     out["source_label"] = SOURCE_LABEL[source]
     out["engine_ms"] = engine_ms
