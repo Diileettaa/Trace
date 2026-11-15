@@ -120,6 +120,59 @@ def handle(method, path, query, headers, body, S=None):
             pj = a.get("project") or proj
             if path == "/project/sheets": return _j(200, {"project": pj, "sheets": docs_tools.project_sheets(pj, S)})
             if path == "/project/ask": return _j(200, docs_tools.ask_project(pj, a.get("question", ""), S))
+        if path == "/evidence" and method == "GET":
+            from engine import review as R, evidence as E
+            a = R.get(q.get("answer_id", ""))
+            if a is None: return _j(404, {"error": "no such answer"})
+            ev = E.render(a); view = q.get("view", "json")
+            if view in ("full", "zoom"):
+                png = ev["full_png"] if view == "full" else (ev["zoom_png"] or ev["full_png"])
+                if png is None: return _j(404, {"error": "no drawing image for this answer", "locations": ev["locations"]})
+                return 200, {"Content-Type": "image/png", "X-Content-Type-Options": "nosniff"}, png
+            return _j(200, {"answer_id": a["answer_id"], "question": a.get("question"), "value": a.get("value"), "unit": a.get("unit"),
+                            "confidence": a.get("confidence"), "confidence_reason": a.get("confidence_reason"),
+                            "source": {"file": os.path.basename(str(a.get("file"))), "page": ev["page"]},
+                            "locations": ev["locations"], "warnings": ev["warnings"],
+                            "images": {"full": f"/evidence?answer_id={a['answer_id']}&view=full",
+                                       "zoom": f"/evidence?answer_id={a['answer_id']}&view=zoom"}})
+        if path in ("/scene", "/api/scene") and method == "GET":
+            f, _ = _resolve_path(str(q.get("path", "")))
+            if f is None: return _j(400, {"error": "path must be under data/ or uploads/ and exist"})
+            rel = q["path"]; ext = os.path.splitext(f)[1].lower()
+            if ext == ".ifc":
+                from engine import scene_ifc
+                sm = None
+                if q.get("space_model"):
+                    sm, _ = _resolve_path(q["space_model"])
+                    if sm is None: return _j(400, {"error": "space_model must be an .ifc under data/ or uploads/"})
+                r = scene_ifc.scene(f, q.get("storey"), q.get("room"), sm, rel_path=rel, rel_space_model=q.get("space_model"))
+            elif ext == ".pdf" and q.get("kind") != "scan":
+                from engine import scene_pdf, sheet
+                page = int(q.get("page", 1))
+                try: vector = len(sheet.load(f, page - 1).get("lines", [])) >= 8
+                except Exception: vector = False
+                if vector: r = scene_pdf.scene(f, page, rel_path=rel)
+                else:
+                    from engine import scene_scan; r = scene_scan.scene(f, page, rel_path=rel)
+            else:
+                from engine import scene_scan
+                r = scene_scan.scene(f, int(q.get("page", 1)), rel_path=rel)
+            return _j(400 if "error" in r else 200, r)
+        if path in ("/ifc/spaces", "/ifc/storeys", "/ifc/room_of", "/ifc/clearances"):
+            from engine import ifc_geom as G
+            a = json.loads(body or b"{}") if method == "POST" else dict(q)
+            f, _ = _resolve_path(str(a.get("path", "")))
+            if f is None or not f.lower().endswith(".ifc"): return _j(400, {"error": "path must be an .ifc under data/ or uploads/"})
+            sm = None
+            if a.get("space_model"):
+                sm, _ = _resolve_path(str(a["space_model"]))
+                if sm is None: return _j(400, {"error": "space_model must be an .ifc under data/ or uploads/"})
+            if path == "/ifc/spaces": return _j(200, {"spaces": G.spaces(f)})
+            if path == "/ifc/storeys": return _j(200, {"storeys": G.storeys(f)})
+            if path == "/ifc/room_of":
+                g = a.get("guids") or []; g = g.split(",") if isinstance(g, str) else g
+                return _j(200, {"rooms": G.room_of(f, list(g), space_model=sm)})
+            return _j(200, G.clearances(f, str(a.get("guid", "")), space_model=sm))
         if path in ("/ask", "/review", "/calibrate", "/measure", "/answer"):
             from engine import review as R
             a = json.loads(body or b"{}") if method == "POST" else {}
@@ -131,6 +184,7 @@ def handle(method, path, query, headers, body, S=None):
                 if f is None: return _j(400, {"error": "path must be under data/ or uploads/ and exist"})
                 if path == "/ask":
                     from engine import answer as A
+                    if a.get("page"): rel = f"{rel}#p{int(a['page'])}"        # 1-based PDF page
                     r = A.answer(rel, a.get("question", ""))
                     return _j(200, R.register(r, f, a.get("question", "")))
                 if path == "/calibrate":

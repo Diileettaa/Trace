@@ -51,6 +51,21 @@ def fuse(parts, iou_thr=0.5):
         else: clusters.append({"box": b, "s": {k: p}})
     return [(sum(c["s"].values()) / len(parts), c["box"]) for c in clusters]
 
+def _cover(outer, inner):
+    """Fraction of `inner`'s area inside `outer`."""
+    x0, y0, x1, y1 = max(outer[0], inner[0]), max(outer[1], inner[1]), min(outer[2], inner[2]), min(outer[3], inner[3])
+    return max(0, x1 - x0) * max(0, y1 - y0) / max(1e-9, (inner[2] - inner[0]) * (inner[3] - inner[1]))
+
+def suppress_nested(boxes, scores, cover=0.7):
+    """Drop a box that lies >= `cover` inside a bigger box of the same category (a pane inside its window, a tub
+    inside its shower/tub box). Validated on CubiCasa val+test halves: window and shower_tub up, doors unchanged."""
+    order = sorted(range(len(boxes)), key=lambda i: -(boxes[i][2] - boxes[i][0]) * (boxes[i][3] - boxes[i][1]))
+    keep = []
+    for i in order:
+        if not any(_cover(boxes[j], boxes[i]) >= cover for j in keep): keep.append(i)
+    keep.sort()
+    return [boxes[i] for i in keep], [scores[i] for i in keep]
+
 def _predict(model, spec, png_path):
     r = model.predict(png_path, imgsz=spec.get("imgsz", 1280), conf=0.05, verbose=False)[0]
     H, W = r.orig_shape; names = model.names; out = {}
@@ -85,5 +100,7 @@ def detect(png_path, cfg_name="detector.json"):
         for p, b in dets:
             if p < thr: continue
             boxes.setdefault(cat, []).append(b); scores.setdefault(cat, []).append(round(p, 3))
+    for cat in cfg.get("suppress_nested", []):
+        if cat in boxes: boxes[cat], scores[cat] = suppress_nested(boxes[cat], scores[cat])
     tags = sorted(set(used.values()))
     return {"model": "yolo-cubicasa:" + ",".join(tags), "boxes": boxes, "scores": scores, "models_used": used}

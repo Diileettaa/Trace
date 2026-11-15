@@ -206,8 +206,12 @@ def rooms(pdf_path, page, facts, res=0.02):
             doors = [L["radius_m"] for L in facts["door_leaves"]
                      if 0 <= P(L["hinge"])[1] < near.shape[0] and 0 <= P(L["hinge"])[0] < near.shape[1] and near[P(L["hinge"])[1], P(L["hinge"])[0]]]
             x, y, w, h = st[i, 0], st[i, 1], st[i, 2], st[i, 3]
+            big = max(cs, key=cv2.contourArea)
+            poly = cv2.approxPolyDP(big, max(1.0, 0.05 / res), True).reshape(-1, 2)      # 5 cm tolerance
             seen[i] = {"name": B["t"], "area_m2": round(area, 2), "perimeter_m": round(per, 2), "doors": doors,
-                       "baseboard_m": round(per - sum(doors), 2), "box": [round(v / s, 1) for v in (x, y, x + w, y + h)]}
+                       "baseboard_m": round(per - sum(doors), 2), "box": [round(v / s, 1) for v in (x, y, x + w, y + h)],
+                       "polygon": [[round(float(px) / s, 1), round(float(py) / s, 1)] for px, py in poly],
+                       "label_box": B["box"]}
             out.append(seen[i])
         elif B["t"] not in seen[i]["name"].split(" + "):
             seen[i]["name"] += " + " + B["t"]          # two labels in one region: the split between them was not found
@@ -235,7 +239,7 @@ def load(pdf_path, page=0):
     side = f"{pdf_path}.p{page + 1}.facts.json"
     if os.path.exists(side): return json.load(open(side))
     st = os.stat(pdf_path)
-    key = hashlib.md5(f"{os.path.abspath(pdf_path)}|{st.st_size}|{st.st_mtime}|{page}|v11".encode()).hexdigest()
+    key = hashlib.md5(f"{os.path.abspath(pdf_path)}|{st.st_size}|{st.st_mtime}|{page}|v12".encode()).hexdigest()
     cp = os.path.join(CACHE, key + ".json")
     if os.path.exists(cp): return json.load(open(cp))
     import pdfplumber
@@ -442,7 +446,32 @@ def answer(pdf_path, question, call_model, page=None, vision=None):
             out = scanqa.answer(img, question, vision); out["method"] = "sheet:vision+" + out["method"]
             out["sources"] = [{"file": pdf_path, "page": page + 1}]; return out
     v, unit, items, warn = compute(f, r)
+    method = f"sheet:{r.get('op')}"
+    if r.get("op") == "expr":
+        # which dimensions make up an area is a reading choice and the model is not deterministic: ask twice more and
+        # keep the majority; if all three differ, say so and offer them all for review instead of picking silently
+        ask = (lambda: vision(prompt + "\n\nThe rendered sheet is attached; use it to locate things, but take numbers from the facts.", img)) \
+            if img is not None else (lambda: call_model(prompt))
+        runs = [(v, r)]
+        for _ in range(2):
+            try:
+                r2 = ask()
+                if r2.get("op") == "expr": runs.append((compute(f, r2)[0], r2))
+            except Exception: pass
+        key = lambda x: round(float(x), 2) if isinstance(x, (int, float)) else x
+        votes = {}
+        for val, rr in runs: votes.setdefault(key(val), []).append((val, rr))
+        best = max(votes.values(), key=len)
+        if len(best) >= 2:
+            if key(best[0][0]) != key(v):
+                v, r = best[0]; v, unit, items, warn = compute(f, r)
+            warn = warn + [f"{len(best)} of {len(runs)} independent readings agree"]
+        else:
+            method += ":uncertain"
+            warn = warn + [f"{len(runs)} readings gave {len(votes)} different results: please choose (alternatives)"]
+        f["_alternatives"] = f.get("_alternatives", []) + [{"label": "other reading: " + str(rr.get("reason") or rr.get("expr"))[:100], "value": key(val), "expr": rr.get("expr")}
+                                                         for val, rr in runs if key(val) != key(v)]
     return {"value": v, "unit": unit, "items": items, "alternatives": f.pop("_alternatives", []), "sources": [{"file": pdf_path, "page": page + 1}],
-            "method": f"sheet:{r.get('op')}", "warnings": warn,
+            "method": method, "warnings": warn,
             "evidence": {"rule": r.get("reason"), "cite": r.get("cite"), "model_answer": r.get("answer"),
                          "scale": f["scale"]["text"], "coords": "PDF points, origin top-left"}}

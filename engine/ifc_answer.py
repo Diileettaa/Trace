@@ -10,11 +10,11 @@ CLASSES = {  # concept -> IFC classes; multilingual keywords
     "window":  (r"windows?|Fenster|ventanas|ramen|vinduer|aken|akn|okien|finestre|ferestre", ["IFCWINDOW", "IFCWINDOWSTANDARDCASE"]),
     "wall":    (r"\bwalls?\b|Wände|muros|wanden|vægge|\bsein[au]\b|ścian|\bmuri\b|pereți|pereti", ["IFCWALL", "IFCWALLSTANDARDCASE", "IFCWALLELEMENTEDCASE"]),
     "slab":    (r"slabs?|Decken|Bodenplatten|forjados|vloeren|dæk|plader|plaat|płyt", ["IFCSLAB", "IFCSLABSTANDARDCASE", "IFCSLABELEMENTEDCASE"]),
-    "column":  (r"columns?|Stützen|pilares|kolommen|søjler|\bposti\b|słup", ["IFCCOLUMN", "IFCCOLUMNSTANDARDCASE"]),
-    "beam":    (r"beams?|Träger|vigas|balken|bjælker|tala|belek", ["IFCBEAM", "IFCBEAMSTANDARDCASE"]),
+    "column":  (r"columns?|Stützen|pilares|kolommen|søjler|\bposti\b|słup|stâlp|stalp", ["IFCCOLUMN", "IFCCOLUMNSTANDARDCASE"]),
+    "beam":    (r"beams?|Träger|vigas|balken|bjælker|tala|belek|grinzi|grindă|grinda", ["IFCBEAM", "IFCBEAMSTANDARDCASE"]),
     "stair":   (r"stairs?|Treppen|escaleras|trappen|trapper|trepp|schod|\bscale\b|scări|scari", ["IFCSTAIR"]),
     "sanitary":(r"sanitary|Sanitär|sanitari|sanitair|sanitet", ["IFCSANITARYTERMINAL"]),
-    "light":   (r"light fixtures?|Leuchten|luminarias|armaturen|lamper", ["IFCLIGHTFIXTURE"]),
+    "light":   (r"light fixtures?|Leuchten|luminarias|armaturen|lamper|corpuri de iluminat|corpur\w* de iluminat", ["IFCLIGHTFIXTURE"]),
     "space":   (r"\brooms?\b|\bspaces?\b|Räume|\bRaums?\b|\blocal(?:es)?\b|\bruimtes?\b|\brum(?:met)?\b|ruumi|pomieszcze|\blocali\b|încăperi|camere", None),
 }
 

@@ -27,7 +27,8 @@ def alternatives(a):
     ev = a.get("evidence") or {}; alt = list(a.get("alternatives") or [])
     rd = ev.get("readings") or []
     if len(rd) >= 2 and len({str(x) for x in rd}) > 1 and not alt:
-        names = ["tile-by-tile reading", "whole-sheet reading"] if "tiled" in str(a.get("method")) else ["first reading", "second reading"]
+        names = (["tile-by-tile reading", "whole-sheet reading", "tile-by-tile reading, second grid"] if "tiled" in str(a.get("method"))
+                 else ["first reading", "second reading", "third reading"])
         alt = [{"label": n, "value": v} for n, v in zip(names, rd)]
     return alt
 
@@ -59,6 +60,7 @@ def review(answer_id, remove=(), add=(), choose=None, user="user"):
         except (TypeError, ValueError): pass
     rv["by"] = user; rv["at"] = time.time()
     a["method"] = a["method"].split("+reviewed")[0] + "+reviewed"
+    a["confidence"], a["confidence_reason"] = "high", "checked and corrected by a person in the review panel"
     _save(a)
     with open(_p("corrections.jsonl"), "a") as f:
         f.write(json.dumps({"answer_id": answer_id, "file": a["file"], "question": a["question"], "model_value": a["model_value"],

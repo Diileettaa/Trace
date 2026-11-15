@@ -119,8 +119,13 @@ def detector_boxes(png_path, cat):
     """Boxes from the YOLO detector trained on CubiCasa5k (train/predict_counts.py), if present for this image."""
     if cat not in DETECTOR_CATS: return None
     p = os.path.join(DET_DIR, os.path.basename(png_path) + ".json")
-    if os.path.exists(p): return json.load(open(p))["boxes"].get(cat, []) or []
-    from . import detector                       # live inference for new plans (needs ultralytics)
+    from . import detector
+    if os.path.exists(p):
+        b = json.load(open(p))["boxes"].get(cat, []) or []
+        cfg = detector._cfg("detector.json") or {}          # cache written before suppress_nested existed: apply it here
+        if cat in cfg.get("suppress_nested", []): b = detector.suppress_nested(b, [0] * len(b))[0]
+        return b
+    # live inference for new plans (needs ultralytics); detect() already applies suppress_nested
     try: d = detector.detect(png_path)
     except Exception: d = None
     return None if d is None else (d["boxes"].get(cat, []) or [])

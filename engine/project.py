@@ -116,6 +116,10 @@ answers it. Never pick sheets of another building than the one asked about. Do n
 
 def answer(sheets, question, ask_sheet, call_model=None):
     """call_model=None (or a failing model): rules only - engine.sheetset.pick chooses the sheet."""
+    from .confidence import attach
+    return attach(_answer(sheets, question, ask_sheet, call_model))
+
+def _answer(sheets, question, ask_sheet, call_model=None):
     if call_model is None:
         from . import sheetset
         ss = {"projects": [{"id": "p", "buildings": [{"id": str(s.get("building") or "-"), "sheets": [

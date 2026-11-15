@@ -294,9 +294,22 @@ def _door_check(m, image_bytes, question, call_model):
     if not str(m.get("method", "")).startswith("scan:doors") or DOOR_SECOND_READING is False: return m
     try:
         W, H = _image_size(image_bytes); grid = (3, 3) if max(W, H) > 5000 else (2, 2)
-        t = len(count_tiled(image_bytes, question, call_model, grid))
+        tiled = count_tiled(image_bytes, question, call_model, grid); t = len(tiled)
     except Exception: return m
     n = m["value"]; m.setdefault("evidence", {})["tiled_vision_count"] = t
+    if t > 1.5 * max(n, 1):
+        # image analysis clearly missed most swings (faint arcs): the model's tile-by-tile boxes, plus any analysis box
+        # it did not cover, become the answer - still boxed, still flagged for review
+        items = merge_boxes([dict(it, label="door (vision, tile by tile)") for it in tiled] +
+                            [dict(it, label="door swing (image analysis)") for it in m["items"]])
+        for i, it in enumerate(items): it["id"] = i
+        v = len(items) if len(items) <= 1.1 * t else t     # boxes from the two methods that did not line up: keep the model's count
+        m.update(value=v, items=items, method="scan:doors+vlm:tiled:uncertain",
+                 warnings=[f"image analysis found only {n} door swings (faint arcs?); the vision model counted {t} tile by tile; "
+                           f"answer = {v} ({len(items)} boxes merged from both); please review"],
+                 alternatives=[{"label": "merged boxes", "value": len(items)}, {"label": "tile-by-tile vision count", "value": t},
+                               {"label": "image analysis only", "value": n}])
+        return m
     if abs(t - n) > max(2, 0.15 * max(t, n)):
         m["method"] = m["method"].split(":uncertain")[0] + ":uncertain"
         m["warnings"] = [w for w in m.get("warnings", []) if not w.startswith("uncertain")] + [
@@ -384,7 +397,20 @@ def count_tiled(image_bytes, question, call_model, grid):
 
 SMALL_COUNT = int(os.environ.get("JUNCTION_SMALL_COUNT", 12))   # below this the whole-sheet count is kept (no tiling)
 
-def answer(image_bytes, question, call_model, votes=2, tile_from=int(os.environ.get("JUNCTION_TILE_FROM", 2600))):
+def answer(image_bytes, question, call_model, votes=2, file=None, page=0):
+    """Scans: counts and reads (below); areas / lengths of a named room that are not printed are measured from the
+    traced room outline when a scale is known (engine.scan_rooms), with the outline as evidence."""
+    r = _answer(image_bytes, question, call_model, votes)
+    if r.get("value") is None and MEASURE_Q.search(question):
+        try:
+            from . import scan_rooms
+            m = scan_rooms.measure(image_bytes, question, call_model, file=file, page=page)
+        except Exception as e:
+            m = None; r.setdefault("warnings", []).append(f"room measuring failed: {e!r}"[:120])
+        if m: return m
+    return r
+
+def _answer(image_bytes, question, call_model, votes=2, tile_from=int(os.environ.get("JUNCTION_TILE_FROM", 2600))):
     """Large scans + count questions: the whole sheet is read once (legend, context) and counted again tile by tile
     at full resolution, because small symbols vanish when a big sheet is shrunk for the model. The tiled count is the
     answer; the whole-sheet count is the second reading."""
@@ -414,10 +440,31 @@ def answer(image_bytes, question, call_model, votes=2, tile_from=int(os.environ.
         items = count_tiled(image_bytes, question, call_model, grid)
         for i, it in enumerate(items): it["id"] = i
         a = len(items)
-        agree = b is not None and abs(a - b) <= max(1, 0.1 * a)
-        warn = [] if agree else [f"uncertain: tile-by-tile count {a}, whole-sheet count {whole['value']}; please review the boxes"]
-        return {"value": a, "unit": "count", "items": items, "method": f"scan:vlm:tiled{grid[0]}x{grid[1]}" + ("" if agree else ":uncertain"),
-                "warnings": warn, "evidence": {"reason": whole["reason"], "readings": [a, whole["value"]], "agree": agree,
+        close = lambda x, y: x is not None and y is not None and abs(x - y) <= max(1, 0.1 * max(x, y))
+        agree = close(a, b)
+        readings = [a, whole["value"]]; method = f"scan:vlm:tiled{grid[0]}x{grid[1]}"; value = a; warn = []
+        if not agree:
+            # two readings disagree: a third, independent tile-by-tile count on a different grid decides (median of
+            # three); the answer stays flagged and every reading is offered for review
+            g2 = (grid[0] + 1, grid[1] + 1) if grid[0] * grid[1] < 9 else (grid[0] - 1, grid[1] - 1)
+            try: items2 = count_tiled(image_bytes, question, call_model, g2)
+            except Exception: items2 = None
+            c = len(items2) if items2 is not None else None
+            if c is not None:
+                readings.append(c)
+                trio = sorted([(a, "tiles", items), (b if b is not None else -1, "whole", whole["items"]), (c, "tiles2", items2)], key=lambda t: t[0])
+                value, src_name, src_items = trio[1]
+                items = src_items
+                for i, it in enumerate(items): it["id"] = i
+                pair = close(a, c) or close(b, c) or close(a, b)
+                method += ":median3" + ("" if pair else ":uncertain")
+                warn.append(f"readings disagreed (tiles {grid[0]}x{grid[1]}: {a}, whole sheet: {whole['value']}, tiles {g2[0]}x{g2[1]}: {c}); "
+                            f"answer = median ({src_name})" + ("" if pair else "; still uncertain, please review the boxes"))
+            else:
+                method += ":uncertain"
+                warn.append(f"uncertain: tile-by-tile count {a}, whole-sheet count {whole['value']}; please review the boxes")
+        return {"value": value, "unit": "count", "items": items, "method": method,
+                "warnings": warn, "evidence": {"reason": whole["reason"], "readings": readings, "agree": agree,
                                                "whole_sheet_items": whole["items"]}}
     return answer_single(_shrink(image_bytes), question, call_model, votes)
 

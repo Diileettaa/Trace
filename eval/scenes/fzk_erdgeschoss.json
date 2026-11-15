@@ -1,0 +1,1127 @@
+{
+ "project_id": "kit-fzk-haus_ac20-fzk-haus",
+ "source_kind": "ifc",
+ "unit": "m",
+ "coordinate_system": "web-ifc world, no COORDINATE_TO_ORIGIN: X = x_ifc (right/east), Y = z_ifc (up), Z = -y_ifc; plan [X, Z]",
+ "plan_up_vector": [
+  0,
+  -1
+ ],
+ "north_vector": [
+  0.766,
+  -0.6428
+ ],
+ "north_basis": "true_north",
+ "true_north_deg": 50.0,
+ "rotation_convention": "rotation_deg about +Y, three.js: local +X -> (cos r, 0, -sin r); footprint width along local +X, depth along front_vector = local +Y in [X, Z]. Which side is the user side of a family is not stated by IFC: place icons by rotation + footprint, treat front_vector as a hint",
+ "quality": "measured",
+ "warnings": [
+  "no pipe / duct / cable segments in these models: systems left empty"
+ ],
+ "sources": [
+  {
+   "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+   "page": null
+  }
+ ],
+ "storeys": [
+  {
+   "guid": "2eyxpyOx95m90jmsXLOuR0",
+   "name": "Erdgeschoss",
+   "elevation_m": 0.0,
+   "height_m": 2.7,
+   "bbox": [
+    [
+     0.3,
+     0.0,
+     -9.7
+    ],
+    [
+     11.7,
+     2.7,
+     -0.3
+    ]
+   ],
+   "space_count": 6,
+   "outline": [
+    [
+     0.0,
+     -10.0
+    ],
+    [
+     12.0,
+     -10.0
+    ],
+    [
+     12.0,
+     -0.0
+    ],
+    [
+     0.0,
+     -0.0
+    ]
+   ],
+   "outline_from": "convex hull of the storey's walls",
+   "id": "2eyxpyOx95m90jmsXLOuR0",
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2eyxpyOx95m90jmsXLOuR0"
+   }
+  }
+ ],
+ "rooms": [
+  {
+   "id": "347jFE2yX7IhCEIALmupEH",
+   "guid": "347jFE2yX7IhCEIALmupEH",
+   "name": "Schlafzimmer",
+   "number": "4",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "polygon": [
+    [
+     7.65,
+     -4.25
+    ],
+    [
+     11.7,
+     -4.25
+    ],
+    [
+     11.7,
+     -9.7
+    ],
+    [
+     7.65,
+     -9.7
+    ]
+   ],
+   "outline": "convex hull of the body",
+   "floor_y_m": 0.0,
+   "height_m": 2.5,
+   "area_m2": 21.410325,
+   "label_point": [
+    9.675,
+    0.05,
+    -6.43
+   ],
+   "confidence": 0.7,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "347jFE2yX7IhCEIALmupEH"
+   }
+  },
+  {
+   "id": "0e_hbkIQ5DMQlIJ$2V3j_m",
+   "guid": "0e_hbkIQ5DMQlIJ$2V3j_m",
+   "name": "Bad",
+   "number": "3",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "polygon": [
+    [
+     4.04,
+     -5.99
+    ],
+    [
+     7.41,
+     -5.99
+    ],
+    [
+     7.41,
+     -9.7
+    ],
+    [
+     4.04,
+     -9.7
+    ]
+   ],
+   "outline": "convex hull of the body",
+   "floor_y_m": 0.0,
+   "height_m": 2.5,
+   "area_m2": 12.127619,
+   "label_point": [
+    5.725,
+    0.05,
+    -7.845
+   ],
+   "confidence": 0.7,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "0e_hbkIQ5DMQlIJ$2V3j_m"
+   }
+  },
+  {
+   "id": "2RSCzLOBz4FAK$_wE8VckM",
+   "guid": "2RSCzLOBz4FAK$_wE8VckM",
+   "name": "Buero",
+   "number": "2",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "polygon": [
+    [
+     0.3,
+     -5.99
+    ],
+    [
+     3.8,
+     -5.99
+    ],
+    [
+     3.8,
+     -9.7
+    ],
+    [
+     0.3,
+     -9.7
+    ]
+   ],
+   "outline": "convex hull of the body",
+   "floor_y_m": 0.0,
+   "height_m": 2.5,
+   "area_m2": 12.59545,
+   "label_point": [
+    2.05,
+    0.05,
+    -7.845
+   ],
+   "confidence": 0.7,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2RSCzLOBz4FAK$_wE8VckM"
+   }
+  },
+  {
+   "id": "0Lt8gR_E9ESeGH5uY_g9e9",
+   "guid": "0Lt8gR_E9ESeGH5uY_g9e9",
+   "name": "Wohnen",
+   "number": "5",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "polygon": [
+    [
+     4.695,
+     -0.3
+    ],
+    [
+     11.7,
+     -0.3
+    ],
+    [
+     11.7,
+     -4.01
+    ],
+    [
+     4.695,
+     -4.01
+    ]
+   ],
+   "outline": "convex hull of the body",
+   "floor_y_m": 0.0,
+   "height_m": 2.5,
+   "area_m2": 25.2088935,
+   "label_point": [
+    6.7965,
+    0.05,
+    -2.155
+   ],
+   "confidence": 0.7,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "0Lt8gR_E9ESeGH5uY_g9e9"
+   }
+  },
+  {
+   "id": "3$f2p7VyLB7eox67SA_zKE",
+   "guid": "3$f2p7VyLB7eox67SA_zKE",
+   "name": "Flur",
+   "number": "1",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "polygon": [
+    [
+     0.3,
+     -4.25
+    ],
+    [
+     3.8,
+     -4.01
+    ],
+    [
+     7.41,
+     -4.01
+    ],
+    [
+     7.41,
+     -5.75
+    ],
+    [
+     0.3,
+     -5.75
+    ]
+   ],
+   "outline": "convex hull of the body",
+   "floor_y_m": 0.0,
+   "height_m": 2.5,
+   "area_m2": 11.185458,
+   "label_point": [
+    3.855,
+    0.05,
+    -4.88
+   ],
+   "confidence": 0.7,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "3$f2p7VyLB7eox67SA_zKE"
+   }
+  },
+  {
+   "id": "17JZcMFrf5tOftUTidA0d3",
+   "guid": "17JZcMFrf5tOftUTidA0d3",
+   "name": "Küche",
+   "number": "6",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "polygon": [
+    [
+     0.3,
+     -0.3
+    ],
+    [
+     4.695,
+     -0.3
+    ],
+    [
+     4.695,
+     -4.01
+    ],
+    [
+     0.3,
+     -4.01
+    ]
+   ],
+   "outline": "convex hull of the body",
+   "floor_y_m": 0.0,
+   "height_m": 2.5,
+   "area_m2": 16.30545,
+   "label_point": [
+    2.2778,
+    0.05,
+    -2.155
+   ],
+   "confidence": 0.7,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "17JZcMFrf5tOftUTidA0d3"
+   }
+  }
+ ],
+ "walls": [
+  {
+   "id": "2XPyKWY018sA1ygZKgQPtU",
+   "guid": "2XPyKWY018sA1ygZKgQPtU",
+   "name": "Wand-Int-ERDG-4",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     7.41,
+     -4.13
+    ],
+    [
+     11.7,
+     -4.13
+    ]
+   ],
+   "thickness_m": 0.24,
+   "length_m": 4.29,
+   "base_y_m": 0.0,
+   "height_m": 2.5,
+   "footprint": [
+    [
+     7.41,
+     -4.01
+    ],
+    [
+     11.7,
+     -4.01
+    ],
+    [
+     11.7,
+     -4.25
+    ],
+    [
+     7.65,
+     -4.25
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2XPyKWY018sA1ygZKgQPtU"
+   }
+  },
+  {
+   "id": "3PfS__Y_DBAfq5naM6zD2Z",
+   "guid": "3PfS__Y_DBAfq5naM6zD2Z",
+   "name": "Wand-Int-ERDG-2",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     7.53,
+     -9.7
+    ],
+    [
+     7.53,
+     -4.01
+    ]
+   ],
+   "thickness_m": 0.24,
+   "length_m": 5.69,
+   "base_y_m": 0.0,
+   "height_m": 2.5,
+   "footprint": [
+    [
+     7.41,
+     -4.01
+    ],
+    [
+     7.65,
+     -4.25
+    ],
+    [
+     7.65,
+     -9.7
+    ],
+    [
+     7.41,
+     -9.7
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "3PfS__Y_DBAfq5naM6zD2Z"
+   }
+  },
+  {
+   "id": "2ptk1k7qn8_Qk22vjh$0DE",
+   "guid": "2ptk1k7qn8_Qk22vjh$0DE",
+   "name": "Wand-Int-ERDG-1",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     3.92,
+     -9.7
+    ],
+    [
+     3.92,
+     -5.99
+    ]
+   ],
+   "thickness_m": 0.24,
+   "length_m": 3.71,
+   "base_y_m": 0.0,
+   "height_m": 2.5,
+   "footprint": [
+    [
+     3.8,
+     -5.99
+    ],
+    [
+     4.04,
+     -5.99
+    ],
+    [
+     4.04,
+     -9.7
+    ],
+    [
+     3.8,
+     -9.7
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2ptk1k7qn8_Qk22vjh$0DE"
+   }
+  },
+  {
+   "id": "3jjW3rL656ex34Gws22EfM",
+   "guid": "3jjW3rL656ex34Gws22EfM",
+   "name": "Wand-Int-ERDG-3",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     0.3,
+     -5.87
+    ],
+    [
+     7.41,
+     -5.87
+    ]
+   ],
+   "thickness_m": 0.24,
+   "length_m": 7.11,
+   "base_y_m": 0.0,
+   "height_m": 2.5,
+   "footprint": [
+    [
+     0.3,
+     -5.75
+    ],
+    [
+     7.41,
+     -5.75
+    ],
+    [
+     7.41,
+     -5.99
+    ],
+    [
+     0.3,
+     -5.99
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "3jjW3rL656ex34Gws22EfM"
+   }
+  },
+  {
+   "id": "1$wmdwWPjDYuku_ghVkynE",
+   "guid": "1$wmdwWPjDYuku_ghVkynE",
+   "name": "Wand-Int-ERDG-5",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     0.3,
+     -4.13
+    ],
+    [
+     3.8,
+     -4.13
+    ]
+   ],
+   "thickness_m": 0.24,
+   "length_m": 3.5,
+   "base_y_m": 0.0,
+   "height_m": 2.5,
+   "footprint": [
+    [
+     0.3,
+     -4.01
+    ],
+    [
+     3.8,
+     -4.01
+    ],
+    [
+     3.8,
+     -4.25
+    ],
+    [
+     0.3,
+     -4.25
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1$wmdwWPjDYuku_ghVkynE"
+   }
+  },
+  {
+   "id": "3rPX_Juz59peXXY6wDJl18",
+   "guid": "3rPX_Juz59peXXY6wDJl18",
+   "name": "Wand-Ext-ERDG-1",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     0.15,
+     -0.0
+    ],
+    [
+     0.15,
+     -10.0
+    ]
+   ],
+   "thickness_m": 0.3,
+   "length_m": 10.0,
+   "base_y_m": 0.0,
+   "height_m": 2.7,
+   "footprint": [
+    [
+     0.0,
+     -0.0
+    ],
+    [
+     0.3,
+     -0.3
+    ],
+    [
+     0.3,
+     -9.7
+    ],
+    [
+     0.0,
+     -10.0
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "3rPX_Juz59peXXY6wDJl18"
+   }
+  },
+  {
+   "id": "16DNNqzfP2thtfaOflvsKA",
+   "guid": "16DNNqzfP2thtfaOflvsKA",
+   "name": "Wand-Ext-ERDG-4",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     12.0,
+     -0.15
+    ],
+    [
+     0.0,
+     -0.15
+    ]
+   ],
+   "thickness_m": 0.3,
+   "length_m": 12.0,
+   "base_y_m": 0.0,
+   "height_m": 2.7,
+   "footprint": [
+    [
+     0.0,
+     -0.0
+    ],
+    [
+     12.0,
+     -0.0
+    ],
+    [
+     11.7,
+     -0.3
+    ],
+    [
+     0.3,
+     -0.3
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "16DNNqzfP2thtfaOflvsKA"
+   }
+  },
+  {
+   "id": "25fsbPyk15VvuXI$yNKenK",
+   "guid": "25fsbPyk15VvuXI$yNKenK",
+   "name": "Wand-Ext-ERDG-3",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     11.85,
+     -10.0
+    ],
+    [
+     11.85,
+     -0.0
+    ]
+   ],
+   "thickness_m": 0.3,
+   "length_m": 10.0,
+   "base_y_m": 0.0,
+   "height_m": 2.7,
+   "footprint": [
+    [
+     11.7,
+     -0.3
+    ],
+    [
+     12.0,
+     -0.0
+    ],
+    [
+     12.0,
+     -10.0
+    ],
+    [
+     11.7,
+     -9.7
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "25fsbPyk15VvuXI$yNKenK"
+   }
+  },
+  {
+   "id": "1bzfVsJqn8De5PukCrqylz",
+   "guid": "1bzfVsJqn8De5PukCrqylz",
+   "name": "Wand-Ext-ERDG-2",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "points": [
+    [
+     0.0,
+     -9.85
+    ],
+    [
+     12.0,
+     -9.85
+    ]
+   ],
+   "thickness_m": 0.3,
+   "length_m": 12.0,
+   "base_y_m": 0.0,
+   "height_m": 2.7,
+   "footprint": [
+    [
+     0.0,
+     -10.0
+    ],
+    [
+     0.3,
+     -9.7
+    ],
+    [
+     11.7,
+     -9.7
+    ],
+    [
+     12.0,
+     -10.0
+    ]
+   ],
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1bzfVsJqn8De5PukCrqylz"
+   }
+  }
+ ],
+ "openings": [
+  {
+   "id": "1Oms875aH3Wg$9l65H2ZGw",
+   "guid": "1Oms875aH3Wg$9l65H2ZGw",
+   "kind": "door",
+   "name": "Innentuer-1",
+   "wall_id": "3PfS__Y_DBAfq5naM6zD2Z",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    7.46,
+    0.0,
+    -5.0
+   ],
+   "rotation_deg": 90.0,
+   "front_vector": [
+    -1.0,
+    -0.0
+   ],
+   "width_m": 0.885,
+   "height_m": 2.01,
+   "sill_y_m": 0.0,
+   "depth_m": 0.1,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1Oms875aH3Wg$9l65H2ZGw"
+   }
+  },
+  {
+   "id": "0pGAjlJMP3ifYPATVF5xAR",
+   "guid": "0pGAjlJMP3ifYPATVF5xAR",
+   "kind": "door",
+   "name": "Innentuer-2",
+   "wall_id": "3jjW3rL656ex34Gws22EfM",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    5.66,
+    0.0,
+    -5.8
+   ],
+   "rotation_deg": 0.0,
+   "front_vector": [
+    -0.0,
+    -1.0
+   ],
+   "width_m": 0.885,
+   "height_m": 2.01,
+   "sill_y_m": 0.0,
+   "depth_m": 0.1,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "0pGAjlJMP3ifYPATVF5xAR"
+   }
+  },
+  {
+   "id": "2qiPPF3FrF8OIqfrKiSUqm",
+   "guid": "2qiPPF3FrF8OIqfrKiSUqm",
+   "kind": "door",
+   "name": "Innentuer-3",
+   "wall_id": "3jjW3rL656ex34Gws22EfM",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    2.05,
+    0.0,
+    -5.8
+   ],
+   "rotation_deg": 0.0,
+   "front_vector": [
+    -0.0,
+    -1.0
+   ],
+   "width_m": 0.885,
+   "height_m": 2.01,
+   "sill_y_m": 0.0,
+   "depth_m": 0.1,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2qiPPF3FrF8OIqfrKiSUqm"
+   }
+  },
+  {
+   "id": "2jTRqchjf7oB0yhQ6462T0",
+   "guid": "2jTRqchjf7oB0yhQ6462T0",
+   "kind": "door",
+   "name": "Haustuer",
+   "wall_id": "3rPX_Juz59peXXY6wDJl18",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    0.255,
+    0.0,
+    -5.0
+   ],
+   "rotation_deg": 270.0,
+   "front_vector": [
+    1.0,
+    -0.0
+   ],
+   "width_m": 1.01,
+   "height_m": 2.01,
+   "sill_y_m": 0.0,
+   "depth_m": 0.19,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2jTRqchjf7oB0yhQ6462T0"
+   }
+  },
+  {
+   "id": "1M$gxUrX1Fiwe3P64ww7U5",
+   "guid": "1M$gxUrX1Fiwe3P64ww7U5",
+   "kind": "door",
+   "name": "Terrassentuer",
+   "wall_id": "16DNNqzfP2thtfaOflvsKA",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    6.0,
+    0.0,
+    -0.2225
+   ],
+   "rotation_deg": 0.0,
+   "front_vector": [
+    -0.0,
+    -1.0
+   ],
+   "width_m": 2.01,
+   "height_m": 2.375,
+   "sill_y_m": 0.0,
+   "depth_m": 0.205,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1M$gxUrX1Fiwe3P64ww7U5"
+   }
+  },
+  {
+   "id": "1srAI$R4T8ihLXSNHmUSET",
+   "guid": "1srAI$R4T8ihLXSNHmUSET",
+   "kind": "window",
+   "name": "EG-Fenster-6",
+   "wall_id": "3rPX_Juz59peXXY6wDJl18",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    0.1575,
+    0.8,
+    -7.495
+   ],
+   "rotation_deg": 90.0,
+   "front_vector": [
+    -1.0,
+    -0.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1srAI$R4T8ihLXSNHmUSET"
+   }
+  },
+  {
+   "id": "0B1RwEzzP3CfME5NR$Vqh5",
+   "guid": "0B1RwEzzP3CfME5NR$Vqh5",
+   "kind": "window",
+   "name": "EG-Fenster-7",
+   "wall_id": "3rPX_Juz59peXXY6wDJl18",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    0.1575,
+    0.95,
+    -2.205
+   ],
+   "rotation_deg": 90.0,
+   "front_vector": [
+    -1.0,
+    -0.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.95,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "0B1RwEzzP3CfME5NR$Vqh5"
+   }
+  },
+  {
+   "id": "25nJxEpYf8LRDJNkMUVO0m",
+   "guid": "25nJxEpYf8LRDJNkMUVO0m",
+   "kind": "window",
+   "name": "EG-Fenster-4",
+   "wall_id": "16DNNqzfP2thtfaOflvsKA",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    2.79,
+    0.95,
+    -0.1575
+   ],
+   "rotation_deg": 180.0,
+   "front_vector": [
+    -0.0,
+    1.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.95,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "25nJxEpYf8LRDJNkMUVO0m"
+   }
+  },
+  {
+   "id": "3BFcylCsX74PQAoRAe5fNv",
+   "guid": "3BFcylCsX74PQAoRAe5fNv",
+   "kind": "window",
+   "name": "EG-Fenster-5",
+   "wall_id": "16DNNqzfP2thtfaOflvsKA",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    9.21,
+    0.8,
+    -0.1575
+   ],
+   "rotation_deg": 180.0,
+   "front_vector": [
+    -0.0,
+    1.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "3BFcylCsX74PQAoRAe5fNv"
+   }
+  },
+  {
+   "id": "13aSY79zb8fP4HApEJ0z_e",
+   "guid": "13aSY79zb8fP4HApEJ0z_e",
+   "kind": "window",
+   "name": "EG-Fenster-8",
+   "wall_id": "25fsbPyk15VvuXI$yNKenK",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    11.8425,
+    0.8,
+    -7.5024
+   ],
+   "rotation_deg": 270.0,
+   "front_vector": [
+    1.0,
+    -0.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "13aSY79zb8fP4HApEJ0z_e"
+   }
+  },
+  {
+   "id": "2EQh_jhP1B_A_AMuSJc5E0",
+   "guid": "2EQh_jhP1B_A_AMuSJc5E0",
+   "kind": "window",
+   "name": "EG-Fenster-9",
+   "wall_id": "25fsbPyk15VvuXI$yNKenK",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    11.8425,
+    0.8,
+    -2.205
+   ],
+   "rotation_deg": 270.0,
+   "front_vector": [
+    1.0,
+    -0.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2EQh_jhP1B_A_AMuSJc5E0"
+   }
+  },
+  {
+   "id": "1TAI4ouKX4Xx4lBDZIu5qM",
+   "guid": "1TAI4ouKX4Xx4lBDZIu5qM",
+   "kind": "window",
+   "name": "EG-Fenster-1",
+   "wall_id": "1bzfVsJqn8De5PukCrqylz",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    2.05,
+    0.8,
+    -9.8425
+   ],
+   "rotation_deg": 0.0,
+   "front_vector": [
+    -0.0,
+    -1.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1TAI4ouKX4Xx4lBDZIu5qM"
+   }
+  },
+  {
+   "id": "2Q9w7oRXP249jBobEMVqlZ",
+   "guid": "2Q9w7oRXP249jBobEMVqlZ",
+   "kind": "window",
+   "name": "EG-Fenster-2",
+   "wall_id": "1bzfVsJqn8De5PukCrqylz",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    5.66,
+    0.8,
+    -9.8425
+   ],
+   "rotation_deg": 0.0,
+   "front_vector": [
+    -0.0,
+    -1.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "2Q9w7oRXP249jBobEMVqlZ"
+   }
+  },
+  {
+   "id": "1DiYqhfzH9xxuJdVHwXCNa",
+   "guid": "1DiYqhfzH9xxuJdVHwXCNa",
+   "kind": "window",
+   "name": "EG-Fenster-3",
+   "wall_id": "1bzfVsJqn8De5PukCrqylz",
+   "storey_id": "2eyxpyOx95m90jmsXLOuR0",
+   "position": [
+    9.795,
+    0.8,
+    -9.8425
+   ],
+   "rotation_deg": 0.0,
+   "front_vector": [
+    -0.0,
+    -1.0
+   ],
+   "width_m": 2.0,
+   "height_m": 1.2,
+   "sill_y_m": 0.8,
+   "depth_m": 0.075,
+   "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+   "confidence": 1.0,
+   "source": {
+    "file": "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc",
+    "page": null,
+    "guid": "1DiYqhfzH9xxuJdVHwXCNa"
+   }
+  }
+ ],
+ "objects": [],
+ "systems": []
+}

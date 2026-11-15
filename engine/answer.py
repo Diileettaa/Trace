@@ -174,7 +174,12 @@ UNKNOWN = ("swiss_dxf:unknown", "ifc:unknown", "cubicasa:unknown")
 
 def answer(path, question, _fallback=True):
     """Dataset phrasings go straight to the validated parsers; anything else is classified (engine.nlq) into a
-    structured query. A question that stays ambiguous returns method 'unrecognised_question', never a guess."""
+    structured query. A question that stays ambiguous returns method 'unrecognised_question', never a guess.
+    Every answer carries confidence (high/medium/low/none) + confidence_reason (engine.confidence)."""
+    from .confidence import attach
+    return attach(_answer(path, question, _fallback))
+
+def _answer(path, question, _fallback=True):
     r = _answer_templates(path, question)
     if _fallback and r.get("method") in UNKNOWN:
         from . import nlq
@@ -193,13 +198,19 @@ def _answer_templates(path, question):
         png = os.path.join(DATA, path) if not os.path.isabs(path) else path
         v, items, method, warn = cubicasa.answer(png, question, _png_size)
         return {"value": v, "unit": "count", "items": items, "sources": [{"file": path}], "method": method, "warnings": warn}
-    return answer_sheet(path, question, source)
+    return _answer_sheet(path, question, source)
 
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp")
 
-def answer_sheet(path, question, source=None):
+def answer_sheet(path, question, page=None, source=None):
     """Any other drawing: vector PDF sheets -> schedule QA (docqa) with a vision fallback; scans and photos -> scanqa.
-    Both need the vision model; without it the engine says so instead of guessing."""
+    Both need the vision model; without it the engine says so instead of guessing.
+    page: 1-based PDF page (same as the 'file.pdf#pN' suffix; the suffix wins if both are given)."""
+    from .confidence import attach
+    if page is not None and not re.search(r"#p\d+$", path): path = f"{path}#p{int(page)}"
+    return attach(_answer_sheet(path, question, source))
+
+def _answer_sheet(path, question, source=None):
     from . import llm
     path_nopage = path.rsplit("#p", 1)[0] if re.search(r"#p\d+$", path) else path
     full = path_nopage if os.path.isabs(path_nopage) else os.path.join(DATA, path_nopage)
@@ -225,7 +236,7 @@ def answer_sheet(path, question, source=None):
                 if img is None: return {**base, "method": "sheet:cannot_read_pdf", "warnings": ["install pdfplumber or pypdfium2"]}
                 r = scanqa.answer(img, question, llm.vision_json); r["sources"] = [{"file": path, "page": 1}]; return r
         from . import scanqa
-        r = scanqa.answer(open(full, "rb").read(), question, llm.vision_json)     # full resolution: tiled when needed
+        r = scanqa.answer(open(full, "rb").read(), question, llm.vision_json, file=full)     # full resolution: tiled when needed
         r["sources"] = [{"file": path}]; return r
     except RuntimeError as e:
         return {**base, "method": "sheet:model_error", "warnings": [str(e)]}
