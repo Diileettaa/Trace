@@ -215,10 +215,10 @@ GET /api/geometry/scene?path=<source path>&page=<optional page>
 
 ### 证据 bbox 的不可变规则
 
-Plan 11 提到 PDF point 与 norm1000，它们可以保留为引擎内部调试字段，但 `source.bbox`
-必须最终换算成 `GET /drawing?path=&page=` 所显示 PNG（150 dpi）的像素坐标。这是 Trace
-所有问答和 2D 高亮共用的格式；若没有该换算，前端只会保留 3D 选择，不会跳转一个可能错位的
-原图框。
+`source.bbox` 仍可使用 `GET /drawing?path=&page=` 所显示 PNG（150 dpi）的像素坐标。
+引擎已发布的场景也可以使用 `source.bbox_norm1000`：它是原始页面宽、高各自 `0..1000`
+的分辨率无关矩形。前端会在同一张图纸 PNG 加载完成后才换算它并高亮；后端不能猜一个
+不同分辨率的像素框。两种字段可以并存，`bbox` 优先。
 
 ### 未标定扫描图的安全格式
 
@@ -266,3 +266,33 @@ node scripts/check_geometry_scene.mjs <真实场景.json>
   footprint / height_m`；该图标不是识别结果本身。
 - 低置信度与默认高度会明确标注；用户点击带有 PNG bbox 的构件会回到该页原图并高亮框。
 - `architecture / sanitary / electrical / hvac` 开关、`storeys` 和真实 `systems` 路径已可读取。
+
+## 15 Nov 已发布场景：本地后端转接说明（不覆盖现有接口）
+
+Xinran 已在远端 `main` 的 `eb9fc005` 发布 `engine/scene_ifc.py`、`scene_pdf.py`、
+`scene_scan.py` 与样例场景 JSON。前端已经按这批真实 JSON 适配。下面是本地后端所有者
+需要做的**薄转接**；它不是让任何人覆盖现有路由或重写识别器。
+
+1. 保留现有 `GET /api/scene`：它是协作家具摆放状态，不能改作几何场景。
+2. 新增或保留独立 `GET /api/geometry/scene?path=&page=`，内部按文件类型调用
+   `scene_ifc / scene_pdf / scene_scan`，原样返回引擎的几何 JSON。不能在路由里重新识别、
+   计数或编造对象。
+3. 已支持的引擎字段是 `source_kind: ifc | pdf_vector | scan`、`quality: measured |
+   illustrative`、以及文字说明的 `coordinate_system`。不要为了旧合同强行改写坐标轴。
+   `plan_up_vector` 可原样透传，前端只据此画方向箭头。
+4. 矢量平面图常没有立面信息：`wall.height_m`、`opening.height_m` 可以为 `null`。前端仅以
+   明确的默认值作视觉拉高，并标为 default dimension；不把它显示成测量结果。
+   未标定扫描图的门窗也可缺 `rotation_deg / width_m / height_m`，只作为相对示意。
+5. 每个 `source` 至少保留 `file` 和可用的 `page`；若有 `bbox_norm1000`，原样返回。前端已
+   负责将它换算为当前 PNG 的证据框。
+
+本地联调时，先获取上述远端提交，再用其中的三个样例验证而不是改动引擎：
+
+```powershell
+git show eb9fc005:eval/scenes/duplex_bathroom1.json | node scripts/check_geometry_scene.mjs -
+git show eb9fc005:eval/scenes/school_pdf_L00.json | node scripts/check_geometry_scene.mjs -
+git show eb9fc005:eval/scenes/school_scan_illustrative.json | node scripts/check_geometry_scene.mjs -
+```
+
+三份分别覆盖 IFC 实量、矢量 PDF 实量、未标定扫描示意。检查通过后，后端只需把相同 JSON
+经 `/api/geometry/scene` 送出；不需要合并或覆盖 `/api/scene`。
