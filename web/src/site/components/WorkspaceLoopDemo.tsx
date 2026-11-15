@@ -45,7 +45,7 @@ const LOOP_STEPS: LoopStep[] = [
   },
   {
     id: 1,
-    title: '02. 1.8s AI Scale & Plan Scan',
+    title: '02. ~0.2s AI Scale & Plan Scan',
     subtitle: 'Auto-scales to 1:50 LoD, highlights R 2.08 & flags unverified WC-208.2 in red',
     scale: '1:50',
     viewMode: '2d',
@@ -516,7 +516,7 @@ export const WorkspaceLoopDemo: React.FC<WorkspaceLoopDemoProps> = ({
                 </svg>
                 <div className="flex items-center justify-between text-[10px] font-mono text-[#A9AFB0]">
                   <span>36+ Rooms Indexed · 6 Levels Switchable</span>
-                  <span className="text-[#E9B949]">1.8s Grounded</span>
+                  <span className="text-[#E9B949]">~0.2s Grounded</span>
                 </div>
               </div>
             )}
@@ -574,7 +574,7 @@ export const WorkspaceLoopDemo: React.FC<WorkspaceLoopDemoProps> = ({
               <span className="inline-flex items-center gap-1">
                 <MessageSquare className="w-3 h-3" /> Trace. AI
               </span>
-              <span className="text-[#9A7218]">1.8s</span>
+              <span className="text-[#9A7218]">~0.2s</span>
             </div>
 
             {/* User bubble */}

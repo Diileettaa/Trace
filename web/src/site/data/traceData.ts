@@ -190,7 +190,7 @@ export const INCLUDED_IN_EVERY_PLAN: IncludedCoreItem[] = [
   },
   {
     name: 'Double Check',
-    description: 'A second model verifies AI answers.',
+    description: 'On scanned plans, a second model (NVIDIA Nemotron) re-counts independently.',
   },
   {
     name: 'Proof Lens',
@@ -206,15 +206,15 @@ export const FACT_SLIDES: FactSlide[] = [
   {
     id: 'speed-18s',
     indexLabel: '01 · Speed & Proof Lens',
-    kicker: 'Geometry Core + Double Check',
-    headline: '1.8s average per drawing query.',
+    kicker: 'Geometry Core + Proof Lens',
+    headline: '~0.2 s median per drawing query.',
     subheadline:
-      'Trace answers natural-language questions about construction drawings – and shows where each answer comes from using Proof Lens and Double Check verification.',
+      'Trace answers natural-language questions about construction drawings – and shows where each answer comes from using Proof Lens; scanned plans get an independent second count.',
     imageUrl: '/gigi/drawing_proof_lens_1794687950946.jpg',
     imageAlt: 'Detailed architectural floorplan blueprints with warm amber highlight marker and brass scale ruler',
     facts: [
-      { value: '1.8s', label: 'Average grounded response via Geometry Core' },
-      { value: 'Double Check', label: 'A second model verifies every AI answer' },
+      { value: '~0.2s', label: 'Median response via Geometry Core (no language model)' },
+      { value: 'Double Check', label: 'Scanned plans re-counted by a second model' },
       { value: 'Proof Lens', label: 'Marks the exact source region in the drawing' },
     ],
     ctaLabel: 'Watch Demo Loop',
@@ -663,7 +663,7 @@ export const USER_CASES: UserCaseItem[] = [
   {
     id: 'uc-kamppi',
     project: 'Kamppi Mixed-Use Complex',
-    company: 'SRV & Nordic Interior Partners',
+    company: 'Illustrative scenario · general contractor + interior partner',
     location: 'Helsinki, Finland',
     scope: '18,400 m² · 6 Levels · MEP & Interior Fit-Out',
     metric: '4.2 hrs saved / plan',
@@ -673,17 +673,17 @@ export const USER_CASES: UserCaseItem[] = [
   {
     id: 'uc-tampere',
     project: 'Tampere MedTech Campus',
-    company: 'Sweco Finland & A-Insinöörit',
+    company: 'Illustrative scenario · engineering consultancy',
     location: 'Tampere, Finland',
     scope: '24,000 m² · Cleanroom & Shaft Coordination',
-    metric: '1.8s avg. query',
+    metric: '~0.2s median query',
     summary:
       'Replaced manual binder lookups across multilingual Finnish/English execution sets with clickable 3D clearances and dated field photo memory.',
   },
   {
     id: 'uc-munich',
     project: 'Isar Quarter Timber Office',
-    company: 'Studio Werk & Bauer MEP',
+    company: 'Illustrative scenario · architecture studio + MEP',
     location: 'Munich, Germany',
     scope: '11,200 m² · Hybrid Timber & Technical Trades',
     metric: '100% photo-verified',
@@ -692,14 +692,7 @@ export const USER_CASES: UserCaseItem[] = [
   },
 ];
 
-export const PARTNER_FIRMS = [
-  'SRV Rakennus',
-  'Sweco Nordic',
-  'YIT Construction',
-  'Skanska Finland',
-  'Tengbom Interiors',
-  'A-Insinöörit',
-];
+export const PARTNER_FIRMS: string[] = [];  // no real partner companies yet: names removed (were placeholders)
 
 export const SUPPORT_QA: SupportQAItem[] = [
   {
@@ -714,7 +707,7 @@ export const SUPPORT_QA: SupportQAItem[] = [
     topic: 'Geometry Core & Double Check',
     question: 'How do Geometry Core, Double Check, and Proof Lens work together?',
     answer:
-      'Included in every plan: Geometry Core reads the drawing directly so most answers need no language model; Double Check uses a second model to verify AI answers; and Proof Lens marks exactly where in the drawing each answer comes from.',
+      'Included in every plan: Geometry Core reads the drawing directly so most answers need no language model; Double Check has a second model (NVIDIA Nemotron) re-count items on scanned plans; and Proof Lens marks exactly where in the drawing each answer comes from.',
   },
   {
     id: 'qa-3',

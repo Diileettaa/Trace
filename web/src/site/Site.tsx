@@ -135,7 +135,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
               <span>TRACE.</span>
             </a>
             <span className="hidden sm:inline-block text-[11px] font-mono text-[#A9AFB0] border-l border-white/15 pl-2.5 whitespace-nowrap">
-              by Stoa
+              for Stoa
             </span>
           </div>
 
@@ -427,7 +427,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-mono font-semibold tracking-wider uppercase text-[#9A7218]">
-                    Trace. · A Product by Stoa
+                    Trace. · Built for Stoa
                   </p>
                   <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[#202427] mt-1">
                     {PRODUCT_META.tagline}
@@ -462,7 +462,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
                   <div>
                     <p className="text-xs font-mono font-semibold uppercase tracking-wider text-[#9A7218]">
-                      Workspace Trailer
+                      Workspace Trailer · illustrative animation
                     </p>
                     <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#202427] mt-1">
                       See Trace. cut through 1:50 plan chaos in 15 seconds.
@@ -509,7 +509,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                       User Cases
                     </h3>
                     <p className="text-xs text-[#202427]/70 mt-1.5 leading-relaxed">
-                      Mentored European construction projects and Nordic partner companies building with Trace.
+                      Illustrative use cases: how contractors, architects and MEP teams could use Trace.
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-[#202427] inline-flex items-center gap-1.5 group-hover:text-[#9A7218] transition-colors">
@@ -585,7 +585,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                   TRACE.
                 </span>
                 <span className="text-xs font-mono text-[#9A7218] font-semibold">
-                  A Product by Stoa
+                  Built for Stoa
                 </span>
               </div>
               <p className="text-xs text-[#202427]/65 mt-1">

@@ -34,7 +34,7 @@ export const UserCasesPage: React.FC<UserCasesPageProps> = ({
                   User Cases · Stoa Field Deployments
                 </p>
                 <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-[#202427] leading-[1.08] [text-wrap:balance]">
-                  Projects mentored by Trace. &amp; our partner firms.
+                  How teams could use Trace. (illustrative scenarios)
                 </h1>
                 <p className="mt-4 text-base text-[#202427]/80 leading-relaxed max-w-xl">
                   Explore how general contractors, interior architects, and MEP teams deploy Trace. across multi-level commercial complexes, cleanrooms, and timber offices.
@@ -126,7 +126,7 @@ export const UserCasesPage: React.FC<UserCasesPageProps> = ({
                   </div>
                   <div className="inline-flex items-center gap-1.5 text-xs font-medium text-[#202427]">
                     <Check className="w-3.5 h-3.5 text-[#9A7218]" />
-                    <span>Stoa Mentored Deployment</span>
+                    <span>Illustrative scenario</span>
                   </div>
                 </div>
               </article>
@@ -138,7 +138,7 @@ export const UserCasesPage: React.FC<UserCasesPageProps> = ({
             <div>
               <div className="text-xs font-mono uppercase tracking-wider text-[#E9B949] mb-2 inline-flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
-                <span>Partner Companies Building with Trace.</span>
+                <span>Pilot Trace. on your own drawings</span>
               </div>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
                 {PARTNER_FIRMS.map((firm) => (
