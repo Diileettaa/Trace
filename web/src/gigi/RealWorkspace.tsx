@@ -938,7 +938,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                     <div className="px-3 py-1 text-[10px] font-mono text-[#A9AFB0] border-b border-white/10">Building Floors (2.5D)</div>
                     {storeys.length === 0 && <div className="px-3 py-2 text-[11px] text-[#A9AFB0]">Open the 2.5D view once to load the floors…</div>}
                     {[{ id: '', name: 'Whole building', elevation: 0 }, ...storeys].map((st) => (
-                      <button key={st.id || 'all'} type="button" onClick={() => { setStoreyId(st.id || null); setViewMode('3d-building'); setFloorMenuOpen(false); }}
+                      <button key={st.id || 'all'} type="button" onClick={() => { setStoreyId(st.id || null); setViewMode(st.id ? '3d-room' : '3d-building'); setFloorMenuOpen(false); }}
                         className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${(storeyId || '') === st.id ? 'bg-[#E9B949]/20 text-[#E9B949]' : 'text-[#F7F6F2] hover:bg-white/10'}`}>
                         <div className="min-w-0">
                           <div className="font-mono font-semibold">{st.id ? st.name.toUpperCase() : 'WHOLE BUILDING'}</div>
