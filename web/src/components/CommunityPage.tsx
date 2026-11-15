@@ -27,6 +27,7 @@ import OrderModal from './OrderModal'
 import RoomExtrasPanel from './RoomExtrasPanel'
 import ProjectSettingsModal from './ProjectSettingsModal'
 import PlanRooms3D from './PlanRooms3D'
+import TeamChannels from './TeamChannels'
 import { DatasetBrowser, type CatalogItem } from './DatasetBrowser'
 import type { CollabState } from '../types'
 import type { ProjectDocument } from '../api'
@@ -53,9 +54,10 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   const [feedback, setFeedback] = useState('')
   const [selectedRoom, setSelectedRoom] = useState<{ id: string; name: string } | null>(null)
   const [browseModel, setBrowseModel] = useState(false)
-  const [mainTab, setMainTab] = useState<'3D' | '2D plan' | 'Files' | 'Schedule' | 'Calendar'>('3D')
+  const [mainTab, setMainTab] = useState<'3D' | '2D plan' | 'Community' | 'Files' | 'Schedule' | 'Calendar'>('3D')
   const [roomTab, setRoomTab] = useState<'Overview' | 'Chat' | 'Photos' | 'Schedule' | 'Extras'>('Overview')
   const [dmOpen, setDmOpen] = useState(false)
+  const [dmRecipient, setDmRecipient] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
   const [budgetOpen, setBudgetOpen] = useState(false)
@@ -127,6 +129,10 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
     setRoomId(room?.id || '')
     if (room) setRoomTab('Overview')
   }, [])
+  const openDirectMessage = useCallback((personId: string) => {
+    setDmRecipient(personId)
+    setDmOpen(true)
+  }, [])
 
   async function sendScreenshot() {
     if (!screenshot) return
@@ -145,8 +151,8 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
   const isOwner = profile?.trade?.trim().toLowerCase() === 'owner'
   const isStreamlinedOwner = isOwner && projectSettings.owner_view === 'final_and_questions'
   const mainTabs = isStreamlinedOwner
-    ? (['3D', '2D plan', 'Files', 'Calendar'] as const)
-    : (['3D', '2D plan', 'Files', 'Schedule', 'Calendar'] as const)
+    ? (['3D', '2D plan', 'Community', 'Files', 'Calendar'] as const)
+    : (['3D', '2D plan', 'Community', 'Files', 'Schedule', 'Calendar'] as const)
   const roomTabs = isStreamlinedOwner
     ? (['Overview', 'Photos', 'Extras'] as const)
     : (['Overview', 'Chat', 'Photos', 'Schedule', 'Extras'] as const)
@@ -158,8 +164,9 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
       <section className="workbench-center"><nav className="workbench-tabs" aria-label="Project workspace tabs">{mainTabs.map(tab => <button key={tab} className={mainTab === tab ? 'active' : ''} onClick={() => setMainTab(tab as typeof mainTab)}>{tab}</button>)}</nav>
         {mainTab === '3D' && <>{!modelPath.toLowerCase().endsWith('.ifc') ? <PlanRooms3D path={drawingPath || modelPath} /> : <div className="workbench-viewport"><IfcViewer path={modelPath} guids={[]} onSelectRoom={selectRoom} onRoomAction={tab => { setRoomTab(tab); if (selectedRoom) setMainTab('3D') }} onScreenshot={(dataUrl, name, note) => onScreenshot(dataUrl, name, note)} /></div>}</>}
         {mainTab === '2D plan' && <SharedPlanPanel drawingPath={drawingPath} modelPath={modelPath} collab={collab} onChange={onChange} onScreenshot={onScreenshot} selectedRoomId={selectedRoom?.id} onRoomSelect={selectRoom} />}
+        {mainTab === 'Community' && <section className="workbench-community"><TeamChannels collab={collab} onChange={onChange} onOpenFiles={() => setMainTab('Files')} /></section>}
         {mainTab === 'Files' && <section className="workbench-files"><div className="project-section-heading"><div><h2>Project files</h2><p className="sub">Plans, permits and reports</p></div></div><DocsLibrary selectedDocumentId={selectedDocumentId} onAskDocument={onAskDocument} /></section>}
-        {mainTab === 'Schedule' && !isStreamlinedOwner && <section className="workbench-schedule"><WorkTimeline collab={collab} onChange={onChange} /></section>}
+        {mainTab === 'Schedule' && !isStreamlinedOwner && <section className="workbench-schedule"><WorkTimeline collab={collab} onChange={onChange} onOpenDirect={openDirectMessage} /></section>}
         {mainTab === 'Calendar' && <CalendarOrdersView modelPath={modelPath} onSelectRoom={id => selectRoom({ id, name: id })} onOpenOrderModal={() => setOrderModalOpen(true)} />}
       </section>
       {selectedRoom && <aside className="workbench-room-card"><div className="workbench-room-title"><div><small>ROOM DETAILS</small><h2>{selectedRoom.name}</h2></div><button aria-label="Close room" onClick={() => selectRoom(null)}>×</button></div><nav className="workbench-tabs room-tabs">{roomTabs.map(tab => <button key={tab} className={roomTab === tab ? 'active' : ''} onClick={() => setRoomTab(tab as typeof roomTab)}>{tab}</button>)}</nav>
@@ -169,12 +176,12 @@ export default function CommunityPage({ collab, onChange, screenshot, onScreensh
           <p><b>Room</b><span>{selectedRoom.name}</span></p><label className="workbench-field"><b>Area m²</b><input type="number" min="0" step="0.1" placeholder="Not available" /></label><label className="workbench-field"><b>Status</b><select value={collab.status[selectedRoom.id]?.status || 'pending'} onChange={event => void setRoomStatus(selectedRoom.id, event.target.value as 'pending' | 'built' | 'missing_wall').then(onChange).catch(error => setFeedback(String(error)))}><option value="pending">Not started / pending</option><option value="built">Built</option><option value="missing_wall">Missing wall</option></select></label><div className="row" style={{ gap: '6px', marginTop: '8px' }}>{!isStreamlinedOwner && <button onClick={() => setRoomTab('Chat')}>Add note</button>}<button onClick={() => setOrderModalOpen(true)}>Order furniture</button></div></div>}
         {roomTab === 'Chat' && !isStreamlinedOwner && <RoomCollabPanel spaceId={selectedRoom.id} spaceName={selectedRoom.name} role="" collab={collab} onChange={onChange} onHighlightSpace={() => {}} />}
         {roomTab === 'Photos' && <RoomMediaPanel spaceId={selectedRoom.id} roomName={selectedRoom.name} />}
-        {roomTab === 'Schedule' && !isStreamlinedOwner && <WorkTimeline collab={collab} onChange={onChange} defaultRoomId={selectedRoom.id} />}
+        {roomTab === 'Schedule' && !isStreamlinedOwner && <WorkTimeline collab={collab} onChange={onChange} defaultRoomId={selectedRoom.id} onOpenDirect={openDirectMessage} />}
         {roomTab === 'Extras' && <RoomExtrasPanel spaceId={selectedRoom.id} spaceName={selectedRoom.name} userTrade={profile?.trade} userName={profile?.name} onBudgetChange={refreshBudget} />}
       </aside>}
     </div>
     {profileOpen && <div className="workbench-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setProfileOpen(false) }}><section className="workbench-dialog"><button className="workbench-dialog-close" onClick={() => setProfileOpen(false)}>×</button><h2>Your project identity</h2><p>Set your name and trade. Add contact details so teammates can reach you.</p><ContactRegistration compact onRegister={state => { onChange(state); setProfileOpen(false) }} /></section></div>}
-    {dmOpen && <><button className="workbench-drawer-shade" aria-label="Close private messages" onClick={() => setDmOpen(false)} /><aside className="workbench-drawer"><header><h2>Private messages</h2><button onClick={() => setDmOpen(false)}>×</button></header><DirectMessages collab={collab} onChange={onChange} /></aside></>}
+    {dmOpen && <><button className="workbench-drawer-shade" aria-label="Close private messages" onClick={() => setDmOpen(false)} /><aside className="workbench-drawer"><header><h2>Private messages</h2><button onClick={() => setDmOpen(false)}>×</button></header><DirectMessages collab={collab} onChange={onChange} initialRecipient={dmRecipient} /></aside></>}
     {screenshot && <section className="workbench-shot-inbox"><div><b>Screenshot ready · {screenshot.roomName}</b><img src={screenshot.dataUrl} alt="Screenshot ready to share" />{screenshot.note && <small>{screenshot.note}</small>}</div><div className="row"><select value={target} onChange={event => setTarget(event.target.value as 'room' | 'direct')}><option value="room">Room chat</option><option value="direct">Private chat</option></select>{target === 'room' ? <input aria-label="Screenshot room ID" value={roomId} onChange={event => setRoomId(event.target.value)} placeholder="Room ID" /> : <select value={recipient} onChange={event => setRecipient(event.target.value)}><option value="">Choose contact…</option>{(collab.people || []).filter(person => person.id !== currentPerson).map(person => <option key={person.id} value={person.id}>{person.name} · {person.trade}</option>)}</select>}<input value={message} onChange={event => setMessage(event.target.value)} placeholder="Add a note…" /><button disabled={target === 'room' ? !roomId : !recipient} onClick={sendScreenshot}>Send to chat</button></div>{feedback && <p>{feedback}</p>}</section>}
     {guideStep >= 0 && <aside className="project-guide"><button className="project-guide-close" aria-label="Dismiss guide" onClick={() => { localStorage.setItem('trace-project-guide-dismissed','1'); setGuideStep(-1) }}>×</button><small>FIRST VISIT · STEP {guideStep + 1} OF 3</small><h3>{['Choose a room','Review status and photos','Leave a note or book time'][guideStep]}</h3><p>{['Select a room from the 3D model or the floor plan.','The room card shows its status, conversation and attached photos.','Use Chat to leave an update or Schedule to reserve a work slot.'][guideStep]}</p><button className="primary" onClick={() => { if (guideStep === 0) setMainTab('3D'); if (guideStep === 1) setRoomTab('Photos'); if (guideStep === 2) setRoomTab('Chat'); if (guideStep < 2) setGuideStep(guideStep + 1); else { localStorage.setItem('trace-project-guide-dismissed','1'); setGuideStep(-1) } }}>{guideStep < 2 ? 'Next step' : 'Got it'}</button></aside>}
     {settingsOpen && <ProjectSettingsModal settings={projectSettings} onClose={() => setSettingsOpen(false)} onSave={s => setProjectSettings(s)} />}

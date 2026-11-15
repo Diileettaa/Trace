@@ -2,13 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { postDirect } from '../api'
 import type { CollabState } from '../types'
 
-export default function DirectMessages({ collab, onChange }: { collab: CollabState; onChange: (state: CollabState) => void }) {
+export default function DirectMessages({ collab, onChange, initialRecipient = '' }: { collab: CollabState; onChange: (state: CollabState) => void; initialRecipient?: string }) {
   const me = useMemo(() => { try { return JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') as { id: string } | null } catch { return null } }, [])
   const contacts = (collab.people || []).filter(p => p.id !== me?.id)
   const [recipient, setRecipient] = useState('')
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const section = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (initialRecipient) setRecipient(initialRecipient)
+  }, [initialRecipient])
   useEffect(() => {
     const open = (event: Event) => { setRecipient((event as CustomEvent<string>).detail); section.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
     window.addEventListener('trace-open-direct', open)
