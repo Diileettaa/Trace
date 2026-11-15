@@ -109,7 +109,24 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
       ? suppliedStoreyHeight
       : sourceHeights[Math.floor(sourceHeights.length / 2)] ?? 2.7
     const wallHeight = () => visualWallHeightM
-    return { focus, focusBounds, rooms, walls, openings, objects, systems, lift, wallHeight, visualWallHeightM }
+    // The IFC authoring axes are arbitrary.  A fixed isometric camera can look
+    // straight down a long building axis and collapse it into a thin vertical
+    // strip (the Tallinn Level 04 failure).  Choose the wider of the two
+    // canonical isometric yaws; source coordinates and evidence stay intact.
+    const planPoints: PlanPoint[] = [
+      ...rooms.flatMap((room) => room.polygon),
+      ...walls.flatMap((wall) => wall.points),
+      ...openings.map((opening) => [opening.position[0], opening.position[2]] as PlanPoint),
+      ...objects.map((object) => [object.position[0], object.position[2]] as PlanPoint),
+    ]
+    const projectedWidth = (yawDegrees: number) => {
+      if (!planPoints.length) return 0
+      const radians = yawDegrees * Math.PI / 180
+      const values = planPoints.map(([x, z]) => ((x * Math.cos(radians) - z * Math.sin(radians)) - (x * Math.sin(radians) + z * Math.cos(radians))) * COS30)
+      return Math.max(...values) - Math.min(...values)
+    }
+    const projectionYawDeg = projectedWidth(90) > projectedWidth(0) ? 90 : 0
+    return { focus, focusBounds, rooms, walls, openings, objects, systems, lift, wallHeight, visualWallHeightM, projectionYawDeg }
   }, [focusRoomId, scene, storeyId, visibleLayers])
 
   useEffect(() => {
@@ -133,10 +150,15 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const cx = (allBounds.minX + allBounds.maxX) / 2
     const cz = (allBounds.minZ + allBounds.maxZ) / 2
     const yCenter = (allBounds.minY + allBounds.maxY) / 2
-    const projected = (point: Point3) => [
-      (point[0] - cx - (point[2] - cz)) * COS30,
-      ((point[0] - cx + point[2] - cz) / 2) - (point[1] - yCenter),
-    ] as const
+    const yaw = drawing.projectionYawDeg * Math.PI / 180
+    const rotatePlan = (x: number, z: number) => {
+      const dx = x - cx; const dz = z - cz
+      return [dx * Math.cos(yaw) - dz * Math.sin(yaw), dx * Math.sin(yaw) + dz * Math.cos(yaw)] as const
+    }
+    const projected = (point: Point3) => {
+      const [x, z] = rotatePlan(point[0], point[2])
+      return [(x - z) * COS30, ((x + z) / 2) - (point[1] - yCenter)] as const
+    }
     const corners: Point3[] = [[allBounds.minX, allBounds.minY, allBounds.minZ], [allBounds.minX, allBounds.minY, allBounds.maxZ], [allBounds.maxX, allBounds.minY, allBounds.minZ], [allBounds.maxX, allBounds.maxY, allBounds.maxZ]]
     const raw = corners.map(projected)
     const rawWidth = Math.max(...raw.map(([x]) => x)) - Math.min(...raw.map(([x]) => x)) || 1
@@ -164,7 +186,10 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     // The grid is decorative; it must not sit above rooms and swallow their clicks.
     svg.insertBefore(element('rect', { x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: 'url(#iso-grid)', 'pointer-events': 'none' }), svg.children[2] ?? null)
 
-    const world = ([x, y, z]: Point3) => ({ right: x - cx, left: z - cz, top: y - yCenter })
+    const world = ([x, y, z]: Point3) => {
+      const [right, left] = rotatePlan(x, z)
+      return { right, left, top: y - yCenter }
+    }
     const screen = (point: Point3) => {
       const [x, y] = projected(point); return [WIDTH / 2 + x * scale, HEIGHT / 2 + y * scale] as const
     }

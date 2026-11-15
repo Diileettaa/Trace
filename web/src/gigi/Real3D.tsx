@@ -22,6 +22,8 @@ interface Props {
   /** A room selected from the 2D plan. It may be a plan number, not an IFC GUID. */
   focusRoomId?: string | null;
   onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void;
+  /** Keep the workspace LEVEL control in sync when Floor needs a real storey. */
+  onSelectStorey?: (id: string) => void;
   visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'furniture', boolean>>;
 }
 
@@ -43,16 +45,17 @@ const fixtureDescription = (fixture: FixtureVerification) => {
 
 export const Real3D: React.FC<Props> = ({
   mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
-  page = 1, storeyId, onStoreys, visibleLayers, onOpenSource, focusRoomId,
+  page = 1, storeyId, onStoreys, onSelectStorey, visibleLayers, onOpenSource, focusRoomId,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
+  const [roomFocusDismissed, setRoomFocusDismissed] = useState(false);
   const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
   const [geometryError, setGeometryError] = useState<string | null>(null);
   const [geometryLoading, setGeometryLoading] = useState(false);
   const announcedGeometryStoreys = useRef<string>('');
   // Keep a room selected while changing from the building tab to its floor view.
   // Only a new answer/fixture should clear the local room focus.
-  useEffect(() => { setPickedRoom(null); }, [fixture?.id]);
+  useEffect(() => { setPickedRoom(null); setRoomFocusDismissed(false); }, [fixture?.id, focusRoomId]);
   useEffect(() => {
     const source = model || plan;
     let active = true;
@@ -86,8 +89,17 @@ export const Real3D: React.FC<Props> = ({
     return head.slice(0, 8);
   })();
   const more = Math.max(0, (fixture?.roomCode ? siblingFixtures.filter((f) => f.roomCode === fixture.roomCode).length : siblingFixtures.length) - strip.length);
-  const requestedRoomId = focusRoomId || fixture?.spaceId || pickedRoom?.id || null;
+  const requestedRoomId = roomFocusDismissed ? null : (focusRoomId || fixture?.spaceId || pickedRoom?.id || null);
   const resolvedFocusRoomId = geometryScene ? resolveSceneRoom(geometryScene, requestedRoomId) : null;
+  const focusedStoreyId = resolvedFocusRoomId ? geometryScene?.rooms.find((room) => room.id === resolvedFocusRoomId)?.storeyId : null;
+  // A Floor is one actual storey, never the overlapping collection behind
+  // "Whole building".  Prefer the room's known storey; otherwise choose the
+  // first usable storey (not an unmodelled roof) and reflect that choice in
+  // the top-level LEVEL menu.
+  const floorStoreyId = storeyId || focusedStoreyId || geometryScene?.storeys.find((storey) => (storey.heightM ?? 0) >= 2)?.id || geometryScene?.storeys[0]?.id || null;
+  useEffect(() => {
+    if (mode === 'room' && !storeyId && floorStoreyId) onSelectStorey?.(floorStoreyId);
+  }, [floorStoreyId, mode, onSelectStorey, storeyId]);
   const roomFocusMissing = mode === 'room' && !!requestedRoomId && !resolvedFocusRoomId;
   const geometryIncomplete = geometryScene?.realism?.roomEdgeCoverageAfter !== undefined
     && geometryScene.realism.roomEdgeCoverageAfter < .95;
@@ -116,7 +128,7 @@ export const Real3D: React.FC<Props> = ({
           </div>
         </div>
         <span className="text-[11px] font-mono text-[#A9AFB0]">
-          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? (roomFocusMissing ? 'Room geometry is unavailable for this plan label' : mode === 'room' ? 'Measured 2.5D room · selected room' : 'Measured 2.5D geometry · click a room to inspect') : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
+          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? (roomFocusMissing ? 'Room geometry is unavailable for this plan label' : mode === 'room' ? `Measured 2.5D floor${floorStoreyId ? ' · selected level' : ''}${resolvedFocusRoomId ? ' · focused room' : ''}` : 'Measured 2.5D building · click a room to inspect') : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
         </span>
         {geometryIncomplete && <span className="text-[11px] font-mono text-amber-300">Geometry incomplete</span>}
       </div>
@@ -153,10 +165,10 @@ export const Real3D: React.FC<Props> = ({
             </div>
           ) : geometryScene ? (
             <IsoSceneSvg scene={geometryScene} onSelectObject={onSelectSibling}
-              onSelectRoom={(room) => { setPickedRoom(room); onSwitchMode('room'); }}
+              onSelectRoom={(room) => { setRoomFocusDismissed(false); setPickedRoom(room); onSwitchMode('room'); }}
               onSelectSource={onOpenSource}
-              onBackToFloor={() => { setPickedRoom(null); onSwitchMode('building'); }}
-              storeyId={mode === 'building' ? null : storeyId} visibleLayers={visibleLayers}
+              onBackToFloor={() => { setRoomFocusDismissed(true); setPickedRoom(null); }}
+              storeyId={mode === 'building' ? null : floorStoreyId} visibleLayers={visibleLayers}
               focusRoomId={mode === 'room' ? resolvedFocusRoomId : null} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-8">

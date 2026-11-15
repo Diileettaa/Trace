@@ -716,6 +716,7 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
               onAsk={(q) => void runPromptInCurrentChat(q)}
               onOpenSource={(source) => { setEvidenceSource(source); setAskPath(source.file); setSheetPage(source.page ?? 1); setViewMode('2d'); }}
               storeyId={storeyId} onStoreys={(list) => setStoreys([...list].sort((a, b) => b.elevation - a.elevation))}
+              onSelectStorey={(id) => setStoreyId(id)}
               visibleLayers={{ architecture: activeLayers.architecture, sanitary: activeLayers.sanitary, hvac: activeLayers.hvac, electrical: activeLayers.electrical, furniture: activeLayers.furniture }} />
           )}
         </div>
