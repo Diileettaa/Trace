@@ -16,7 +16,15 @@ ROOT = os.path.join(os.environ.get("JUNCTION_CACHE", os.path.expanduser("~/.cach
 def _p(*a):
     os.makedirs(ROOT, exist_ok=True); return os.path.join(ROOT, *a)
 
-def _save(a): json.dump(a, open(_p(f"{a['answer_id']}.json"), "w"), ensure_ascii=False)
+def _jsonable(o):
+    """numpy scalars / arrays -> plain numbers / lists (never strings); anything else -> str."""
+    if hasattr(o, "item") and getattr(o, "ndim", 1) == 0: return o.item()
+    if hasattr(o, "tolist"): return o.tolist()
+    if isinstance(o, (set, tuple)): return list(o)
+    return str(o)
+
+def _save(a):
+    with open(_p(f"{a['answer_id']}.json"), "w") as f: json.dump(a, f, ensure_ascii=False, default=_jsonable)
 
 def get(answer_id):
     p = _p(f"{answer_id}.json")

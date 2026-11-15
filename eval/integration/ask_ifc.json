@@ -151,10 +151,10 @@
    ],
    "source": "ifc_models"
   },
-  "answer_id": "89115caeaadf",
+  "answer_id": "c63a58f7f6b9",
   "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
   "question": "How many doors are in this model?",
-  "created": 1794708453.4571548,
+  "created": 1794709697.742464,
   "model_value": 14,
   "alternatives": [],
   "review": {
@@ -168,6 +168,6 @@
    "can_add": true,
    "can_measure": true
   },
-  "evidence_url": "/evidence?answer_id=89115caeaadf"
+  "evidence_url": "/evidence?answer_id=c63a58f7f6b9"
  }
 }

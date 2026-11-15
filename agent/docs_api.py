@@ -31,8 +31,14 @@ from . import mail_ingest, docs_tools
 
 MAX_BODY = int(os.environ.get("DOCS_MAX_BYTES", 200 * 1024 * 1024)) + 1024 * 1024
 
+def _jsonable(o):
+    if hasattr(o, "item") and getattr(o, "ndim", 1) == 0: return o.item()
+    if hasattr(o, "tolist"): return o.tolist()
+    if isinstance(o, (set, tuple)): return list(o)
+    return str(o)
+
 def _j(status, obj):
-    return status, {"Content-Type": "application/json; charset=utf-8"}, json.dumps(obj, ensure_ascii=False, default=str).encode()
+    return status, {"Content-Type": "application/json; charset=utf-8"}, json.dumps(obj, ensure_ascii=False, default=_jsonable).encode()
 
 def _authorised(headers):
     tok = os.environ.get("DOCS_TOKEN")

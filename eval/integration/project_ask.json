@@ -11,9 +11,53 @@
  "status": 200,
  "response": {
   "value": null,
-  "method": "project:needs_model",
+  "unit": "count",
+  "items": [
+   {
+    "sheet": 2,
+    "building": "Xcel Sports Complex",
+    "level": 1,
+    "sheet_no": "A-101",
+    "title": "First Floor Plan",
+    "question": "How many doors are shown on the first floor plan?",
+    "value": null,
+    "unit": "count",
+    "method": "sheet:scanned+scan:vlm",
+    "answer_id": "9311f2af3cc0",
+    "warnings": [
+     "not shown on this drawing"
+    ],
+    "id": 0
+   }
+  ],
+  "method": "project:single",
   "warnings": [
-   "set GEMINI_API_KEY"
-  ]
+   "some sheets carry warnings; open them to review"
+  ],
+  "evidence": {
+   "rule": "Only the first floor plan sheet is needed to count the doors on the first floor.",
+   "sheets_used": [
+    2
+   ]
+  },
+  "confidence": "none",
+  "confidence_reason": "lowest confidence of the 1 sheet answer(s) combined",
+  "answer_id": "427b1771d223",
+  "file": "project:xsc",
+  "question": "How many doors are on the first floor?",
+  "created": 1794709747.1891258,
+  "model_value": null,
+  "alternatives": [],
+  "review": {
+   "removed": [],
+   "added": [],
+   "chosen": null,
+   "by": null
+  },
+  "interactive": {
+   "can_remove": true,
+   "can_add": true,
+   "can_measure": true
+  }
  }
 }

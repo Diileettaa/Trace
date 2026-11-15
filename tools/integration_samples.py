@@ -10,6 +10,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ap = argparse.ArgumentParser(); ap.add_argument("--dataset", default=os.environ.get("JUNCTION_DATA", os.path.expanduser("~/work/junction-dataset")))
 a = ap.parse_args()
 os.environ["JUNCTION_DATA"] = os.path.abspath(a.dataset)
+if not os.environ.get("GEMINI_API_KEY", "").strip():
+    import getpass
+    k = getpass.getpass("GEMINI_API_KEY not set. Paste key (hidden, Enter to skip): ").strip()
+    if k: os.environ["GEMINI_API_KEY"] = k
+print("vision model:", "ON" if os.environ.get("GEMINI_API_KEY") else "OFF (PDF/scan/project samples will be null)")
 UP = os.environ.setdefault("JUNCTION_UPLOADS", os.path.join(ROOT, "eval", "integration", "_uploads"))
 os.makedirs(UP, exist_ok=True)
 from agent import docs_api as API, docs_store
