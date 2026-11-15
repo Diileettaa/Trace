@@ -68,6 +68,20 @@ def render(a, zoom_margin=0.08):
         items = [{"id": i, "label": f"{b.get('number') or ''} {b.get('name') or ''}: {b.get('area_m2')} m2".strip(),
                   "png_polygon": b.get("png_polygon"), "pdf_polygon_pt": b.get("pdf_polygon_pt"), "_state": "item"}
                  for i, b in enumerate(bd)]
+    if items and str(path).lower().endswith(".pdf") and all(it.get("cells") and not any(k in it for k in ("box", "box_norm1000", "polygon")) for it in items):
+        # schedule answers: find each cited row on the sheet by its first cell, and outline the whole row
+        try:
+            from . import sheet
+            f = sheet.load(path, page - 1); L = f.get("lines", []); used = set()
+            for it in items:
+                key = next((str(c).strip() for c in it["cells"] if str(c).strip()), "")
+                hit = next((j for j, l in enumerate(L) if j not in used and l["t"].strip().split(" ")[0] == key), None)
+                if hit is None: continue
+                used.add(hit); b = L[hit]["box"]; yc = (b[1] + b[3]) / 2; hgt = b[3] - b[1]
+                row = [l["box"] for l in L if abs((l["box"][1] + l["box"][3]) / 2 - yc) < 0.6 * hgt and b[0] - 2 <= l["box"][0] <= b[0] + 600]
+                it["box"] = [min(r[0] for r in row), min(r[1] for r in row), max(r[2] for r in row), max(r[3] for r in row)]
+                it.setdefault("label", key)
+        except Exception as e: out["warnings"].append(f"schedule rows not located: {e!r}"[:120])
     cite = (a.get("evidence") or {}).get("cite")
     if not items and cite and str(path).lower().endswith(".pdf"):
         # values read from text (lookups, dimension strings): mark the cited text / dimensions on the sheet
@@ -141,7 +155,7 @@ def render(a, zoom_margin=0.08):
         m = zoom_margin * max(W, H) * 0.5
         crop = canvas.crop([max(0, x0 - m), max(head, y0 + head - m), min(W, x1 + m), min(H + head, y1 + head + m)])
         bio = io.BytesIO(); crop.save(bio, "PNG"); out["zoom_png"] = bio.getvalue()
-    else: out["warnings"].append("this answer has no located items (a value read from text or a table): see evidence.cite / rule")
+    if not boxes: out["warnings"].append("this answer has no located items (a value read from text or a table): see evidence.cite / rule")
     return out
 
 
@@ -172,8 +186,13 @@ def _zoom_pdf(path, page, items, size_units, boxes_px, s, header, target=1600):
         elif g[0] == "box":
             (a0, b0), (a1, b1) = T(*g[1][:2]), T(*g[1][2:])
             c = COL.get(it.get("_state", "item"), COL["item"])
-            d.rectangle([a0 - 3, b0 - 3, a1 + 3, b1 + 3], outline=c + (255,), width=4, fill=c + (35,))
-            d.text((a0, b0 - f.size - 6), str(it.get("label") or it.get("id", n)), fill=c, font=f)
+            if b1 - b0 < 1.6 * f.size:                  # thin boxes (table rows): thin outline, running number to the right
+                d.rectangle([a0 - 2, b0 - 1, a1 + 2, b1 + 1], outline=c + (255,), width=2, fill=c + (30,))
+                fs = _font(max(10, int((b1 - b0) * 0.8)))
+                d.text((a1 + 6, b0), str(n), fill=c, font=fs)
+            else:
+                d.rectangle([a0 - 3, b0 - 3, a1 + 3, b1 + 3], outline=c + (255,), width=4, fill=c + (35,))
+                d.text((a0, b0 - f.size - 6), str(it.get("label") or it.get("id", n)), fill=c, font=f)
         else:
             P = [T(*q) for q in g[1]]; d.polygon(P, outline=COL["poly"] + (255,), fill=COL["poly"] + (30,))
     hh = int(header.size[1] * im.size[0] / header.size[0]) if header.size[0] > im.size[0] else header.size[1]
