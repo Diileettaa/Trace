@@ -915,6 +915,19 @@ async def review_api(request: Request, rest: str = ""):
     return Response(content=data, status_code=status, headers=headers)
 
 
+@app.get("/geometry/scene", include_in_schema=False)
+async def geometry_scene(request: Request):
+    """2.5D scene (walls, openings, rooms by storey) from Xinran's engine: IFC, vector PDF or scan (docs_api /scene)."""
+    from fastapi import Response
+    from starlette.concurrency import run_in_threadpool
+
+    from . import docs_api
+
+    status, headers, data = await run_in_threadpool(docs_api.handle, "GET", "/scene", request.url.query,
+                                                    dict(request.headers), b"")
+    return Response(content=data, status_code=status, headers=headers)
+
+
 @app.get("/room/walls")
 def room_walls_get(path: str = "", space_id: str = ""):
     """Walls bounding one IfcSpace (Xinran's engine.ifc.room_walls; sizes from the model's quantities, never estimated)."""
