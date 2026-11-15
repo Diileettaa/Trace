@@ -89,6 +89,17 @@ export const RealPlan: React.FC<Props> = ({
       return `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`;
     }
     const z = ZOOM[scale];
+    if (z === 1 && targetFixtures.length) {
+      // ours: overview = all answer marks framed with a margin, so they are big enough to see at once
+      const xs0 = targetFixtures.map((f) => f.position!.x), ys0 = targetFixtures.map((f) => f.position!.y);
+      const xs1 = targetFixtures.map((f) => f.position!.x + f.position!.w), ys1 = targetFixtures.map((f) => f.position!.y + f.position!.h);
+      const bx0 = Math.min(...xs0), by0 = Math.min(...ys0), bx1 = Math.max(...xs1), by1 = Math.max(...ys1);
+      let w = Math.max((bx1 - bx0) * 1.5, W * 0.4), h = Math.max((by1 - by0) * 1.5, H * 0.4);
+      const ar = W / H; if (w / h > ar) h = w / ar; else w = h * ar;
+      w = Math.min(w, W); h = Math.min(h, H);
+      const x = Math.min(Math.max((bx0 + bx1) / 2 - w / 2, 0), W - w), y = Math.min(Math.max((by0 + by1) / 2 - h / 2, 0), H - h);
+      return `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`;
+    }
     if (z === 1) return `0 0 ${W} ${H}`;
     const sel = selectedFixtureId ? fixtures[selectedFixtureId]?.position : null;
     const room = scenario?.roomHighlight;
@@ -208,6 +219,19 @@ export const RealPlan: React.FC<Props> = ({
           </g>
         )}
 
+        {/* ours: dim the sheet around the answer so the marks stand out (holes cut at every mark) */}
+        {targetFixtures.length > 0 && size && (
+          <g pointerEvents="none">
+            <defs>
+              <mask id="trace-answer-mask">
+                <rect x={0} y={0} width={size[0]} height={size[1]} fill="white" />
+                {targetFixtures.map((f) => { const q = f.position!; const m = 14 * k;
+                  return <rect key={`m-${f.id}`} x={q.x - m} y={q.y - m} width={q.w + 2 * m} height={q.h + 2 * m} rx={6 * k} fill="black" />; })}
+              </mask>
+            </defs>
+            <rect x={0} y={0} width={size[0]} height={size[1]} fill="#202427" fillOpacity={0.32} mask="url(#trace-answer-mask)" />
+          </g>
+        )}
         {/* target fixtures: amber if verified, RED if not (Gigi's rule) */}
         <g>
           {targetFixtures.map((fixture, idx) => {
@@ -220,19 +244,25 @@ export const RealPlan: React.FC<Props> = ({
             const notChecked = st === 'Not checked';
             const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
             const fillColor = isUnverified ? '#EF4444' : notChecked ? '#A9AFB0' : st === 'Installed' ? '#E9B949' : '#F3D58A';
-            const strokeColor = isUnverified ? '#B91C1C' : notChecked ? '#6B7376' : '#C98A12';
+            const strokeColor = isUnverified ? '#B91C1C' : '#C98A12';  // ours: every answer mark gets a strong outline
             const tagTextColor = isUnverified ? '#FCA5A5' : notChecked ? '#E8E6DF' : '#E9B949';
-            const pad = 6 * k;
+            const pad = 10 * k;
             return (
               <g key={fixture.id} onClick={() => (tool === 'fix' ? onToggleRemove?.(fixture.id) : onSelectFixtureFor3D(fixture.id))}
                 opacity={removed?.has(fixture.id) ? 0.25 : 1}
                 onMouseEnter={() => handleMouseEnterFixture(fixture.id)} onMouseLeave={handleMouseLeaveFixture}
                 className="cursor-pointer" role="button" tabIndex={0} aria-label={`Inspect ${fixture.label} in 3D`}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectFixtureFor3D(fixture.id); } }}>
+                <rect x={p.x - pad - 5 * k} y={p.y - pad - 5 * k} width={p.w + 2 * pad + 10 * k} height={p.h + 2 * pad + 10 * k} rx={6 * k}
+                  fill="none" stroke={isUnverified ? '#EF4444' : '#E9B949'} strokeOpacity={0.45} strokeWidth={6 * k}>
+                  <animate attributeName="stroke-opacity" values="0.15;0.6;0.15" dur="1.8s" repeatCount="indefinite" />
+                </rect>
                 <rect x={p.x - pad} y={p.y - pad} width={p.w + 2 * pad} height={p.h + 2 * pad} rx={3 * k}
-                  fill={fillColor} fillOpacity={isSelected || isHovered ? 0.58 : notChecked ? 0.18 : 0.4} stroke={strokeColor}
-                  strokeWidth={(isSelected ? 2.5 : 2) * k} strokeDasharray={`${5 * k} ${3 * k}`} />
-                <circle cx={cx} cy={cy} r={4.2 * k} fill={strokeColor} stroke="#FCFCF9" strokeWidth={1.2 * k} />
+                  fill={fillColor} fillOpacity={isSelected || isHovered ? 0.6 : notChecked ? 0.28 : 0.42} stroke={strokeColor}
+                  strokeWidth={(isSelected ? 3.6 : 3) * k} />
+                <circle cx={p.x - pad} cy={p.y - pad} r={11 * k} fill={strokeColor} stroke="#FCFCF9" strokeWidth={1.6 * k} />
+                <text x={p.x - pad} y={p.y - pad + 4 * k} textAnchor="middle" fill="#FFFFFF" fontSize={11.5 * k} fontWeight="700"
+                  fontFamily="DM Sans, sans-serif">{idx + 1}</text>
                 {idx === 0 && (
                   <g>
                     <polyline points={`${cx},${cy} ${cx + 38 * k},${cy - 34 * k} ${cx + 96 * k},${cy - 34 * k}`}
@@ -244,9 +274,9 @@ export const RealPlan: React.FC<Props> = ({
                   </g>
                 )}
                 <rect x={p.x - 5 * k} y={p.y + p.h + 8 * k} width={Math.max(p.w + 16 * k, fixture.code.length * 4.2 * k + 8 * k)}
-                  height={12 * k} rx={2.5 * k} fill={isUnverified ? '#7F1D1D' : notChecked ? '#555C60' : '#202427'} />
+                  height={14 * k} rx={2.5 * k} fill={isUnverified ? '#7F1D1D' : '#202427'} />
                 <text x={p.x - 5 * k + Math.max(p.w + 16 * k, fixture.code.length * 4.2 * k + 8 * k) / 2}
-                  y={p.y + p.h + 16.5 * k} textAnchor="middle" fill={tagTextColor} fontSize={5.8 * k} fontWeight="600"
+                  y={p.y + p.h + 18 * k} textAnchor="middle" fill={tagTextColor} fontSize={7 * k} fontWeight="700"
                   fontFamily="IBM Plex Mono, monospace">{fixture.code}</text>
               </g>
             );
