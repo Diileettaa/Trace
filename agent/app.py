@@ -925,7 +925,43 @@ async def geometry_scene(request: Request):
 
     status, headers, data = await run_in_threadpool(docs_api.handle, "GET", "/scene", request.url.query,
                                                     dict(request.headers), b"")
+    if status == 200:
+        try:
+            data = json.dumps(_one_height_datum(json.loads(data)), ensure_ascii=False).encode()
+            headers = {k: v for k, v in headers.items() if k.lower() != "content-length"}
+        except Exception:  # never lose the scene over the fix-up
+            pass
     return Response(content=data, status_code=status, headers=headers)
+
+
+def _one_height_datum(scene: dict) -> dict:
+    """Some IFC models put walls/openings at absolute heights (site datum, e.g. +14.3 m in Tallinn) while storeys and
+    rooms are relative. Shift walls, openings, objects and label points by the median offset so floors and walls meet."""
+    import statistics
+
+    elev = {st.get("id"): st.get("elevation_m") for st in scene.get("storeys") or []}
+    offs = [w["base_y_m"] - elev[w.get("storey_id")] for w in scene.get("walls") or []
+            if w.get("base_y_m") is not None and elev.get(w.get("storey_id")) is not None]
+    if len(offs) < 5:
+        return scene
+    off = statistics.median(offs)
+    if abs(off) < 1.0:
+        return scene
+    for w in scene.get("walls") or []:
+        if w.get("base_y_m") is not None:
+            w["base_y_m"] = round(w["base_y_m"] - off, 4)
+    for o in (scene.get("openings") or []) + (scene.get("objects") or []):
+        if isinstance(o.get("position"), list) and len(o["position"]) == 3:
+            o["position"][1] = round(o["position"][1] - off, 4)
+        for k in ("sill_y_m", "base_y_m"):
+            if o.get(k) is not None:
+                o[k] = round(o[k] - off, 4)
+    for r in scene.get("rooms") or []:
+        lp = r.get("label_point")
+        if isinstance(lp, list) and len(lp) == 3 and abs(lp[1] - (r.get("floor_y_m") or 0) - off) < 1.0:
+            lp[1] = round(lp[1] - off, 4)
+    scene.setdefault("warnings", []).append(f"heights shifted by {-off:+.2f} m so walls stand on their storey (model mixes site datum and storey elevations)")
+    return scene
 
 
 @app.get("/room/walls")
