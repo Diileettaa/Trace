@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 
+import functools
 import json
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -923,7 +924,11 @@ async def geometry_scene(request: Request):
 
     from . import docs_api
 
-    status, headers, data = await run_in_threadpool(docs_api.handle, "GET", "/scene", request.url.query,
+    query = await run_in_threadpool(_scene_query, request.url.query)
+    hit = _SCENE_CACHE.get(query)
+    if hit:
+        return Response(content=hit[2], status_code=hit[0], headers=hit[1])
+    status, headers, data = await run_in_threadpool(docs_api.handle, "GET", "/scene", query,
                                                     dict(request.headers), b"")
     if status == 200:
         try:
@@ -931,7 +936,46 @@ async def geometry_scene(request: Request):
             headers = {k: v for k, v in headers.items() if k.lower() != "content-length"}
         except Exception:  # never lose the scene over the fix-up
             pass
+        _SCENE_CACHE[query] = (status, headers, data)
     return Response(content=data, status_code=status, headers=headers)
+
+
+_SCENE_CACHE: dict[str, tuple] = {}
+
+
+@functools.lru_cache(maxsize=256)
+def _scene_query(query: str) -> str:
+    """A floor plan rendered from an IFC model (ifc_models/<model>_plan-04-4-korrus.pdf) is shown from the model's
+    walls/doors/rooms of THAT storey only: exact, and much faster than the whole building or the sheet's vectors."""
+    from urllib.parse import parse_qsl, urlencode
+
+    q = dict(parse_qsl(query, keep_blank_values=True))
+    path = q.get("path", "")
+    m = re.match(r"(.+)_plan-\d+-(.+)\.pdf$", path)
+    if not m or q.get("kind") == "scan":
+        return query
+    ifc_rel = m.group(1) + ".ifc"
+    try:
+        ifc_file = drawings.resolve(ifc_rel)
+    except Exception:
+        return query
+    want = re.sub(r"[^0-9a-z]", "", m.group(2).lower())
+    storey = None
+    try:
+        from engine import ifc_geom
+
+        for st in ifc_geom.storeys(str(ifc_file)) or []:
+            name = str(st.get("name") or "")
+            if re.sub(r"[^0-9a-z]", "", name.lower()) == want:
+                storey = name
+                break
+    except Exception:
+        storey = None
+    if not storey:
+        return query
+    q.update({"path": ifc_rel, "storey": storey})
+    q.pop("page", None)
+    return urlencode(q)
 
 
 def _one_height_datum(scene: dict) -> dict:

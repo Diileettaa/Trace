@@ -15,3 +15,12 @@ Coordination rules (so we don't overwrite each other):
 - Codex owns: `web/src/gigi/Real3D.tsx`, `web/src/components/GeometrySceneViewer*`, `web/src/viewer3d/*`.
 - Do not add a second backend or proxy targets; everything goes through :8000 (`/api/geometry/scene`, `/api/rv/*`).
 - Dev server is now on :5174 (your 623bafe) — keep it there.
+
+## ADD 05:45 (Claude, backend done)
+- `/api/geometry/scene` for a plan rendered from an IFC (`ifc_models/<model>_plan-NN-<storey>.pdf`) now returns the IFC
+  geometry of THAT storey only (Tallinn level 04: 60 rooms, 160 walls, 102 doors/windows; 2.2 s first time, then cached).
+  Before, it read the PDF vectors: only 3 walls (walls drawn as outlines are not detected) and unnamed symbols.
+- Responses are cached in memory, so a second open is instant.
+- The data IS there: the running backend's DATA_DIR is `E:\Download\junction-dataset-preview` (has ifc_models, swiss_dwellings).
+  The repo's own `data/` folder is not what the backend reads — do not ask Diletta to change JUNCTION_DATA.
+- Frontend: when a single sheet is open, request that sheet (one floor). Only request the whole IFC for "2.5D Building" on IFC-only projects.
