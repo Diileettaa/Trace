@@ -1,0 +1,2592 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/api/geometry/scene",
+  "query": "path=data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc&room=Bathroom%201&space_model=data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+  "body": null
+ },
+ "status": 200,
+ "response": {
+  "project_id": "bsc-duplex_duplex-a-20110907",
+  "source_kind": "ifc",
+  "unit": "m",
+  "coordinate_system": "web-ifc world, no COORDINATE_TO_ORIGIN: X = x_ifc (right/east), Y = z_ifc (up), Z = -y_ifc; plan [X, Z]",
+  "plan_up_vector": [
+   0,
+   -1
+  ],
+  "north_vector": [
+   0.0,
+   -1.0
+  ],
+  "north_basis": "project_north",
+  "true_north_deg": 0.0,
+  "rotation_convention": "rotation_deg about +Y, three.js: local +X -> (cos r, 0, -sin r); footprint width along local +X, depth along front_vector = local +Y in [X, Z]. Which side is the user side of a family is not stated by IFC: place icons by rotation + footprint, treat front_vector as a hint",
+  "quality": "measured",
+  "warnings": [
+   "some walls carry no base quantities (length / width / height): left empty",
+   "the model states no true north: north_vector = plan-up (project north), not confirmed"
+  ],
+  "sources": [
+   {
+    "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+    "page": null
+   },
+   {
+    "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+    "page": null
+   }
+  ],
+  "storeys": [
+   {
+    "guid": "1xS3BCk291UvhgP2dvNMKI",
+    "name": "Level 1",
+    "elevation_m": 0.0,
+    "height_m": 3.1,
+    "bbox": [
+     [
+      0.417,
+      0.0,
+      0.417
+     ],
+     [
+      8.383,
+      3.1,
+      17.383
+     ]
+    ],
+    "space_count": 10,
+    "outline": [
+     [
+      0.417,
+      9.725
+     ],
+     [
+      2.45,
+      6.805
+     ],
+     [
+      2.574,
+      6.805
+     ],
+     [
+      4.03,
+      7.43
+     ],
+     [
+      4.182,
+      7.582
+     ],
+     [
+      4.618,
+      9.725
+     ],
+     [
+      4.618,
+      10.275
+     ],
+     [
+      0.417,
+      10.275
+     ]
+    ],
+    "outline_from": "convex hull of the storey's walls",
+    "id": "1xS3BCk291UvhgP2dvNMKI",
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "1xS3BCk291UvhgP2dvNMKI"
+    },
+    "method": "ifc:geometry",
+    "confidence": 1.0,
+    "assumed": false
+   }
+  ],
+  "rooms": [
+   {
+    "id": "0BTBFw6f90Nfh9rP1dl_3P",
+    "guid": "0BTBFw6f90Nfh9rP1dl_3P",
+    "name": "Bathroom 1",
+    "number": "B104",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "polygon": [
+     [
+      4.03,
+      9.725
+     ],
+     [
+      4.03,
+      7.554
+     ],
+     [
+      2.574,
+      7.554
+     ],
+     [
+      2.574,
+      9.725
+     ]
+    ],
+    "outline": "profile",
+    "floor_y_m": 0.0,
+    "height_m": 2.587,
+    "area_m2": 3.161,
+    "label_point": [
+     3.302,
+     0.063,
+     8.9651
+    ],
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "0BTBFw6f90Nfh9rP1dl_3P"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   }
+  ],
+  "walls": [
+   {
+    "id": "2O2Fr$t4X7Zf8NOew3FNau",
+    "guid": "2O2Fr$t4X7Zf8NOew3FNau",
+    "name": "Basic Wall:Interior - Partition (92mm Stud):139143",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "points": [
+     [
+      2.512,
+      6.805
+     ],
+     [
+      2.512,
+      9.725
+     ]
+    ],
+    "thickness_m": 0.124,
+    "length_m": 2.92,
+    "base_y_m": 0.0,
+    "height_m": 2.795,
+    "footprint": [
+     [
+      2.45,
+      9.725
+     ],
+     [
+      2.574,
+      9.725
+     ],
+     [
+      2.574,
+      6.805
+     ],
+     [
+      2.45,
+      6.805
+     ]
+    ],
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "2O2Fr$t4X7Zf8NOew3FNau"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2O2Fr$t4X7Zf8NOew3FKRi",
+    "guid": "2O2Fr$t4X7Zf8NOew3FKRi",
+    "name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139347",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "points": [
+     [
+      0.417,
+      10.0
+     ],
+     [
+      4.618,
+      10.0
+     ]
+    ],
+    "thickness_m": 0.55,
+    "length_m": 4.201,
+    "base_y_m": 0.0,
+    "height_m": 2.795,
+    "footprint": [
+     [
+      0.417,
+      10.275
+     ],
+     [
+      4.618,
+      10.275
+     ],
+     [
+      4.618,
+      9.725
+     ],
+     [
+      0.417,
+      9.725
+     ]
+    ],
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "2O2Fr$t4X7Zf8NOew3FKRi"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "0iEHWY1$XA8eQeeULq4j_U",
+    "guid": "0iEHWY1$XA8eQeeULq4j_U",
+    "name": "Basic Wall:Interior - Furring (152 mm Stud):189901",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "points": [
+     [
+      4.106,
+      9.725
+     ],
+     [
+      4.106,
+      7.582
+     ]
+    ],
+    "thickness_m": 0.152,
+    "length_m": 2.143,
+    "base_y_m": 0.0,
+    "height_m": 3.1,
+    "footprint": [
+     [
+      4.03,
+      9.725
+     ],
+     [
+      4.182,
+      9.725
+     ],
+     [
+      4.182,
+      7.582
+     ],
+     [
+      4.03,
+      7.582
+     ]
+    ],
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "0iEHWY1$XA8eQeeULq4j_U"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "0iEHWY1$XA8eQeeULq4jpl",
+    "guid": "0iEHWY1$XA8eQeeULq4jpl",
+    "name": "Basic Wall:Interior - Partition (92mm Stud):190140",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "points": [
+     [
+      4.03,
+      7.492
+     ],
+     [
+      2.574,
+      7.492
+     ]
+    ],
+    "thickness_m": 0.124,
+    "length_m": 1.456,
+    "base_y_m": 0.0,
+    "height_m": 2.795,
+    "footprint": [
+     [
+      2.574,
+      7.554
+     ],
+     [
+      4.03,
+      7.554
+     ],
+     [
+      4.03,
+      7.43
+     ],
+     [
+      2.574,
+      7.43
+     ]
+    ],
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "0iEHWY1$XA8eQeeULq4jpl"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   }
+  ],
+  "openings": [
+   {
+    "id": "1hOSvn6df7F8_7GcBWlS9F",
+    "guid": "1hOSvn6df7F8_7GcBWlS9F",
+    "kind": "door",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:150257",
+    "wall_id": "2O2Fr$t4X7Zf8NOew3FNau",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "position": [
+     2.512,
+     0.0,
+     8.13
+    ],
+    "rotation_deg": 270.0,
+    "front_vector": [
+     1.0,
+     -0.0
+    ],
+    "width_m": 0.762,
+    "height_m": 2.032,
+    "sill_y_m": 0.0,
+    "depth_m": 0.174,
+    "size_from": "IfcDoor/IfcWindow OverallWidth/OverallHeight",
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+     "page": null,
+     "guid": "1hOSvn6df7F8_7GcBWlS9F"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   }
+  ],
+  "objects": [
+   {
+    "id": "2h405XijT83A$BX7w5ki4p",
+    "guid": "2h405XijT83A$BX7w5ki4p",
+    "category": "shower",
+    "name": "M_Shower Stall - Rectangular:865 mmx815 mm - Private:865 mmx815 mm - Private:582917",
+    "ifc_class": "IFCFLOWTERMINAL",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "room_id": "0BTBFw6f90Nfh9rP1dl_3P",
+    "room_method": "point-in-polygon",
+    "position": [
+     3.5975,
+     0.0,
+     9.3175
+    ],
+    "rotation_deg": 180.0,
+    "front_vector": [
+     -0.0,
+     1.0
+    ],
+    "footprint": {
+     "width_m": 0.865,
+     "depth_m": 0.815,
+     "note": "width along local +X (rotation_deg), depth along front_vector"
+    },
+    "height_m": 1.829,
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4p"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki4m",
+    "guid": "2h405XijT83A$BX7w5ki4m",
+    "category": "toilet",
+    "name": "M_Water Closet - Flush Tank:Private - 6.1 Lpf:Private - 6.1 Lpf:582918",
+    "ifc_class": "IFCFLOWTERMINAL",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "room_id": "0BTBFw6f90Nfh9rP1dl_3P",
+    "room_method": "point-in-polygon",
+    "position": [
+     3.6585,
+     0.0,
+     8.0039
+    ],
+    "rotation_deg": 180.0,
+    "front_vector": [
+     -0.0,
+     1.0
+    ],
+    "footprint": {
+     "width_m": 0.743,
+     "depth_m": 0.456,
+     "note": "width along local +X (rotation_deg), depth along front_vector"
+    },
+    "height_m": 0.768,
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4m"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki4n",
+    "guid": "2h405XijT83A$BX7w5ki4n",
+    "category": "sink",
+    "name": "M_Lavatory - Oval:535 mmx485 mm - Private:535 mmx485 mm - Private:582919",
+    "ifc_class": "IFCFLOWTERMINAL",
+    "storey_id": "1xS3BCk291UvhgP2dvNMKI",
+    "room_id": "0BTBFw6f90Nfh9rP1dl_3P",
+    "room_method": "point-in-polygon",
+    "position": [
+     3.7875,
+     0.713,
+     8.6425
+    ],
+    "rotation_deg": 270.0,
+    "front_vector": [
+     -1.0,
+     0.0
+    ],
+    "footprint": {
+     "width_m": 0.535,
+     "depth_m": 0.485,
+     "note": "width along local +X (rotation_deg), depth along front_vector"
+    },
+    "height_m": 0.152,
+    "confidence": 1.0,
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4n"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   }
+  ],
+  "systems": [
+   {
+    "id": "2h405XijT83A$BX7w5ki4g",
+    "guid": "2h405XijT83A$BX7w5ki4g",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.6173,
+      -0.0,
+      8.004
+     ],
+     [
+      3.6656,
+      -0.532,
+      8.004
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4g"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki4N",
+    "guid": "2h405XijT83A$BX7w5ki4N",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.8311,
+      0.713,
+      8.6425
+     ],
+     [
+      3.8733,
+      -0.5574,
+      8.6425
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4N"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki4H",
+    "guid": "2h405XijT83A$BX7w5ki4H",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.5673,
+      -0.0,
+      9.3175
+     ],
+     [
+      3.6277,
+      -0.5513,
+      9.3175
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4H"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki4O",
+    "guid": "2h405XijT83A$BX7w5ki4O",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0662,
+      -0.4091,
+      7.5606
+     ],
+     [
+      4.1145,
+      -0.41,
+      7.7528
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki4O"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki46",
+    "guid": "2h405XijT83A$BX7w5ki46",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1145,
+      -0.4627,
+      7.8052
+     ],
+     [
+      4.0662,
+      -0.5313,
+      7.8052
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki46"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki41",
+    "guid": "2h405XijT83A$BX7w5ki41",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      5.8134,
+      -0.4002,
+      7.4904
+     ],
+     [
+      4.1364,
+      -0.4086,
+      7.5387
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki41"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki49",
+    "guid": "2h405XijT83A$BX7w5ki49",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1145,
+      2.6752,
+      7.8052
+     ],
+     [
+      4.0662,
+      -0.3579,
+      7.8052
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki49"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5s",
+    "guid": "2h405XijT83A$BX7w5ki5s",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.8281,
+      3.813,
+      8.9951
+     ],
+     [
+      3.8763,
+      2.7573,
+      8.9951
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5s"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5t",
+    "guid": "2h405XijT83A$BX7w5ki5t",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0379,
+      2.7335,
+      8.9709
+     ],
+     [
+      3.876,
+      2.7335,
+      9.0192
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5t"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5o",
+    "guid": "2h405XijT83A$BX7w5ki5o",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1145,
+      2.7295,
+      8.2024
+     ],
+     [
+      4.0662,
+      2.7332,
+      8.9427
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5o"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5m",
+    "guid": "2h405XijT83A$BX7w5ki5m",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.6173,
+      3.1,
+      8.15
+     ],
+     [
+      3.6656,
+      2.7753,
+      8.15
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5m"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5n",
+    "guid": "2h405XijT83A$BX7w5ki5n",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0379,
+      2.7293,
+      8.1259
+     ],
+     [
+      3.6875,
+      2.7293,
+      8.1741
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5n"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5y",
+    "guid": "2h405XijT83A$BX7w5ki5y",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1145,
+      2.7278,
+      7.8576
+     ],
+     [
+      4.0662,
+      2.729,
+      8.0976
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5y"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5z",
+    "guid": "2h405XijT83A$BX7w5ki5z",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0662,
+      2.8825,
+      7.257
+     ],
+     [
+      4.1145,
+      2.88,
+      7.7594
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5z"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5w",
+    "guid": "2h405XijT83A$BX7w5ki5w",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0662,
+      2.8339,
+      7.8052
+     ],
+     [
+      4.1145,
+      2.7799,
+      7.8052
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5w"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5x",
+    "guid": "2h405XijT83A$BX7w5ki5x",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.8281,
+      3.813,
+      9.6451
+     ],
+     [
+      3.8763,
+      2.7603,
+      9.6451
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5x"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5u",
+    "guid": "2h405XijT83A$BX7w5ki5u",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0379,
+      2.7365,
+      9.6209
+     ],
+     [
+      3.876,
+      2.7365,
+      9.6692
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5u"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5v",
+    "guid": "2h405XijT83A$BX7w5ki5v",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.8291,
+      3.1,
+      7.23
+     ],
+     [
+      3.8773,
+      2.9096,
+      7.23
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5v"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki5c",
+    "guid": "2h405XijT83A$BX7w5ki5c",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0633,
+      2.8826,
+      7.2059
+     ],
+     [
+      3.8802,
+      2.8826,
+      7.2541
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki5c"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6v",
+    "guid": "2h405XijT83A$BX7w5ki6v",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.9983,
+      0.7377,
+      8.6932
+     ],
+     [
+      3.9856,
+      -0.4457,
+      8.6933
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6v"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6c",
+    "guid": "2h405XijT83A$BX7w5ki6c",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1178,
+      -0.46,
+      8.6869
+     ],
+     [
+      4.0062,
+      -0.46,
+      8.6996
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6c"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6b",
+    "guid": "2h405XijT83A$BX7w5ki6b",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      -0.46,
+      9.1933
+     ],
+     [
+      4.1392,
+      -0.46,
+      9.3189
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6b"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6Z",
+    "guid": "2h405XijT83A$BX7w5ki6Z",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1376,
+      0.4699,
+      7.9976
+     ],
+     [
+      4.0141,
+      0.4699,
+      8.0103
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6Z"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6W",
+    "guid": "2h405XijT83A$BX7w5ki6W",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1455,
+      0.4557,
+      8.0039
+     ],
+     [
+      4.1582,
+      -0.4259,
+      8.0039
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6W"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6l",
+    "guid": "2h405XijT83A$BX7w5ki6l",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1392,
+      -0.46,
+      8.0309
+     ],
+     [
+      4.1646,
+      -0.46,
+      8.6663
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6l"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6j",
+    "guid": "2h405XijT83A$BX7w5ki6j",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1249,
+      -0.46,
+      9.1791
+     ],
+     [
+      -0.3894,
+      -0.46,
+      9.1537
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6j"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6g",
+    "guid": "2h405XijT83A$BX7w5ki6g",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      5.6983,
+      -0.21,
+      7.4597
+     ],
+     [
+      4.1725,
+      -0.21,
+      7.4851
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6g"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6h",
+    "guid": "2h405XijT83A$BX7w5ki6h",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      -0.21,
+      7.4931
+     ],
+     [
+      4.1392,
+      -0.21,
+      7.8848
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6h"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6e",
+    "guid": "2h405XijT83A$BX7w5ki6e",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1392,
+      -0.46,
+      7.9324
+     ],
+     [
+      4.1646,
+      -0.46,
+      7.977
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6e"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6M",
+    "guid": "2h405XijT83A$BX7w5ki6M",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      2.973,
+      7.9118
+     ],
+     [
+      4.1392,
+      -0.183,
+      7.9118
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6M"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6L",
+    "guid": "2h405XijT83A$BX7w5ki6L",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      -0.237,
+      7.9118
+     ],
+     [
+      4.1392,
+      -0.4394,
+      7.9118
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6L"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6S",
+    "guid": "2h405XijT83A$BX7w5ki6S",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1392,
+      3.0,
+      7.6059
+     ],
+     [
+      4.1646,
+      3.0,
+      7.8848
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6S"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6Q",
+    "guid": "2h405XijT83A$BX7w5ki6Q",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1455,
+      3.5557,
+      8.1499
+     ],
+     [
+      4.1582,
+      3.0341,
+      8.1499
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6Q"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6P",
+    "guid": "2h405XijT83A$BX7w5ki6P",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      3.0,
+      7.9388
+     ],
+     [
+      4.1392,
+      3.0,
+      8.123
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6P"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki64",
+    "guid": "2h405XijT83A$BX7w5ki64",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1178,
+      3.0,
+      9.0395
+     ],
+     [
+      4.0062,
+      3.0,
+      9.0522
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki64"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki63",
+    "guid": "2h405XijT83A$BX7w5ki63",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      3.0,
+      8.1769
+     ],
+     [
+      4.1392,
+      3.0,
+      9.0189
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki63"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki6E",
+    "guid": "2h405XijT83A$BX7w5ki6E",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1178,
+      3.0,
+      9.6895
+     ],
+     [
+      4.0062,
+      3.0,
+      9.7022
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki6E"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki7G",
+    "guid": "2h405XijT83A$BX7w5ki7G",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      3.0,
+      9.7228
+     ],
+     [
+      4.1392,
+      3.0,
+      10.0026
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki7G"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki7H",
+    "guid": "2h405XijT83A$BX7w5ki7H",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1312,
+      3.0,
+      10.0359
+     ],
+     [
+      3.3378,
+      3.0,
+      10.0105
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki7H"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki7T",
+    "guid": "2h405XijT83A$BX7w5ki7T",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      3.0,
+      9.0728
+     ],
+     [
+      4.1392,
+      3.0,
+      9.6689
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki7T"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki7P",
+    "guid": "2h405XijT83A$BX7w5ki7P",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.103,
+      3.073,
+      8.4413
+     ],
+     [
+      4.0776,
+      2.8706,
+      8.4413
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki7P"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki8n",
+    "guid": "2h405XijT83A$BX7w5ki8n",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1319,
+      2.85,
+      8.4286
+     ],
+     [
+      4.111,
+      2.85,
+      8.454
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki8n"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki8E",
+    "guid": "2h405XijT83A$BX7w5ki8E",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1312,
+      3.0,
+      7.598
+     ],
+     [
+      4.1278,
+      3.0,
+      7.5726
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki8E"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki8C",
+    "guid": "2h405XijT83A$BX7w5ki8C",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0945,
+      3.0,
+      7.4533
+     ],
+     [
+      4.1199,
+      3.0,
+      7.5647
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki8C"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki8B",
+    "guid": "2h405XijT83A$BX7w5ki8B",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1104,
+      3.8305,
+      7.4366
+     ],
+     [
+      4.104,
+      3.0095,
+      7.4366
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki8B"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9o",
+    "guid": "2h405XijT83A$BX7w5ki9o",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1653,
+      0.7072,
+      8.6187
+     ],
+     [
+      4.1399,
+      0.7072,
+      9.0887
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9o"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9p",
+    "guid": "2h405XijT83A$BX7w5ki9p",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1399,
+      0.6802,
+      8.4413
+     ],
+     [
+      4.1653,
+      0.6206,
+      8.4413
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9p"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9$",
+    "guid": "2h405XijT83A$BX7w5ki9$",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1646,
+      -0.46,
+      8.7203
+     ],
+     [
+      4.1392,
+      -0.46,
+      9.1394
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9$"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9y",
+    "guid": "2h405XijT83A$BX7w5ki9y",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1376,
+      0.8216,
+      9.3466
+     ],
+     [
+      4.034,
+      0.8216,
+      9.3339
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9y"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9w",
+    "guid": "2h405XijT83A$BX7w5ki9w",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1582,
+      0.8073,
+      9.3403
+     ],
+     [
+      4.1455,
+      -0.4457,
+      9.3403
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9w"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9d",
+    "guid": "2h405XijT83A$BX7w5ki9d",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1383,
+      0.8216,
+      9.2958
+     ],
+     [
+      4.034,
+      0.8216,
+      9.2831
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9d"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9a",
+    "guid": "2h405XijT83A$BX7w5ki9a",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1462,
+      0.8216,
+      9.1244
+     ],
+     [
+      4.1589,
+      0.8216,
+      9.2752
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9a"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9b",
+    "guid": "2h405XijT83A$BX7w5ki9b",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1589,
+      0.8073,
+      9.1101
+     ],
+     [
+      4.1462,
+      0.7215,
+      9.1101
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9b"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9k",
+    "guid": "2h405XijT83A$BX7w5ki9k",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.9962,
+      0.7377,
+      8.587
+     ],
+     [
+      3.9878,
+      0.7215,
+      8.5965
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9k"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9l",
+    "guid": "2h405XijT83A$BX7w5ki9l",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1184,
+      0.7072,
+      8.5853
+     ],
+     [
+      4.0062,
+      0.7072,
+      8.598
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9l"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9g",
+    "guid": "2h405XijT83A$BX7w5ki9g",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1399,
+      0.7072,
+      8.4683
+     ],
+     [
+      4.1653,
+      0.7072,
+      8.5647
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9g"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9T",
+    "guid": "2h405XijT83A$BX7w5ki9T",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1399,
+      2.8294,
+      8.4413
+     ],
+     [
+      4.1653,
+      0.7342,
+      8.4413
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9T"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9Q",
+    "guid": "2h405XijT83A$BX7w5ki9Q",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1399,
+      0.6,
+      8.1207
+     ],
+     [
+      4.1653,
+      0.6,
+      8.4207
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9Q"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki9O",
+    "guid": "2h405XijT83A$BX7w5ki9O",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1319,
+      0.6,
+      8.1128
+     ],
+     [
+      4.1132,
+      0.6,
+      8.0874
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki9O"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki96",
+    "guid": "2h405XijT83A$BX7w5ki96",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0799,
+      0.6,
+      7.8969
+     ],
+     [
+      4.1053,
+      0.6,
+      8.0795
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki96"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki94",
+    "guid": "2h405XijT83A$BX7w5ki94",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1319,
+      0.6,
+      7.8636
+     ],
+     [
+      4.1132,
+      0.6,
+      7.889
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki94"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki92",
+    "guid": "2h405XijT83A$BX7w5ki92",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1399,
+      0.6,
+      7.5269
+     ],
+     [
+      4.1653,
+      0.6,
+      7.8557
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki92"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5ki90",
+    "guid": "2h405XijT83A$BX7w5ki90",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      5.9015,
+      0.6,
+      7.4936
+     ],
+     [
+      4.1732,
+      0.6,
+      7.519
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5ki90"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5kiAY",
+    "guid": "2h405XijT83A$BX7w5kiAY",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.1145,
+      2.7365,
+      9.5927
+     ],
+     [
+      4.0662,
+      2.7338,
+      9.0475
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5kiAY"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2h405XijT83A$BX7w5kiAW",
+    "guid": "2h405XijT83A$BX7w5kiAW",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0662,
+      2.7365,
+      9.6974
+     ],
+     [
+      4.1145,
+      2.7365,
+      10.568
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2h405XijT83A$BX7w5kiAW"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "38siAa2vX2LumgLbdVv2vR",
+    "guid": "38siAa2vX2LumgLbdVv2vR",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.3299,
+      3.0,
+      10.0438
+     ],
+     [
+      3.3045,
+      3.0,
+      10.0638
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "38siAa2vX2LumgLbdVv2vR"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "38siAa2vX2LumgLbdVv2vo",
+    "guid": "38siAa2vX2LumgLbdVv2vo",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.3299,
+      3.2107,
+      10.0844
+     ],
+     [
+      3.3045,
+      3.0206,
+      10.0844
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "38siAa2vX2LumgLbdVv2vo"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "1uUs2cHDPBOxkzgUctDpG0",
+    "guid": "1uUs2cHDPBOxkzgUctDpG0",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.7042,
+      2.6588,
+      6.6584
+     ],
+     [
+      3.6708,
+      2.6588,
+      7.4441
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "1uUs2cHDPBOxkzgUctDpG0"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "1uUs2cHDPBOxkzgUctDpHZ",
+    "guid": "1uUs2cHDPBOxkzgUctDpHZ",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.6708,
+      2.6017,
+      7.5013
+     ],
+     [
+      3.7042,
+      -0.6623,
+      7.5013
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "1uUs2cHDPBOxkzgUctDpHZ"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2aEYRMxuL3WBnZ7EW748gl",
+    "guid": "2aEYRMxuL3WBnZ7EW748gl",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.9983,
+      3.8132,
+      9.6957
+     ],
+     [
+      3.9856,
+      3.0143,
+      9.6959
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2aEYRMxuL3WBnZ7EW748gl"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2aEYRMxuL3WBnZ7EW748k1",
+    "guid": "2aEYRMxuL3WBnZ7EW748k1",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      3.9856,
+      3.8059,
+      9.0459
+     ],
+     [
+      3.9983,
+      3.0143,
+      9.0459
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2aEYRMxuL3WBnZ7EW748k1"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2$C$0X$Jv34P$148Uiu2Hj",
+    "guid": "2$C$0X$Jv34P$148Uiu2Hj",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0047,
+      0.7969,
+      8.6932
+     ],
+     [
+      3.9793,
+      0.7448,
+      8.6932
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2$C$0X$Jv34P$148Uiu2Hj"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   },
+   {
+    "id": "2$C$0X$Jv34P$148Uiu2Iz",
+    "guid": "2$C$0X$Jv34P$148Uiu2Iz",
+    "kind": "water",
+    "ifc_class": "IFCFLOWSEGMENT",
+    "points": [
+     [
+      4.0047,
+      0.7969,
+      8.5918
+     ],
+     [
+      3.9793,
+      0.7448,
+      8.5918
+     ]
+    ],
+    "confidence": 0.7,
+    "warnings": [
+     "axis from the segment's body extent (straight segment assumed)"
+    ],
+    "source": {
+     "file": "data/ifc_models/bsc-duplex_duplex-plumbing-20121113.ifc",
+     "page": null,
+     "guid": "2$C$0X$Jv34P$148Uiu2Iz"
+    },
+    "method": "ifc:geometry",
+    "assumed": false
+   }
+  ]
+ }
+}

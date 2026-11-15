@@ -1,0 +1,12 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/evidence",
+  "query": "answer_id=does-not-exist",
+  "body": null
+ },
+ "status": 404,
+ "response": {
+  "error": "no such answer"
+ }
+}

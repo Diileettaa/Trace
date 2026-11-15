@@ -1,0 +1,29 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/evidence",
+  "query": "answer_id=c5ee4d1c989d",
+  "body": null
+ },
+ "status": 200,
+ "response": {
+  "answer_id": "c5ee4d1c989d",
+  "question": "How many windows are shown on this floor plan?",
+  "value": null,
+  "unit": null,
+  "confidence": "none",
+  "confidence_reason": "this drawing needs the vision model (set GEMINI_API_KEY); zero-API mode has no answer for it",
+  "source": {
+   "file": "school_L00_scan.jpg",
+   "page": 1
+  },
+  "locations": [],
+  "warnings": [
+   "this answer has no located items (a value read from text or a table): see evidence.cite / rule"
+  ],
+  "images": {
+   "full": "/evidence?answer_id=c5ee4d1c989d&view=full",
+   "zoom": "/evidence?answer_id=c5ee4d1c989d&view=zoom"
+  }
+ }
+}

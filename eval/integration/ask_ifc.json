@@ -1,0 +1,173 @@
+{
+ "request": {
+  "method": "POST",
+  "path": "/ask",
+  "query": "",
+  "body": {
+   "path": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+   "question": "How many doors are in this model?"
+  }
+ },
+ "status": 200,
+ "response": {
+  "value": 14,
+  "unit": "count",
+  "items": [
+   {
+    "guid": "1hOSvn6df7F8_7GcBWlRGQ",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:1250mm x 2010mm:1250mm x 2010mm:146596",
+    "storey": "Level 1",
+    "id": 0
+   },
+   {
+    "guid": "1hOSvn6df7F8_7GcBWlRH8",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:1250mm x 2010mm:1250mm x 2010mm:146678",
+    "storey": "Level 1",
+    "id": 1
+   },
+   {
+    "guid": "1hOSvn6df7F8_7GcBWlS8Z",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:150173",
+    "storey": "Level 1",
+    "id": 2
+   },
+   {
+    "guid": "1hOSvn6df7F8_7GcBWlS9F",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:150257",
+    "storey": "Level 1",
+    "id": 3
+   },
+   {
+    "guid": "1hOSvn6df7F8_7GcBWlSFK",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:150378",
+    "storey": "Level 2",
+    "id": 4
+   },
+   {
+    "guid": "1hOSvn6df7F8_7GcBWlSDm",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:150478",
+    "storey": "Level 2",
+    "id": 5
+   },
+   {
+    "guid": "2OBrcmyk58NupXoVOHUuXp",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:159734",
+    "storey": "Level 2",
+    "id": 6
+   },
+   {
+    "guid": "2OBrcmyk58NupXoVOHUvVV",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:159834",
+    "storey": "Level 2",
+    "id": 7
+   },
+   {
+    "guid": "2OBrcmyk58NupXoVOHUvR4",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:160065",
+    "storey": "Level 2",
+    "id": 8
+   },
+   {
+    "guid": "2OBrcmyk58NupXoVOHUvPL",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:160208",
+    "storey": "Level 2",
+    "id": 9
+   },
+   {
+    "guid": "1s1jVhK8z0pgKYcr9jt781",
+    "category": "IFCDOOR",
+    "name": "M_Single-Glass 1:0813 x 2420mm:0813 x 2420mm:171853",
+    "storey": "Level 1",
+    "id": 10
+   },
+   {
+    "guid": "1s1jVhK8z0pgKYcr9jt7AB",
+    "category": "IFCDOOR",
+    "name": "M_Single-Glass 1:0813 x 2420mm:0813 x 2420mm:171975",
+    "storey": "Level 1",
+    "id": 11
+   },
+   {
+    "guid": "1aj$VJZFn2TxepZUBcKp$i",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:203720",
+    "storey": "Level 2",
+    "id": 12
+   },
+   {
+    "guid": "1aj$VJZFn2TxepZUBcKpac",
+    "category": "IFCDOOR",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:204034",
+    "storey": "Level 2",
+    "id": 13
+   }
+  ],
+  "sources": [
+   {
+    "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc"
+   }
+  ],
+  "method": "ifc:count_door",
+  "warnings": [
+   "free-form question: interpreted by engine.nlq, see 'classified'"
+  ],
+  "confidence": "high",
+  "confidence_reason": "read from the file's own data (vector geometry, model quantities or a printed table)",
+  "interpreted": {
+   "intent": "count",
+   "category": "door",
+   "scope": "whole drawing",
+   "source": "ifc_models",
+   "definition": "doorways fitted with a door leaf; open doorways without a leaf are not counted"
+  },
+  "canonical_question": "How many doors are there in the model '0001'?",
+  "classified": {
+   "intent": "count",
+   "category": "door",
+   "scope": {},
+   "confidence": 1.0,
+   "reasons": [],
+   "closest": [
+    "door",
+    "window",
+    "wall",
+    "slab",
+    "column",
+    "beam",
+    "stair",
+    "room",
+    "sanitary",
+    "light"
+   ],
+   "source": "ifc_models"
+  },
+  "answer_id": "89115caeaadf",
+  "file": "data/ifc_models/bsc-duplex_duplex-a-20110907.ifc",
+  "question": "How many doors are in this model?",
+  "created": 1794708453.4571548,
+  "model_value": 14,
+  "alternatives": [],
+  "review": {
+   "removed": [],
+   "added": [],
+   "chosen": null,
+   "by": null
+  },
+  "interactive": {
+   "can_remove": true,
+   "can_add": true,
+   "can_measure": true
+  },
+  "evidence_url": "/evidence?answer_id=89115caeaadf"
+ }
+}

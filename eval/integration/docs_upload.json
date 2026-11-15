@@ -1,0 +1,79 @@
+{
+ "request": {
+  "method": "POST",
+  "path": "/docs",
+  "query": "",
+  "body": null
+ },
+ "status": 200,
+ "response": {
+  "results": [
+   {
+    "status": "stored",
+    "reason": "new document",
+    "document": {
+     "id": 1,
+     "project": "xsc",
+     "doc_key": "xsc-a-100-a-site-plan",
+     "title": "20150922 - XSC - A-100.A - SITE PLAN",
+     "filename": "20150922 - XSC - A-100.A - SITE PLAN.pdf",
+     "rev_label": "2015-09-22",
+     "status": "latest",
+     "discipline": "architecture",
+     "permit": "permit_other",
+     "uploaded_by": "web",
+     "uploaded_at": "2026-11-15T02:07:36Z",
+     "source": "web",
+     "email_subject": null,
+     "size": 673521,
+     "url": "/docs/file?id=1"
+    },
+    "superseded": []
+   },
+   {
+    "status": "stored",
+    "reason": "new document",
+    "document": {
+     "id": 2,
+     "project": "xsc",
+     "doc_key": "sports-complex-sheet-a-101-first-floor-plan",
+     "title": "Sports Complex - Sheet - A-101 - First Floor Plan",
+     "filename": "Sports Complex - Sheet - A-101 - First Floor Plan.pdf",
+     "rev_label": null,
+     "status": "latest",
+     "discipline": "architecture",
+     "permit": null,
+     "uploaded_by": "web",
+     "uploaded_at": "2026-11-15T02:07:36Z",
+     "source": "web",
+     "email_subject": null,
+     "size": 1869817,
+     "url": "/docs/file?id=2"
+    },
+    "superseded": []
+   },
+   {
+    "status": "stored",
+    "reason": "new document",
+    "document": {
+     "id": 3,
+     "project": "xsc",
+     "doc_key": "a-801-door-and-finish-schedules-wall-types",
+     "title": "A-801 - Door and Finish Schedules & Wall Types",
+     "filename": "A-801 - Door and Finish Schedules & Wall Types.pdf",
+     "rev_label": null,
+     "status": "latest",
+     "discipline": "architecture",
+     "permit": null,
+     "uploaded_by": "web",
+     "uploaded_at": "2026-11-15T02:07:37Z",
+     "source": "web",
+     "email_subject": null,
+     "size": 440698,
+     "url": "/docs/file?id=3"
+    },
+    "superseded": []
+   }
+  ]
+ }
+}

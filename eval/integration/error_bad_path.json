@@ -1,0 +1,15 @@
+{
+ "request": {
+  "method": "POST",
+  "path": "/ask",
+  "query": "",
+  "body": {
+   "path": "../secret.txt",
+   "question": "x"
+  }
+ },
+ "status": 400,
+ "response": {
+  "error": "path must be under data/ or uploads/ and exist"
+ }
+}

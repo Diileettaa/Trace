@@ -1,0 +1,47 @@
+{
+ "request": {
+  "method": "POST",
+  "path": "/ask",
+  "query": "",
+  "body": {
+   "path": "uploads/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf",
+   "page": 1,
+   "question": "How many doors are shown on this floor plan?"
+  }
+ },
+ "status": 200,
+ "response": {
+  "value": null,
+  "unit": null,
+  "items": [],
+  "sources": [
+   {
+    "file": "uploads/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf"
+   }
+  ],
+  "method": "sheet:needs_vision_model",
+  "warnings": [
+   "this drawing needs the vision model (set GEMINI_API_KEY); zero-API mode has no answer for it"
+  ],
+  "confidence": "none",
+  "confidence_reason": "this drawing needs the vision model (set GEMINI_API_KEY); zero-API mode has no answer for it",
+  "answer_id": "6577f447a3f1",
+  "file": "uploads/uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf",
+  "question": "How many doors are shown on this floor plan?",
+  "created": 1794708453.5873704,
+  "model_value": null,
+  "alternatives": [],
+  "review": {
+   "removed": [],
+   "added": [],
+   "chosen": null,
+   "by": null
+  },
+  "interactive": {
+   "can_remove": false,
+   "can_add": false,
+   "can_measure": true
+  },
+  "evidence_url": "/evidence?answer_id=6577f447a3f1"
+ }
+}

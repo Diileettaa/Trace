@@ -1,0 +1,29 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/evidence",
+  "query": "answer_id=6577f447a3f1",
+  "body": null
+ },
+ "status": 200,
+ "response": {
+  "answer_id": "6577f447a3f1",
+  "question": "How many doors are shown on this floor plan?",
+  "value": null,
+  "unit": null,
+  "confidence": "none",
+  "confidence_reason": "this drawing needs the vision model (set GEMINI_API_KEY); zero-API mode has no answer for it",
+  "source": {
+   "file": "uk_dfe_sen-dfe-xx-00-d-x-0201-special_school_plan_level_00-a-c01_p001.pdf",
+   "page": 1
+  },
+  "locations": [],
+  "warnings": [
+   "this answer has no located items (a value read from text or a table): see evidence.cite / rule"
+  ],
+  "images": {
+   "full": "/evidence?answer_id=6577f447a3f1&view=full",
+   "zoom": "/evidence?answer_id=6577f447a3f1&view=zoom"
+  }
+ }
+}

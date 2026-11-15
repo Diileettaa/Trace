@@ -1,0 +1,19 @@
+{
+ "request": {
+  "method": "POST",
+  "path": "/project/ask",
+  "query": "",
+  "body": {
+   "project": "xsc",
+   "question": "How many doors are on the first floor?"
+  }
+ },
+ "status": 200,
+ "response": {
+  "value": null,
+  "method": "project:needs_model",
+  "warnings": [
+   "set GEMINI_API_KEY"
+  ]
+ }
+}

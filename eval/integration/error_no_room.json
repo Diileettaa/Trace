@@ -1,0 +1,35 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/api/geometry/scene",
+  "query": "path=data/ifc_models/bsc-duplex_duplex-a-20110907.ifc&room=No%20Such%20Room",
+  "body": null
+ },
+ "status": 400,
+ "response": {
+  "error": "no room 'No Such Room'",
+  "rooms": [
+   "A101 Foyer",
+   "A201 Hallway",
+   "B104 Bathroom 1",
+   "B101 Foyer",
+   "B201 Hallway",
+   "A205 Utility",
+   "B205 Utility",
+   "A105 Stair",
+   "B105 Room",
+   "R301 Roof",
+   "B102 Living Room",
+   "A102 Living Room",
+   "A103 Kitchen",
+   "B103 Kitchen",
+   "B204 Bathroom 2",
+   "A204 Bathroom 2",
+   "A104 Bathroom 1",
+   "B203 Bedroom 2",
+   "A202 Bedroom 1",
+   "B202 Bedroom 1",
+   "A203 Bedroom 2"
+  ]
+ }
+}

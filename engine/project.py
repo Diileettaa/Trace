@@ -18,7 +18,7 @@ KINDS = ["floor_plan", "piping", "structural", "schedule", "elevation", "section
 KIND_RULES = [
     ("piping", r"\bPIPING\b|\bP&ID\b|\bMECHANICAL\b|\bPLUMBING\b"),
     ("structural", r"\bFOUNDATION\b|\bSLAB\b|\bFRAMING\b|\bSTRUCTURAL\b|\bREINFORC"),
-    ("schedule", r"\bSCHEDULE\b|\bROOM DATA\b|\bLEGEND\b"),
+    ("schedule", r"\bSCHEDULES?\b|\bROOM DATA\b|\bLEGEND\b"),
     ("elevation", r"\bELEVATIONS?\b"),
     ("section", r"\bSECTIONS?\b"),
     ("site", r"\bSITE PLAN\b|\bMASTER ?PLAN\b|\bLANDSCAPE\b"),
@@ -73,7 +73,7 @@ Return JSON only: {"kind": one of %s, "title": "<sheet title>", "sheet_no": "<sh
 def classify(path, vision=None):
     """-> {"kind", "level", "sheet_no", "title", "building"?, "scale"?, "how"} (cached by file content)."""
     h = hashlib.md5(open(path, "rb").read()).hexdigest()
-    cp = os.path.join(CACHE, h + ".json")
+    cp = os.path.join(CACHE, h + ".v2.json")
     if os.path.exists(cp): return json.load(open(cp))
     out = None
     if path.lower().endswith(".pdf"):

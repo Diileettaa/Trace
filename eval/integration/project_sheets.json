@@ -1,0 +1,56 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/project/sheets",
+  "query": "project=xsc",
+  "body": null
+ },
+ "status": 200,
+ "response": {
+  "project": "xsc",
+  "sheets": [
+   {
+    "id": 3,
+    "building": "Xcel Sports Complex",
+    "title": "A-801 - Door and Finish Schedules & Wall Types",
+    "filename": "A-801 - Door and Finish Schedules & Wall Types.pdf",
+    "class": {
+     "kind": "schedule",
+     "level": null,
+     "sheet_no": "A-801",
+     "title": "Schedules & Wall",
+     "scale": "1/4\" = 1'-0\"",
+     "how": "text layer"
+    }
+   },
+   {
+    "id": 2,
+    "building": "Xcel Sports Complex",
+    "title": "Sports Complex - Sheet - A-101 - First Floor Plan",
+    "filename": "Sports Complex - Sheet - A-101 - First Floor Plan.pdf",
+    "class": {
+     "kind": "floor_plan",
+     "level": 1,
+     "sheet_no": "A-101",
+     "title": "First Floor Plan",
+     "scale": "3/32\" = 1'-0\"",
+     "how": "text layer"
+    }
+   },
+   {
+    "id": 1,
+    "building": "Xcel Sports Complex",
+    "title": "20150922 - XSC - A-100.A - SITE PLAN",
+    "filename": "20150922 - XSC - A-100.A - SITE PLAN.pdf",
+    "class": {
+     "kind": "site",
+     "level": null,
+     "sheet_no": "A-100",
+     "title": "Site Plan",
+     "scale": "3/64\" = 1'-0\"",
+     "how": "text layer"
+    }
+   }
+  ]
+ }
+}

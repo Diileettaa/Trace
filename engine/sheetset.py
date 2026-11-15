@@ -11,7 +11,7 @@ reasons it was set, so the UI can show why a sheet sits where it does. Results a
 import os, re, json, hashlib, collections
 
 CACHE = os.path.join(os.environ.get("JUNCTION_CACHE", os.path.expanduser("~/.cache/junction-engine")), "sheetset")
-KINDS = ("plan", "section", "elevation", "detail", "schedule", "model", "photo", "doc")
+KINDS = ("plan", "site", "section", "elevation", "detail", "schedule", "model", "photo", "doc")
 DISC = ("architecture", "structural", "plumbing", "hvac", "electrical", "fire", "landscape", "other")
 IMAGE = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif", ".webp")
 
@@ -27,9 +27,10 @@ DISC_WORDS = {
 }
 ROLE_LETTER = {"A": "architecture", "S": "structural", "P": "plumbing", "M": "hvac", "H": "hvac", "E": "electrical",
                "FP": "fire", "FA": "fire", "F": "fire", "L": "landscape", "C": "structural"}
-KIND_WORDS = [("schedule", r"\bSCHEDULE\b|\bROOM DATA\b|\bLEGEND\b|\bTABLE\b"),
+KIND_WORDS = [("schedule", r"\bSCHEDULES?\b|\bROOM DATA\b|\bLEGEND\b|\bTABLE\b"),
               ("section", r"\bSECTIONS?\b|\bLEIKKAUS"), ("elevation", r"\bELEVATIONS?\b|\bJULKISIVU"),
               ("detail", r"\bDETAILS?\b|\bDETALJ"),
+              ("site", r"\bSITE PLAN\b|\bSITE LAYOUT\b|\bMASTER ?PLAN\b"),
               ("plan", r"\bPLAN\b|\bLAYOUT\b|\bPOHJA\w*|\bGRUNDRISS|\bFLOOR\b|\bLEVEL\b")]
 ORD = {"BASEMENT": -1, "GROUND": 0, "FIRST": 1, "SECOND": 2, "THIRD": 3, "FOURTH": 4, "FIFTH": 5, "SIXTH": 6,
        "SEVENTH": 7, "EIGHTH": 8, "NINTH": 9, "1ST": 1, "2ND": 2, "3RD": 3}

@@ -1,0 +1,114 @@
+{
+ "request": {
+  "method": "GET",
+  "path": "/evidence",
+  "query": "answer_id=89115caeaadf",
+  "body": null
+ },
+ "status": 200,
+ "response": {
+  "answer_id": "89115caeaadf",
+  "question": "How many doors are in this model?",
+  "value": 14,
+  "unit": "count",
+  "confidence": "high",
+  "confidence_reason": "read from the file's own data (vector geometry, model quantities or a printed table)",
+  "source": {
+   "file": "bsc-duplex_duplex-a-20110907.ifc",
+   "page": 1
+  },
+  "locations": [
+   {
+    "id": 0,
+    "guid": "1hOSvn6df7F8_7GcBWlRGQ",
+    "name": "M_Single-Flush:1250mm x 2010mm:1250mm x 2010mm:146596",
+    "storey": "Level 1"
+   },
+   {
+    "id": 1,
+    "guid": "1hOSvn6df7F8_7GcBWlRH8",
+    "name": "M_Single-Flush:1250mm x 2010mm:1250mm x 2010mm:146678",
+    "storey": "Level 1"
+   },
+   {
+    "id": 2,
+    "guid": "1hOSvn6df7F8_7GcBWlS8Z",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:150173",
+    "storey": "Level 1"
+   },
+   {
+    "id": 3,
+    "guid": "1hOSvn6df7F8_7GcBWlS9F",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:150257",
+    "storey": "Level 1"
+   },
+   {
+    "id": 4,
+    "guid": "1hOSvn6df7F8_7GcBWlSFK",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:150378",
+    "storey": "Level 2"
+   },
+   {
+    "id": 5,
+    "guid": "1hOSvn6df7F8_7GcBWlSDm",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:150478",
+    "storey": "Level 2"
+   },
+   {
+    "id": 6,
+    "guid": "2OBrcmyk58NupXoVOHUuXp",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:159734",
+    "storey": "Level 2"
+   },
+   {
+    "id": 7,
+    "guid": "2OBrcmyk58NupXoVOHUvVV",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:159834",
+    "storey": "Level 2"
+   },
+   {
+    "id": 8,
+    "guid": "2OBrcmyk58NupXoVOHUvR4",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:160065",
+    "storey": "Level 2"
+   },
+   {
+    "id": 9,
+    "guid": "2OBrcmyk58NupXoVOHUvPL",
+    "name": "M_Single-Flush:0864 x 2032mm:0864 x 2032mm:160208",
+    "storey": "Level 2"
+   },
+   {
+    "id": 10,
+    "guid": "1s1jVhK8z0pgKYcr9jt781",
+    "name": "M_Single-Glass 1:0813 x 2420mm:0813 x 2420mm:171853",
+    "storey": "Level 1"
+   },
+   {
+    "id": 11,
+    "guid": "1s1jVhK8z0pgKYcr9jt7AB",
+    "name": "M_Single-Glass 1:0813 x 2420mm:0813 x 2420mm:171975",
+    "storey": "Level 1"
+   },
+   {
+    "id": 12,
+    "guid": "1aj$VJZFn2TxepZUBcKp$i",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:203720",
+    "storey": "Level 2"
+   },
+   {
+    "id": 13,
+    "guid": "1aj$VJZFn2TxepZUBcKpac",
+    "name": "M_Single-Flush:0762 x 2032mm:0762 x 2032mm:204034",
+    "storey": "Level 2"
+   }
+  ],
+  "warnings": [
+   "no drawing image for this source (model element ids are the evidence)"
+  ],
+  "images": {
+   "full": "/evidence?answer_id=89115caeaadf&view=full",
+   "zoom": "/evidence?answer_id=89115caeaadf&view=zoom"
+  }
+ }
+}

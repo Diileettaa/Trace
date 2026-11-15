@@ -1,0 +1,46 @@
+{
+ "request": {
+  "method": "POST",
+  "path": "/ask",
+  "query": "",
+  "body": {
+   "path": "uploads/school_L00_scan.jpg",
+   "question": "How many windows are shown on this floor plan?"
+  }
+ },
+ "status": 200,
+ "response": {
+  "value": null,
+  "unit": null,
+  "items": [],
+  "sources": [
+   {
+    "file": "uploads/school_L00_scan.jpg"
+   }
+  ],
+  "method": "sheet:needs_vision_model",
+  "warnings": [
+   "this drawing needs the vision model (set GEMINI_API_KEY); zero-API mode has no answer for it"
+  ],
+  "confidence": "none",
+  "confidence_reason": "this drawing needs the vision model (set GEMINI_API_KEY); zero-API mode has no answer for it",
+  "answer_id": "c5ee4d1c989d",
+  "file": "uploads/school_L00_scan.jpg",
+  "question": "How many windows are shown on this floor plan?",
+  "created": 1794708454.1847064,
+  "model_value": null,
+  "alternatives": [],
+  "review": {
+   "removed": [],
+   "added": [],
+   "chosen": null,
+   "by": null
+  },
+  "interactive": {
+   "can_remove": false,
+   "can_add": false,
+   "can_measure": true
+  },
+  "evidence_url": "/evidence?answer_id=c5ee4d1c989d"
+ }
+}

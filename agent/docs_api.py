@@ -66,6 +66,24 @@ def _resolve_path(p):
     if not (f == base or f.startswith(base + os.sep)) or not os.path.isfile(f): return None, None
     return f, (p if p.startswith("data/") else f)
 
+def _public(a, shown):
+    """Answer as sent to the browser: no server-side absolute paths (the stored copy keeps them for /evidence)."""
+    out = dict(a); out["file"] = shown
+    out["sources"] = [dict(x, file=shown if os.path.isabs(str(x.get("file") or "")) else x.get("file")) for x in (a.get("sources") or [])]
+    out["evidence_url"] = f"/evidence?answer_id={a.get('answer_id')}"
+    return out
+
+def _normalise_scene(r):
+    """Contract for the 2.5D viewer: every element states how it was obtained (method), how sure (confidence 0..1)
+    and whether any size is an assumption (assumed). Values themselves are never changed here."""
+    default = {"ifc": "ifc:geometry", "pdf_vector": "pdf:vector", "scan": "scan:image"}.get(r.get("source_kind"), "engine")
+    for key in ("storeys", "rooms", "walls", "openings", "objects", "systems"):
+        for el in r.get(key) or []:
+            el.setdefault("method", default)
+            el.setdefault("confidence", 1.0 if r.get("source_kind") == "ifc" else 0.7)
+            el.setdefault("assumed", False)
+    return r
+
 def handle(method, path, query, headers, body, S=None):
     S = S or docs_tools.store()
     if not _authorised(headers): return _j(401, {"error": "missing or wrong token"})
@@ -118,7 +136,9 @@ def handle(method, path, query, headers, body, S=None):
             a = json.loads(body or b"{}") if method == "POST" else {}
             if path == "/project/building": return _j(200, docs_tools.set_building(int(a["id"]), str(a["building"]), S))
             pj = a.get("project") or proj
-            if path == "/project/sheets": return _j(200, {"project": pj, "sheets": docs_tools.project_sheets(pj, S)})
+            if path == "/project/sheets":
+                sh = [{k: v for k, v in x.items() if k != "path"} for x in docs_tools.project_sheets(pj, S)]   # no server paths
+                return _j(200, {"project": pj, "sheets": sh})
             if path == "/project/ask": return _j(200, docs_tools.ask_project(pj, a.get("question", ""), S))
         if path == "/evidence" and method == "GET":
             from engine import review as R, evidence as E
@@ -135,7 +155,7 @@ def handle(method, path, query, headers, body, S=None):
                             "locations": ev["locations"], "warnings": ev["warnings"],
                             "images": {"full": f"/evidence?answer_id={a['answer_id']}&view=full",
                                        "zoom": f"/evidence?answer_id={a['answer_id']}&view=zoom"}})
-        if path in ("/scene", "/api/scene") and method == "GET":
+        if path in ("/scene", "/api/geometry/scene") and method == "GET":     # /api/scene belongs to the B side (furniture state)
             f, _ = _resolve_path(str(q.get("path", "")))
             if f is None: return _j(400, {"error": "path must be under data/ or uploads/ and exist"})
             rel = q["path"]; ext = os.path.splitext(f)[1].lower()
@@ -157,6 +177,7 @@ def handle(method, path, query, headers, body, S=None):
             else:
                 from engine import scene_scan
                 r = scene_scan.scene(f, int(q.get("page", 1)), rel_path=rel)
+            if "error" not in r: _normalise_scene(r)
             return _j(400 if "error" in r else 200, r)
         if path in ("/ifc/spaces", "/ifc/storeys", "/ifc/room_of", "/ifc/clearances"):
             from engine import ifc_geom as G
@@ -186,7 +207,7 @@ def handle(method, path, query, headers, body, S=None):
                     from engine import answer as A
                     if a.get("page"): rel = f"{rel}#p{int(a['page'])}"        # 1-based PDF page
                     r = A.answer(rel, a.get("question", ""))
-                    return _j(200, R.register(r, f, a.get("question", "")))
+                    return _j(200, _public(R.register(r, f, a.get("question", "")), str(a["path"])))
                 if path == "/calibrate":
                     return _j(200, R.calibrate(f, a["p1"], a["p2"], float(a["length_m"]), int(a.get("page", 0)), a.get("image_size")))
                 return _j(200, R.measure(f, a.get("points") or [], a.get("kind", "area"), int(a.get("page", 0))))
@@ -195,7 +216,7 @@ def handle(method, path, query, headers, body, S=None):
             if path == "/ask":
                 r = docs_tools.ask_drawing(d["id"], a.get("question", ""), S)
                 f = r.pop("file_for_review", None) or S.path(d["id"])
-                return _j(200, R.register(r, f, a.get("question", "")))
+                return _j(200, _public(R.register(r, f, a.get("question", "")), d.get("filename")))
             f = docs_tools.view_path(d, S)
             if path == "/calibrate":
                 return _j(200, R.calibrate(f, a["p1"], a["p2"], float(a["length_m"]), int(a.get("page", 0)), a.get("image_size")))
