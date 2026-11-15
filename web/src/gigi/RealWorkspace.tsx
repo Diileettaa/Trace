@@ -141,6 +141,8 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const [questionInput, setQuestionInput] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   const [verifyModalOpen, setVerifyModalOpen] = useState<boolean>(false);
   const [verifyTargetId, setVerifyTargetId] = useState<string>('');
@@ -498,16 +500,22 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
   const handleUploadDrawing = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadBusy(true);
+    setUploadMessage(null);
     const fd = new FormData();
     fd.append('file', file, file.name);
     try {
-      const r = await fetch('/api/upload', { method: 'POST', body: fd }).then((x) => x.json());
-      if (r.path) {
-        const p: Project = { id: `upload-${r.path}`, title: file.name, subtitle: 'Uploaded', model: /\.ifc$/i.test(r.path) ? r.path : null, plan: /\.ifc$/i.test(r.path) ? null : r.path };
-        setProjects((prev) => [p, ...prev]);
+      const response = await fetch('/api/upload', { method: 'POST', body: fd });
+      const r = await response.json().catch(() => ({}));
+      if (!response.ok || !r.path) throw new Error(r.detail || r.error || `Upload failed (${response.status})`);
+      const p: Project = { id: `upload-${r.path}`, title: file.name, subtitle: /\.ifc$/i.test(r.path) ? 'Your BIM model' : 'Your uploaded drawing', model: /\.ifc$/i.test(r.path) ? r.path : null, plan: /\.ifc$/i.test(r.path) ? null : r.path };
+      setProjects((prev) => [p, ...prev.filter((existing) => existing.id !== p.id)]);
+      setUploadMessage(`Created “${file.name}” · source preserved · ready to analyze`);
+      setTimeout(() => setUploadMessage(null), 5000);
         switchProject(p);
-      }
-    } catch { /* surfaced by the empty plan */ }
+    } catch (error) {
+      setUploadMessage(`Upload failed: ${String((error as Error).message || error).slice(0, 110)}`);
+    } finally { setUploadBusy(false); }
     e.target.value = '';
   };
 
@@ -528,18 +536,24 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#202427]">History</h2>
           </div>
           <div className="flex items-center gap-1">
-            {/* ours: upload your own drawing */}
+            {/* Upload has a text button below as well: the icon keeps this compact on narrow screens. */}
             <button type="button" onClick={() => uploadRef.current?.click()} title="Upload a drawing or model" aria-label="Upload a drawing or model"
               className="w-6 h-6 rounded-md bg-white border border-[#A9AFB0]/60 text-[#202427] hover:border-[#202427] flex items-center justify-center transition-colors cursor-pointer shrink-0">
               <Upload className="w-3.5 h-3.5" />
             </button>
-            <input ref={uploadRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.dxf,.ifc,.tif,.tiff" className="hidden" onChange={handleUploadDrawing} />
+            <input ref={uploadRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.dxf,.ifc" className="hidden" onChange={handleUploadDrawing} />
             <button type="button" onClick={handleCreateNewChat} title="Start new chat" aria-label="Start new chat"
               className="w-6 h-6 rounded-md bg-[#202427] text-[#E9B949] hover:bg-[#202427]/90 flex items-center justify-center transition-colors cursor-pointer shrink-0">
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
+        <button type="button" onClick={() => uploadRef.current?.click()} disabled={uploadBusy}
+          className="w-full mb-2.5 rounded-md border border-dashed border-[#9A7218]/65 bg-[#E9B949]/10 px-2.5 py-2 text-left hover:bg-[#E9B949]/20 disabled:opacity-60 transition-colors cursor-pointer">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[#202427]"><Upload className="w-3.5 h-3.5 text-[#9A7218]" />{uploadBusy ? 'Creating project…' : 'New project · upload a source'}</span>
+          <span className="block mt-0.5 text-[10px] leading-snug text-[#202427]/65">PDF, PNG/JPG, DXF or IFC · original file stays intact</span>
+        </button>
+        {uploadMessage && <p role="status" className={`mb-2 text-[10px] leading-snug ${uploadMessage.startsWith('Upload failed') ? 'text-red-700' : 'text-emerald-700'}`}>{uploadMessage}</p>}
         <div className="space-y-1.5">
           {chats.length === 0 && (
             <p className="text-[11px] text-[#202427]/60 leading-snug">No chats yet for this project. Ask a question on the right.</p>
