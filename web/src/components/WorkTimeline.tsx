@@ -1,12 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CollabBooking, CollabState } from '../types'
 import { bookWork, checkWorkflow, getWorkflowBlockers, type BookingViolation, type WorkflowBlocker } from '../api'
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`
-const dateKey = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10)
-const defaultDay = (bookings: CollabBooking[]) => bookings.length ? dateKey(Math.max(...bookings.map(booking => booking.end))) : new Date().toISOString().slice(0, 10)
+const localDateKey = (seconds: number) => {
+  const value = new Date(seconds * 1000)
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+}
+const defaultDay = (bookings: CollabBooking[]) => bookings.length ? localDateKey(Math.max(...bookings.map(booking => booking.end))) : localDateKey(Date.now() / 1000)
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const daySeconds = (day: string) => new Date(`${day}T00:00:00`).getTime() / 1000
+const timeText = (seconds: number) => new Date(seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const moveDay = (day: string, amount: number) => {
+  const date = new Date(`${day}T12:00:00`)
+  date.setDate(date.getDate() + amount)
+  return localDateKey(date.getTime() / 1000)
+}
 
 interface Props {
   collab: CollabState
@@ -15,7 +25,7 @@ interface Props {
   onOpenDirect?: (personId: string) => void
 }
 
-/** Shared person-by-time schedule. A conflict only exists when both bookings use the same space. */
+/** A daily site plan: work is grouped by location, not by person. */
 export default function WorkTimeline({ collab, onChange, defaultRoomId, onOpenDirect }: Props) {
   const me = (() => { try { return JSON.parse(localStorage.getItem('trace-collab-profile') || 'null') as { id: string } | null } catch { return null } })()
   const [room, setRoom] = useState(defaultRoomId || '')
@@ -29,8 +39,6 @@ export default function WorkTimeline({ collab, onChange, defaultRoomId, onOpenDi
   const [day, setDay] = useState(() => defaultDay(collab.bookings || []))
   const [selectedPersonId, setSelectedPersonId] = useState('')
   const [contactedBookingId, setContactedBookingId] = useState('')
-  const scheduleRef = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ x: number; scrollLeft: number } | null>(null)
 
   const bookings = collab.bookings || []
   const people = useMemo(() => {
@@ -49,9 +57,14 @@ export default function WorkTimeline({ collab, onChange, defaultRoomId, onOpenDi
     : []
   const firstConflict = draftConflicts.slice().sort((a, b) => a.created_at - b.created_at)[0]
   const conflictPerson = firstConflict ? peopleByReference.get(firstConflict.person) : undefined
-  const dayStart = new Date(`${day}T00:00`).getTime() / 1000
-  const dayEnd = dayStart + 86400
-  const dayBookings = bookings.filter(booking => booking.start < dayEnd && booking.end > dayStart)
+  const selectedDayStart = daySeconds(day)
+  const selectedDayEnd = selectedDayStart + 86400
+  const dayBookings = bookings.filter(booking => booking.start < selectedDayEnd && booking.end > selectedDayStart)
+  const bookingsByRoom = useMemo(() => {
+    const grouped = new Map<string, CollabBooking[]>()
+    for (const booking of dayBookings) grouped.set(booking.space_id, [...(grouped.get(booking.space_id) || []), booking])
+    return [...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([spaceId, items]) => [spaceId, items.sort((left, right) => left.start - right.start)] as const)
+  }, [dayBookings])
 
   useEffect(() => { if (defaultRoomId) setRoom(defaultRoomId) }, [defaultRoomId])
   useEffect(() => {
@@ -83,41 +96,32 @@ export default function WorkTimeline({ collab, onChange, defaultRoomId, onOpenDi
     setContactedBookingId(firstConflict.id)
     onOpenDirect?.(conflictPerson.id)
   }
-  function beginDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    const node = scheduleRef.current
-    if (!node || (event.target as Element).closest('button')) return
-    drag.current = { x: event.clientX, scrollLeft: node.scrollLeft }
-    node.setPointerCapture(event.pointerId)
-  }
-  function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    const node = scheduleRef.current
-    if (!node || !drag.current) return
-    node.scrollLeft = drag.current.scrollLeft - (event.clientX - drag.current.x)
-  }
-  function endDrag() { drag.current = null }
   function bookingStyle(booking: CollabBooking) {
-    const top = clamp((Math.max(booking.start, dayStart) - dayStart) / 86400 * 100, 0, 100)
-    const height = clamp((Math.min(booking.end, dayEnd) - Math.max(booking.start, dayStart)) / 86400 * 100, 4, 100 - top)
-    return { top: `${top}%`, height: `${height}%` }
+    const left = clamp((Math.max(booking.start, selectedDayStart) - selectedDayStart) / 86400 * 100, 0, 100)
+    const width = clamp((Math.min(booking.end, selectedDayEnd) - Math.max(booking.start, selectedDayStart)) / 86400 * 100, 3.5, 100 - left)
+    return { left: `${left}%`, width: `${width}%` }
   }
   const violationFor = (booking: CollabBooking) => bookingViolations.find(item => item.booking_id === booking.id)
 
   return <section className="collab timeline">
-    <header className="person-schedule-heading"><div><small>SHARED WORK HOURS</small><h3>Who is working where</h3><p>One vertical axis per person. Drag sideways to browse the team; click an axis to contact its owner.</p></div><label>Work date<input type="date" value={day} onChange={event => setDay(event.target.value)} /></label></header>
-    <div className="person-schedule-wrap" ref={scheduleRef} onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
-      <div className="person-schedule">
-        <div className="person-time-axis">{HOURS.map(hour => <span key={hour} style={{ top: `${hour / 24 * 100}%` }}>{hourLabel(hour)}</span>)}</div>
-        {people.length ? people.map(person => <div className="person-schedule-column" key={person.id}>
-          <button type="button" className="person-axis-head" onClick={() => setSelectedPersonId(person.id)} title={`Open contact for ${person.name}`}><span className="person-contact-circle">{person.name.slice(0, 1).toUpperCase()}</span><b>{person.name}</b><small>{person.trade}</small></button>
-          <div className="person-axis-hours">
-            {HOURS.map(hour => <i aria-hidden="true" key={hour} style={{ top: `${hour / 24 * 100}%` }} />)}
-            {dayBookings.filter(booking => booking.person === person.id).map(booking => {
-              const conflicts = bookings.filter(other => other.id !== booking.id && other.space_id === booking.space_id && other.start < booking.end && other.end > booking.start)
-              const violation = violationFor(booking)
-              return <button type="button" key={booking.id} className={`person-work-block${conflicts.length ? ' conflict' : ''}${violation ? ' order-violation' : ''}`} style={bookingStyle(booking)} onClick={() => setSelectedPersonId(person.id)} title={`${booking.space_id} · ${booking.what}`}><b>{booking.space_id}</b><span>{booking.what}</span>{conflicts.length > 0 && <em>Conflict</em>}</button>
-            })}
-          </div>
-        </div>) : <p className="person-schedule-empty">No team members yet. Register a contact to create the first work axis.</p>}
+    <header className="day-schedule-heading"><div><small>DAILY SITE PLAN</small><h3>Who is working in each area</h3><p>Choose a day. Work is grouped by room or work area, so time, place, person and trade stay together.</p></div><div className="day-picker"><button type="button" aria-label="Previous day" onClick={() => setDay(current => moveDay(current, -1))}>‹</button><label>Work date<input type="date" value={day} onChange={event => setDay(event.target.value)} /></label><button type="button" aria-label="Next day" onClick={() => setDay(current => moveDay(current, 1))}>›</button><button type="button" onClick={() => setDay(localDateKey(Date.now() / 1000))}>Today</button></div></header>
+    <div className="day-schedule-wrap">
+      <div className="day-schedule-board">
+        <div className="day-schedule-sticky day-schedule-meta-head"><span>Work area</span><span>Assigned to</span></div>
+        <div className="day-time-scale">{HOURS.map(hour => <span key={hour} style={{ left: `${hour / 24 * 100}%` }}>{hourLabel(hour)}</span>)}</div>
+        {bookingsByRoom.map(([spaceId, items]) => <section className="day-location-group" key={spaceId}>
+          <header><b>{spaceId}</b><small>{items.length} booking{items.length === 1 ? '' : 's'} · same-area conflicts are marked red</small></header>
+          {items.map(booking => {
+            const person = peopleByReference.get(booking.person)
+            const conflicts = bookings.filter(other => other.id !== booking.id && other.space_id === booking.space_id && other.start < booking.end && other.end > booking.start)
+            const violation = violationFor(booking)
+            return <div className="day-booking-row" key={booking.id}>
+              <button type="button" className="day-booking-person" onClick={() => setSelectedPersonId(person?.id || booking.person)} title={`Contact ${person?.name || booking.person}`}><span className="person-contact-circle">{(person?.name || booking.person).slice(0, 1).toUpperCase()}</span><span><b>{person?.name || booking.person}</b><small>{person?.trade || booking.trade} · {spaceId}</small></span></button>
+              <div className="day-timeline-lane">{HOURS.map(hour => <i aria-hidden="true" key={hour} style={{ left: `${hour / 24 * 100}%` }} />)}<button type="button" className={`day-work-block${conflicts.length ? ' conflict' : ''}${violation ? ' order-violation' : ''}`} style={bookingStyle(booking)} onClick={() => setSelectedPersonId(person?.id || booking.person)} title={`${spaceId} · ${timeText(booking.start)}–${timeText(booking.end)} · ${booking.what}`}><b>{timeText(booking.start)}–{timeText(booking.end)}</b><span>{booking.what}</span>{conflicts.length > 0 && <em>Conflict</em>}</button></div>
+            </div>
+          })}
+        </section>)}
+        {!bookingsByRoom.length && <p className="day-schedule-empty">No work is booked for this day. Add the first reservation below.</p>}
       </div>
     </div>
     {selectedPerson && <aside className="person-contact-card"><span className="person-contact-circle">{selectedPerson.name.slice(0, 1).toUpperCase()}</span><div><small>TEAM CONTACT</small><b>{selectedPerson.name}</b><span>{selectedPerson.trade}</span>{selectedPerson.email && <a href={`mailto:${selectedPerson.email}`}>{selectedPerson.email}</a>}{selectedPerson.phone && <a href={`tel:${selectedPerson.phone}`}>{selectedPerson.phone}</a>}</div><button type="button" onClick={() => onOpenDirect?.(selectedPerson.id)}>Private chat</button><button type="button" aria-label="Close contact" onClick={() => setSelectedPersonId('')}>×</button></aside>}
@@ -134,7 +138,6 @@ export default function WorkTimeline({ collab, onChange, defaultRoomId, onOpenDi
     {formBlockers.length > 0 && <div className="form-blocker-warning">⚠ {formBlockers.map(blocker => blocker.reason).join(' · ')}</div>}
     {error && <p className="error">{error}</p>}
     {!me && <p className="dim small">Set up your contact above to book work or start a private conversation.</p>}
-    {!bookings.length && <p className="dim small">No work booked yet. Choose a room, time and trade to reserve the first slot.</p>}
-    {rooms.length > 0 && <p className="timeline-legend">Red blocks conflict only with another booking in the same room or work area. Other areas can be booked at the same time.</p>}
+    {rooms.length > 0 && <p className="timeline-legend">Only overlapping reservations for the same work area conflict. Other rooms can be booked at the same time.</p>}
   </section>
 }
