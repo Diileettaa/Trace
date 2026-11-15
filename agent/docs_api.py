@@ -77,8 +77,10 @@ def _normalise_scene(r):
     """Contract for the 2.5D viewer: every element states how it was obtained (method), how sure (confidence 0..1)
     and whether any size is an assumption (assumed). Values themselves are never changed here."""
     default = {"ifc": "ifc:geometry", "pdf_vector": "pdf:vector", "scan": "scan:image"}.get(r.get("source_kind"), "engine")
+    st = (r.get("storeys") or [{}])[0].get("id")
     for key in ("storeys", "rooms", "walls", "openings", "objects", "systems"):
         for el in r.get(key) or []:
+            if key != "storeys" and st is not None: el.setdefault("storey_id", st)
             el.setdefault("method", default)
             el.setdefault("confidence", 1.0 if r.get("source_kind") == "ifc" else 0.7)
             el.setdefault("assumed", False)
