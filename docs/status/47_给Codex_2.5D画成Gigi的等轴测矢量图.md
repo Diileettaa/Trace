@@ -29,3 +29,11 @@ Input: the same `/api/geometry/scene` JSON (Y-up, metres; backend already fixed 
 Use it for both tabs: "2.5D Building" = all storeys stacked with an explode gap of 1 m (only for IFC-only projects),
 "2.5D Floor" = the current sheet's storey. Remove the three.js GeometrySceneViewer from the workspace once this works.
 Test: Tallinn level 04 plan, Duplex, FZK, Swiss floor, one CubiCasa scan. Send screenshots of floor + one room.
+
+## ADD (research, 05:55): don't hand-roll the projection math if you are short on time
+- `@elchininet/isometric` (MIT, TypeScript): isometric projections drawn as SVG — IsometricCanvas, rectangles/paths in plan
+  coordinates, depth ordering. Good fit for walls (vertical rectangles), slabs (top rectangles), room polygons (paths).
+- Or keep three.js but render with an OrthographicCamera at the true isometric angle + EdgesGeometry lines and flat
+  materials (no lights): same look, reuses your loader. three-edge-projection (three-mesh-bvh) gives real hidden-line vector output if needed.
+- Fixture icons: draw 6 tiny SVG symbols (toilet, sink, shower, bath, stove, door leaf) once and place them by `objects[].kind`.
+Walls for plain PDF drawings are being completed on the engine side (doc 48, Xinran).
