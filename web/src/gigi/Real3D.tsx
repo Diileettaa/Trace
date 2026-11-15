@@ -19,15 +19,31 @@ interface Props {
   onAsk?: (question: string) => void;   // ours: ask about the room the user clicked
   onOpenSource?: (source: GeometrySource) => void;
   storeyId?: string | null;              // LEVEL switcher in Gigi's top bar
+  /** A room selected from the 2D plan. It may be a plan number, not an IFC GUID. */
+  focusRoomId?: string | null;
   onStoreys?: (list: { id: string; name: string; elevation: number }[]) => void;
   visibleLayers?: Partial<Record<'architecture' | 'sanitary' | 'hvac' | 'electrical' | 'furniture', boolean>>;
 }
 
-const isGuid = (id: string) => /^[0-9A-Za-z_$]{22}$/.test(id);
+const roomReference = (value: string) => value.trim().toLocaleLowerCase()
+  .replace(/^room[-\s_]*/i, '').replace(/^rm[-\s_]*/i, '').replace(/\s+/g, '');
+const resolveSceneRoom = (scene: GeometryScene, requested: string | null | undefined) => {
+  if (!requested) return null;
+  const key = roomReference(requested);
+  const matches = scene.rooms.filter((room) => [room.id, room.number, room.name]
+    .filter((value): value is string => !!value)
+    .some((value) => roomReference(value) === key));
+  return matches.length === 1 ? matches[0].id : null;
+};
+const fixtureDescription = (fixture: FixtureVerification) => {
+  const category = fixture.category.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const room = fixture.roomName || fixture.roomCode;
+  return [category || fixture.label, room].filter(Boolean).join(' · ');
+};
 
 export const Real3D: React.FC<Props> = ({
   mode, scenario, model, plan, fixture, siblingFixtures, onSwitchMode, onSelectSibling, onBackTo2D,
-  page = 1, storeyId, onStoreys, visibleLayers, onOpenSource,
+  page = 1, storeyId, onStoreys, visibleLayers, onOpenSource, focusRoomId,
 }) => {
   const [pickedRoom, setPickedRoom] = useState<{ id: string; name: string } | null>(null);
   const [geometryScene, setGeometryScene] = useState<GeometryScene | null>(null);
@@ -70,6 +86,9 @@ export const Real3D: React.FC<Props> = ({
     return head.slice(0, 8);
   })();
   const more = Math.max(0, (fixture?.roomCode ? siblingFixtures.filter((f) => f.roomCode === fixture.roomCode).length : siblingFixtures.length) - strip.length);
+  const requestedRoomId = focusRoomId || fixture?.spaceId || pickedRoom?.id || null;
+  const resolvedFocusRoomId = geometryScene ? resolveSceneRoom(geometryScene, requestedRoomId) : null;
+  const roomFocusMissing = mode === 'room' && !!requestedRoomId && !resolvedFocusRoomId;
 
   return (
     <div className="bg-[#202427] text-[#F7F6F2] flex flex-col">
@@ -95,7 +114,7 @@ export const Real3D: React.FC<Props> = ({
           </div>
         </div>
         <span className="text-[11px] font-mono text-[#A9AFB0]">
-          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? (mode === 'room' ? 'Measured 2.5D floor cut · selected room' : 'Measured 2.5D geometry · click a room to inspect') : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
+          {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? (roomFocusMissing ? 'Room geometry is unavailable for this plan label' : mode === 'room' ? 'Measured 2.5D room · selected room' : 'Measured 2.5D geometry · click a room to inspect') : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
         </span>
       </div>
 
@@ -112,7 +131,8 @@ export const Real3D: React.FC<Props> = ({
                     className={`px-2.5 py-1 text-xs font-mono rounded transition-colors cursor-pointer border ${isSelected
                       ? isUnverified ? 'bg-red-600 text-white border-red-400 font-semibold' : 'bg-[#E9B949] text-[#202427] border-[#E9B949] font-semibold'
                       : isUnverified ? 'bg-red-950/60 text-red-300 border-red-500/60' : 'bg-white/5 text-[#A9AFB0] border-white/15 hover:text-[#F7F6F2]'}`}>
-                    {sib.code} {isUnverified ? '· Issue' : sib.status === 'Not checked' ? '' : `· ${sib.status}`}
+                    <span className="block">{sib.code} {isUnverified ? '· Issue' : sib.status === 'Not checked' ? '' : `· ${sib.status}`}</span>
+                    <span className="block mt-0.5 text-[10px] font-sans font-normal opacity-80">{fixtureDescription(sib)}</span>
                   </button>
                 );
               })}
@@ -134,7 +154,7 @@ export const Real3D: React.FC<Props> = ({
               onSelectSource={onOpenSource}
               onBackToFloor={() => { setPickedRoom(null); onSwitchMode('building'); }}
               storeyId={mode === 'building' ? null : storeyId} visibleLayers={visibleLayers}
-              focusRoomId={mode === 'room' ? (fixture?.spaceId && isGuid(fixture.spaceId) ? fixture.spaceId : pickedRoom?.id) : null} />
+              focusRoomId={mode === 'room' ? resolvedFocusRoomId : null} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-8">
               <span className="text-sm font-semibold text-[#E9B949]">2.5D scene unavailable</span>

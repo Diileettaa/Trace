@@ -20,6 +20,20 @@ const WIDTH = 1000
 const HEIGHT = 560
 const COS30 = Math.sqrt(3) / 2
 const roomName = (room: GeometryRoom) => room.name || room.number || room.id
+const roomCaption = (room: GeometryRoom) => {
+  const generic = !room.name || /^room$/i.test(room.name.trim())
+  if (room.number) return generic ? `Room ${room.number}` : `${room.name} · Room ${room.number}`
+  return roomName(room)
+}
+const objectKind = (category: string) => {
+  const value = category.toLowerCase()
+  if (/toilet|\bwc\b/.test(value)) return 'Toilet'
+  if (/sink|basin|wash/.test(value)) return 'Sink'
+  if (/shower/.test(value)) return 'Shower'
+  if (/bath|tub/.test(value)) return 'Bathtub'
+  if (/kitchen|stove|cook|oven/.test(value)) return 'Kitchen fixture'
+  return category.replace(/[_-]+/g, ' ')
+}
 const shortName = (value: string, maximum = 22) => value.length > maximum ? `${value.slice(0, maximum - 1)}…` : value
 const metric = (scene: GeometryScene) => scene.quality === 'measured' && scene.unit === 'm'
 const layerFor = (kind: string): SceneLayer => {
@@ -86,7 +100,16 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const storeyOrder = scene.storeys.filter(storey => includedStoreys.size === 0 || includedStoreys.has(storey.id)).sort((a, b) => a.elevationM - b.elevationM)
     const extraLift = new Map(storeyOrder.map((storey, index) => [storey.id, storeyOrder.length > 1 && !focus ? index : 0]))
     const lift = (id?: string) => extraLift.get(id ?? '') ?? 0
-    return { focus, focusBounds, rooms, walls, openings, objects, systems, lift }
+    // Every wall on a generated storey is shown at one coherent visual height.
+    // This preserves the plan's real wall network while making an incomplete
+    // elevation drawing readable as a buildable 2.5D layout.
+    const suppliedStoreyHeight = storeyOrder.length === 1 ? storeyOrder[0]?.heightM : undefined
+    const sourceHeights = walls.map((wall) => wall.heightM).filter((height) => height > 0).sort((a, b) => a - b)
+    const visualWallHeightM = suppliedStoreyHeight && suppliedStoreyHeight > 0
+      ? suppliedStoreyHeight
+      : sourceHeights[Math.floor(sourceHeights.length / 2)] ?? 2.7
+    const wallHeight = () => visualWallHeightM
+    return { focus, focusBounds, rooms, walls, openings, objects, systems, lift, wallHeight, visualWallHeightM }
   }, [focusRoomId, scene, storeyId, visibleLayers])
 
   useEffect(() => {
@@ -98,7 +121,7 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const allBounds = emptyBounds()
     const addPlan = (points: PlanPoint[], y: number) => points.forEach(([x, z]) => addPoint(allBounds, [x, y, z]))
     drawing.rooms.forEach(room => addPlan(room.polygon, (room.floorYM ?? 0) + drawing.lift(room.storeyId)))
-    drawing.walls.forEach(wall => { addPlan(wall.points, wall.baseYM + drawing.lift(wall.storeyId)); addPlan(wall.points, wall.baseYM + wall.heightM + drawing.lift(wall.storeyId)) })
+    drawing.walls.forEach(wall => { addPlan(wall.points, wall.baseYM + drawing.lift(wall.storeyId)); addPlan(wall.points, wall.baseYM + drawing.wallHeight() + drawing.lift(wall.storeyId)) })
     drawing.openings.forEach(opening => addPoint(allBounds, [opening.position[0], opening.position[1] + opening.heightM + drawing.lift(), opening.position[2]]))
     drawing.objects.forEach(object => { const y = object.position[1] + drawing.lift(object.storeyId); addPlan(footprint(object), y); addPlan(footprint(object), y + (object.heightM ?? .7)) })
     drawing.systems.forEach(system => system.points.forEach(([x, y, z]) => addPoint(allBounds, [x, y + drawing.lift(system.storeyId), z])))
@@ -177,7 +200,9 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
       const base = object.confidence !== undefined && object.confidence < .7 ? '#B65B4F' : '#F8FAFC'
       const outline = '#A9AFB0'
       const select = () => onSelectObject?.(object.id)
-      const metadata = { title: object.name || object.category || object.id, source: object.source, click: select }
+      const room = object.roomId ? scene.rooms.find((candidate) => candidate.id === object.roomId) : drawing.focus
+      const description = [objectKind(category), room ? roomCaption(room) : null].filter(Boolean).join(' · ')
+      const metadata = { title: description || object.name || object.category || object.id, source: object.source, click: select }
       if (/toilet|\bwc\b/.test(category)) {
         const w = object.footprint?.widthM ?? .46; const d = object.footprint?.depthM ?? .68
         addPath(footprintPoints, { fill: '#CBD5E1', opacity: .94, stroke: outline, strokeOpacity: .95 }, metadata)
@@ -197,14 +222,15 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
       } else {
         addPath(footprintPoints, { fill: '#6B7376', opacity: .9, stroke: outline, strokeOpacity: .85 }, metadata)
       }
-      if (object.name) addChip(object.name, [x, baseY + .1, z], object.confidence !== undefined && object.confidence < .7 ? '#F87171' : '#E9B949')
+      // Labels stay in the inspected room; a whole floor would otherwise be unreadable.
+      if (drawing.focus) addChip(description || object.name || object.id, [x, baseY + .1, z], object.confidence !== undefined && object.confidence < .7 ? '#F87171' : '#E9B949')
     }
 
     // Slab first: a thin union bounding box, as Gigi's floor base.
     const slabY = allBounds.minY - .2
     const slabCorners: PlanPoint[] = [[allBounds.minX, allBounds.minZ], [allBounds.maxX, allBounds.minZ], [allBounds.maxX, allBounds.maxZ], [allBounds.minX, allBounds.maxZ]]
-    addPath(slabCorners.map(([x, z]) => [x, slabY, z] as Point3), { fill: '#202427', opacity: 1, stroke: '#A9AFB0', strokeOpacity: .55 })
-    addPath([slabCorners[1], slabCorners[2]].map(([x, z]) => [x, slabY, z] as Point3).concat([ [allBounds.maxX, slabY - .2, allBounds.maxZ], [allBounds.maxX, slabY - .2, allBounds.minZ] ] as Point3[]), { fill: '#171A1C', opacity: 1, stroke: '#A9AFB0', strokeOpacity: .42 })
+    addPath(slabCorners.map(([x, z]) => [x, slabY, z] as Point3), { fill: '#353C40', opacity: 1, stroke: '#A9AFB0', strokeOpacity: .72 })
+    addPath([slabCorners[1], slabCorners[2]].map(([x, z]) => [x, slabY, z] as Point3).concat([ [allBounds.maxX, slabY - .2, allBounds.maxZ], [allBounds.maxX, slabY - .2, allBounds.minZ] ] as Point3[]), { fill: '#252B2F', opacity: 1, stroke: '#A9AFB0', strokeOpacity: .55 })
 
     drawing.rooms.forEach(room => {
       const y = (room.floorYM ?? 0) + drawing.lift(room.storeyId)
@@ -214,12 +240,12 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
         source: room.source,
         click: () => onSelectRoom?.({ id: room.id, name: roomName(room) }),
       })
-      if (selectedRoom) addChip(`${roomName(room)} · Clicked room`, [...midpoint(room.polygon), y + .08] as Point3)
+      if (selectedRoom) addChip(roomCaption(room), [...midpoint(room.polygon), y + .08] as Point3)
     })
 
-    // Far walls first means their darker faces naturally stay behind fixtures.
+    // Far walls first means their faces naturally stay behind fixtures.
     drawing.walls.slice().sort((a, b) => midpoint(a.points)[0] + midpoint(a.points)[1] - midpoint(b.points)[0] - midpoint(b.points)[1]).forEach(wall => {
-      const y = wall.baseYM + drawing.lift(wall.storeyId); const top = y + (drawing.focus ? Math.min(wall.heightM, 1.2) : wall.heightM)
+      const y = wall.baseYM + drawing.lift(wall.storeyId); const top = y + drawing.wallHeight()
       for (let index = 1; index < wall.points.length; index++) {
         const [ax, az] = wall.points[index - 1]; const [bx, bz] = wall.points[index]; const length = Math.hypot(bx - ax, bz - az)
         if (!length) continue
@@ -227,20 +253,20 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
         const a: Point3 = [ax + nx, y, az + nz], b: Point3 = [bx + nx, y, bz + nz], c: Point3 = [bx - nx, y, bz - nz], d: Point3 = [ax - nx, y, az - nz]
         const au: Point3 = [a[0], top, a[2]], bu: Point3 = [b[0], top, b[2]], cu: Point3 = [c[0], top, c[2]], du: Point3 = [d[0], top, d[2]]
         const detail = { title: wall.id || 'Wall', source: wall.source }
-        addPath([a, b, bu, au], { fill: '#2A2F33', opacity: .85, stroke: '#F7F6F2', strokeOpacity: .6 }, detail)
-        addPath([b, c, cu, bu], { fill: '#202427', opacity: .82, stroke: '#F7F6F2', strokeOpacity: .5 }, detail)
-        addPath([au, bu, cu, du], { fill: '#3A4044', opacity: .75, stroke: '#F7F6F2', strokeOpacity: .5 }, detail)
+        addPath([a, b, bu, au], { fill: '#D9D4C7', opacity: .58, stroke: '#202427', strokeOpacity: .88 }, detail)
+        addPath([b, c, cu, bu], { fill: '#A9AFB0', opacity: .55, stroke: '#202427', strokeOpacity: .82 }, detail)
+        addPath([au, bu, cu, du], { fill: '#E8E2D4', opacity: .72, stroke: '#202427', strokeOpacity: .88 }, detail)
       }
     })
 
     drawing.openings.forEach(opening => {
-      const [x, rawY, z] = opening.position; const y = rawY + drawing.lift(); const radians = opening.rotationDeg * Math.PI / 180
+      const [x, rawY, z] = opening.position; const y = rawY + drawing.lift(); const height = opening.heightM; const radians = opening.rotationDeg * Math.PI / 180
       const dx = Math.cos(radians) * opening.widthM / 2; const dz = Math.sin(radians) * opening.widthM / 2
-      const points: Point3[] = [[x - dx, y, z - dz], [x + dx, y, z + dz], [x + dx, y + opening.heightM, z + dz], [x - dx, y + opening.heightM, z - dz]]
+      const points: Point3[] = [[x - dx, y, z - dz], [x + dx, y, z + dz], [x + dx, y + height, z + dz], [x - dx, y + height, z - dz]]
       const color = opening.kind === 'window' ? '#3B4A5A' : '#2B3A4D'
       addPath(points, { fill: color, opacity: opening.kind === 'window' ? .88 : .96, stroke: '#A9AFB0', strokeOpacity: .95 }, { title: opening.kind === 'window' ? 'Window' : 'Door', source: opening.source })
-      if (opening.kind === 'window') addPath([[x, y, z], [x, y + opening.heightM, z]], { fill: 'none', stroke: '#A9AFB0', strokeOpacity: .9, width: 1.4 })
-      else { const [knobX, knobY] = screen([x + dx * .55, y + opening.heightM * .45, z + dz * .55]); svg.append(element('circle', { cx: knobX, cy: knobY, r: 3, fill: '#E9B949' })) }
+      if (opening.kind === 'window') addPath([[x, y, z], [x, y + height, z]], { fill: 'none', stroke: '#A9AFB0', strokeOpacity: .9, width: 1.4 })
+      else { const [knobX, knobY] = screen([x + dx * .55, y + height * .45, z + dz * .55]); svg.append(element('circle', { cx: knobX, cy: knobY, r: 3, fill: '#E9B949' })) }
     })
 
     // Wall faces naturally sit above the floor fill. Keep an invisible, topmost
