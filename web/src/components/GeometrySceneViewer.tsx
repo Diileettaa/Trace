@@ -38,27 +38,28 @@ interface Inspection {
 }
 
 const inspectionFor = (scene: GeometryScene, id: string, roomId?: string): Inspection | null => {
+  const metric = scene.quality === 'measured' && scene.unit === 'm'
   const build = (item: GeometryObject | GeometryOpening | GeometryWall | GeometrySystem | GeometryRoom, title: string, kind: string, dimensions: string[]): Inspection => ({
     id: item.id, title, kind, dimensions, method: item.method, confidence: item.confidence, assumed: item.assumed, source: item.source,
   })
   if (roomId) {
     const room = scene.rooms.find(item => item.id === roomId)
     return room ? build(room, room.name || room.number || room.id, 'Room', [
-      ...(room.areaM2 !== null && room.areaM2 !== undefined ? [`${room.areaM2.toFixed(2)} m²`] : []),
-      ...(room.heightM !== undefined ? [`height ${metres(room.heightM)}`] : []),
+      ...(metric && room.areaM2 !== null && room.areaM2 !== undefined ? [`${room.areaM2.toFixed(2)} m²`] : []),
+      ...(metric && room.heightM !== undefined ? [`height ${metres(room.heightM)}`] : []),
     ]) : null
   }
   const object = scene.objects.find(item => item.id === id)
   if (object) return build(object, object.name || object.id, object.category, [
-    ...(object.footprint ? [`${metres(object.footprint.widthM)} × ${metres(object.footprint.depthM)}`] : []),
-    ...(object.heightM !== undefined ? [`height ${metres(object.heightM)}`] : []),
+    ...(metric && object.footprint ? [`${metres(object.footprint.widthM)} × ${metres(object.footprint.depthM)}`] : []),
+    ...(metric && object.heightM !== undefined ? [`height ${metres(object.heightM)}`] : []),
   ])
   const opening = scene.openings.find(item => item.id === id)
-  if (opening) return build(opening, opening.id, opening.kind, [`${metres(opening.widthM)} × ${metres(opening.heightM)}`])
+  if (opening) return build(opening, opening.id, opening.kind, metric ? [`${metres(opening.widthM)} × ${metres(opening.heightM)}`] : [])
   const wall = scene.walls.find(item => item.id === id)
-  if (wall) return build(wall, wall.id, 'wall', [`${metres(wall.thicknessM)} thick`, `height ${metres(wall.heightM)}`])
+  if (wall) return build(wall, wall.id, 'wall', metric ? [`${metres(wall.thicknessM)} thick`, `height ${metres(wall.heightM)}`] : [])
   const system = scene.systems.find(item => item.id === id)
-  if (system) return build(system, system.id, system.kind, system.diameterM !== undefined ? [`Ø ${metres(system.diameterM)}`] : [])
+  if (system) return build(system, system.id, system.kind, metric && system.diameterM !== undefined ? [`Ø ${metres(system.diameterM)}`] : [])
   return null
 }
 
@@ -70,10 +71,10 @@ const roomMesh = (polygon: PlanPoint[], y: number, material: THREE.Material) => 
   return mesh
 }
 
-const symbol = (item: GeometryObject) => {
-  const width = item.footprint?.widthM ?? .45
-  const depth = item.footprint?.depthM ?? .65
-  const height = item.heightM ?? .42
+const symbol = (item: GeometryObject, illustrative = false) => {
+  const width = item.footprint?.widthM ?? (illustrative ? 18 : .45)
+  const depth = item.footprint?.depthM ?? (illustrative ? 25 : .65)
+  const height = item.heightM ?? (illustrative ? 16 : .42)
   const group = new THREE.Group()
   // Amber is a normal recognised symbol; muted red means the engine explicitly
   // marked it below the review threshold. The UI never invents confidence.
@@ -128,11 +129,11 @@ const openingSymbol = (opening: GeometryOpening) => {
   return mesh
 }
 
-const systemSymbol = (system: GeometrySystem) => {
+const systemSymbol = (system: GeometrySystem, illustrative = false) => {
   const curve = new THREE.CatmullRomCurve3(system.points.map(([x, y, z]) => new THREE.Vector3(x, y, z)))
   const layer = layerFor(system.kind)
   const color = layer === 'electrical' ? '#e9b949' : layer === 'hvac' ? '#86b7c8' : '#579c87'
-  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, system.points.length * 5), system.diameterM ? Math.max(.008, system.diameterM / 2) : .018, 7, false), new THREE.MeshStandardMaterial({ color, roughness: .55 }))
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, system.points.length * 5), system.diameterM ? Math.max(illustrative ? 1 : .008, system.diameterM / 2) : illustrative ? 2 : .018, 7, false), new THREE.MeshStandardMaterial({ color, roughness: .55 }))
   mesh.userData.objectId = system.id
   mesh.userData.source = system.source
   return mesh
@@ -142,6 +143,7 @@ const systemSymbol = (system: GeometrySystem) => {
 export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoom, onSelectSource, focusRoomId, storeyId, visibleLayers }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const [inspection, setInspection] = useState<Inspection | null>(null)
+  const metric = scene.quality === 'measured' && scene.unit === 'm'
   const reviewNeeded = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
     .some(item => item.confidence !== undefined && item.confidence < .7)
   const hasAssumedDimensions = [...scene.rooms, ...scene.walls, ...scene.openings, ...scene.objects]
@@ -195,16 +197,18 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
       }
     }
     for (const opening of scene.openings.filter(opening => architectureVisible && (!opening.wallId || renderedWallIds.has(opening.wallId)))) { const mesh = openingSymbol(opening); mesh.userData.source = opening.source; scene3.add(mesh); bounds.expandByObject(mesh) }
-    for (const item of scene.objects.filter(item => matchesStorey(item, storeyId) && layerVisible(layerFor(item.category), visibleLayers))) { const mesh = symbol(item); mesh.userData.source = item.source; scene3.add(mesh); bounds.expandByObject(mesh) }
-    for (const system of scene.systems.filter(system => matchesStorey(system, storeyId) && layerVisible(layerFor(system.kind), visibleLayers))) { const mesh = systemSymbol(system); scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const item of scene.objects.filter(item => matchesStorey(item, storeyId) && layerVisible(layerFor(item.category), visibleLayers))) { const mesh = symbol(item, !metric); mesh.userData.source = item.source; scene3.add(mesh); bounds.expandByObject(mesh) }
+    for (const system of scene.systems.filter(system => matchesStorey(system, storeyId) && layerVisible(layerFor(system.kind), visibleLayers))) { const mesh = systemSymbol(system, !metric); scene3.add(mesh); bounds.expandByObject(mesh) }
 
     const size = bounds.isEmpty() ? new THREE.Vector3(5, 3, 5) : bounds.getSize(new THREE.Vector3())
     const center = bounds.isEmpty() ? new THREE.Vector3() : bounds.getCenter(new THREE.Vector3())
     if (!bounds.isEmpty()) {
       const reference = new THREE.Vector3(bounds.min.x + Math.max(.18, size.x * .025), bounds.min.y + .035, bounds.min.z + Math.max(.18, size.z * .025))
-      const scaleLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([reference, reference.clone().add(new THREE.Vector3(1, 0, 0))]), new THREE.LineBasicMaterial({ color: '#e9b949' }))
-      const north = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), reference, .75, '#202427', .16, .09)
-      scene3.add(scaleLine, north)
+      if (metric) {
+        const scaleLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([reference, reference.clone().add(new THREE.Vector3(1, 0, 0))]), new THREE.LineBasicMaterial({ color: '#e9b949' }))
+        const north = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), reference, .75, '#202427', .16, .09)
+        scene3.add(scaleLine, north)
+      }
     }
     const focusedRoom = focusRoomId ? scene.rooms.find(room => room.id === focusRoomId) : null
     const focusCenter = focusedRoom ? focusedRoom.polygon.reduce((total, [x, z]) => total.add(new THREE.Vector3(x, focusedRoom.floorYM ?? 0, z)), new THREE.Vector3()).multiplyScalar(1 / focusedRoom.polygon.length) : center
@@ -237,7 +241,7 @@ export default function GeometrySceneViewer({ scene, onSelectObject, onSelectRoo
     const observer = new ResizeObserver(resize); observer.observe(element); resize()
     const animate = () => { if (disposed) return; controls.update(); renderer.render(scene3, camera); frame = requestAnimationFrame(animate) }; animate()
     return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); renderer.domElement.removeEventListener('click', onClick); controls.dispose(); scene3.traverse(node => { if (node instanceof THREE.Mesh || node instanceof THREE.Line) { node.geometry.dispose(); const materials = Array.isArray(node.material) ? node.material : [node.material]; materials.forEach(material => material.dispose()) } }); renderer.dispose(); renderer.domElement.remove() }
-  }, [focusRoomId, onSelectObject, onSelectRoom, onSelectSource, scene, storeyId, visibleLayers])
+  }, [focusRoomId, metric, onSelectObject, onSelectRoom, onSelectSource, scene, storeyId, visibleLayers])
 
-  return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label="Metric scene reference"><strong>↑ N</strong><span>1 m model units</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside>{inspection && <aside className="geometry-scene-inspector" aria-live="polite"><button type="button" className="geometry-scene-inspector-close" onClick={() => setInspection(null)} aria-label="Close element details">×</button><strong>{inspection.title}</strong><span>{inspection.kind}</span>{inspection.dimensions.map((dimension) => <span key={dimension}>{dimension}</span>)}{inspection.method && <span>method: {inspection.method}</span>}{inspection.confidence !== undefined && <span>confidence: {Math.round(inspection.confidence * 100)}%</span>}{inspection.assumed && <span className="geometry-scene-review">△ default dimension</span>}{inspection.source?.bbox && <button type="button" className="geometry-scene-source-button" onClick={() => onSelectSource?.(inspection.source!)}>Open source evidence</button>}</aside>}</div>
+  return <div className="geometry-scene-viewer"><div ref={host} className="geometry-scene-canvas" /><aside className="geometry-scene-reference" aria-label={metric ? 'Metric scene reference' : 'Illustrative scene reference'}><strong>{metric ? '↑ N' : 'ILLUSTRATIVE'}</strong><span>{metric ? '1 m model units' : 'Uncalibrated drawing · not to scale'}</span>{reviewNeeded && <span className="geometry-scene-review">△ review symbol</span>}{hasAssumedDimensions && <span>△ default height</span>}</aside>{inspection && <aside className="geometry-scene-inspector" aria-live="polite"><button type="button" className="geometry-scene-inspector-close" onClick={() => setInspection(null)} aria-label="Close element details">×</button><strong>{inspection.title}</strong><span>{inspection.kind}</span>{inspection.dimensions.map((dimension) => <span key={dimension}>{dimension}</span>)}{inspection.method && <span>method: {inspection.method}</span>}{inspection.confidence !== undefined && <span>confidence: {Math.round(inspection.confidence * 100)}%</span>}{inspection.assumed && <span className="geometry-scene-review">△ default dimension</span>}{inspection.source?.bbox && <button type="button" className="geometry-scene-source-button" onClick={() => onSelectSource?.(inspection.source!)}>Open source evidence</button>}</aside>}</div>
 }

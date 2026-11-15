@@ -2,6 +2,7 @@ import type { PlanRoom, PlanRoomsResult } from '../api'
 
 export type SceneQuality = 'measured' | 'illustrative'
 export type SceneSourceKind = 'ifc' | 'vector-drawing' | 'raster-drawing'
+export type SceneCoordinateSystem = 'x-right,y-up,z-plan-north' | 'drawing-pixels' | 'image-norm1000' | 'drawing-norm1000'
 export type PlanPoint = [number, number]
 export type WorldPoint = [number, number, number]
 
@@ -93,8 +94,8 @@ export interface GeometryScene {
   sourceKind: SceneSourceKind
   quality: SceneQuality
   /** Exact metric scene: X right, Y up, Z plan north. */
-  coordinateSystem: 'x-right,y-up,z-plan-north' | 'drawing-pixels'
-  unit: 'm' | 'px'
+  coordinateSystem: SceneCoordinateSystem
+  unit: 'm' | 'px' | 'norm1000'
   warnings: string[]
   storeys: GeometryStorey[]
   rooms: GeometryRoom[]
@@ -153,6 +154,13 @@ export function isMeasuredGeometryScene(value: GeometryScene): boolean {
     && value.coordinateSystem === 'x-right,y-up,z-plan-north'
 }
 
+/** Uncalibrated scans may be useful spatial illustrations, never metric models. */
+export function isIllustrativeGeometryScene(value: GeometryScene): boolean {
+  return value.quality === 'illustrative'
+    && (value.unit === 'norm1000' || value.unit === 'px')
+    && (value.coordinateSystem === 'image-norm1000' || value.coordinateSystem === 'drawing-norm1000' || value.coordinateSystem === 'drawing-pixels')
+}
+
 type JsonRecord = Record<string, unknown>
 const record = (value: unknown): JsonRecord | null => value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : null
 const text = (value: unknown) => typeof value === 'string' ? value : undefined
@@ -187,8 +195,8 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
   const unit = text(raw.unit)
   if (!projectId || (sourceKind !== 'ifc' && sourceKind !== 'vector-drawing' && sourceKind !== 'raster-drawing')
     || (quality !== 'measured' && quality !== 'illustrative')
-    || (coordinateSystem !== 'x-right,y-up,z-plan-north' && coordinateSystem !== 'drawing-pixels')
-    || (unit !== 'm' && unit !== 'px')) return null
+    || (coordinateSystem !== 'x-right,y-up,z-plan-north' && coordinateSystem !== 'drawing-pixels' && coordinateSystem !== 'image-norm1000' && coordinateSystem !== 'drawing-norm1000')
+    || (unit !== 'm' && unit !== 'px' && unit !== 'norm1000')) return null
   const rooms: GeometryRoom[] = records(raw.rooms).map((item): GeometryRoom | null => {
     const polygon = (Array.isArray(item.polygon) ? item.polygon.map(planarPoint).filter((point): point is PlanPoint => point !== null) : [])
     const id = text(item.id)
@@ -217,7 +225,7 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const diameterM = number(item.diameter_m) ?? number(item.diameterM)
     return id && kind && points.length >= 2 ? { id, kind, storeyId: text(item.storey_id) ?? text(item.storeyId), points, diameterM, fromId: text(item.from_id) ?? text(item.fromId), toId: text(item.to_id) ?? text(item.toId), source: source(item.source), ...evidence(item) } : null
   }).filter(defined)
-  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem: coordinateSystem as GeometryScene['coordinateSystem'], unit: unit as GeometryScene['unit'], warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
+  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem: coordinateSystem as SceneCoordinateSystem, unit: unit as GeometryScene['unit'], warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
 }
 
 export function isGeometryScene(value: unknown): value is GeometryScene {
@@ -235,8 +243,8 @@ export function geometrySceneValidationError(value: unknown, scene: GeometryScen
   for (const key of ['rooms', 'walls', 'openings', 'objects']) {
     if (!Array.isArray(raw[key])) return `Geometry scene is missing the required ${key} array.`
   }
-  if (scene.quality !== 'measured') return 'Geometry scene is illustrative, not calibrated metric data.'
-  if (!isMeasuredGeometryScene(scene)) return 'Geometry scene must use metres and x-right, y-up, z-plan-north coordinates.'
+  if (scene.quality === 'measured' && !isMeasuredGeometryScene(scene)) return 'Measured geometry must use metres and x-right, y-up, z-plan-north coordinates.'
+  if (scene.quality === 'illustrative' && !isIllustrativeGeometryScene(scene)) return 'Illustrative geometry must declare norm1000 or drawing-pixel coordinates.'
   if (scene.rooms.length + scene.walls.length + scene.openings.length + scene.objects.length === 0) {
     return 'Geometry scene contains no rooms, walls, openings, or objects.'
   }

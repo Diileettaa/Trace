@@ -5,7 +5,7 @@ import { ArrowLeft, Building2, Eye } from 'lucide-react';
 import IfcViewer from '../IfcViewer';
 import PlanRooms3D from '../components/PlanRooms3D';
 import GeometrySceneViewer from '../components/GeometrySceneViewer';
-import { isMeasuredGeometryScene, loadGeometryScene, type GeometryScene, type GeometrySource } from '../viewer3d/geometryScene';
+import { isIllustrativeGeometryScene, isMeasuredGeometryScene, loadGeometryScene, type GeometryScene, type GeometrySource } from '../viewer3d/geometryScene';
 import type { FixtureVerification, QueryScenario } from './adapters';
 
 interface Props {
@@ -44,7 +44,7 @@ export const Real3D: React.FC<Props> = ({
     if (!source) return () => { active = false; };
     void loadGeometryScene(source).then((result) => {
       if (!active) return;
-      if (result.scene && isMeasuredGeometryScene(result.scene)) setGeometryScene(result.scene);
+      if (result.scene && (isMeasuredGeometryScene(result.scene) || isIllustrativeGeometryScene(result.scene))) setGeometryScene(result.scene);
       else setGeometryError(result.error ?? null);
     });
     return () => { active = false; };
@@ -124,7 +124,7 @@ export const Real3D: React.FC<Props> = ({
         <div className="gigi-3d h-[430px] rounded-lg overflow-hidden bg-[#16191B] relative">
           {geometryError && (
             <div className="absolute z-10 left-3 top-3 max-w-xs rounded border border-amber-300/60 bg-[#202427]/95 px-3 py-2 text-[11px] text-[#F7F6F2] shadow-sm">
-              <strong className="block text-[#E9B949]">Measured scene not shown</strong>
+              <strong className="block text-[#E9B949]">Scene not shown</strong>
               {geometryError} Using the source view instead.
             </div>
           )}
