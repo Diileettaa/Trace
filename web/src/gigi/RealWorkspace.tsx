@@ -31,6 +31,43 @@ interface Sheet { path: string; page: number; kind?: string | null; discipline: 
 interface SheetGroup { discipline: string; label: string; sheets: Sheet[] }
 const sheetName = (s: Sheet) => [s.sheet_no, s.level, s.kind === 'model' ? '3D model' : s.kind && s.kind !== 'doc' ? s.kind : null].filter(Boolean).join(' · ') || (s.path.split('/').pop() || s.path);
 const sheetFile = (s: Sheet) => `${s.path.split('/').pop()}${s.page > 1 ? ` · p.${s.page}` : ''}`;
+
+/**
+ * A drawing title is a routing hint, not a verdict about its contents.  In
+ * particular, "Site Plan" sheets sometimes carry an inset plan; conversely a
+ * room-area question belongs on a room/finish schedule when one exists.  Keep
+ * this decision in the client so the user can always see which sheet was used
+ * and change it from the sheet picker.
+ */
+const isRoomAreaQuestion = (question: string) => {
+  const q = question.toLowerCase();
+  return /\b(area|areas|floor area|square (?:metres|meters|feet)|m²|sq\.?\s*(?:m|ft))\b/.test(q)
+    && /\b(room|rooms|space|spaces|apartment|unit|suite|floor)\b/.test(q);
+};
+
+const sheetText = (sheet: Sheet) => `${sheet.title || ''} ${sheet.path}`.toLowerCase();
+const isSiteOrLocalDetail = (sheet: Sheet) => /\bsite(?:\s|_|-)?plan\b|site layout|master plan|restroom|toilet detail|\bdetail(?:s)?\b/.test(sheetText(sheet));
+
+/** Pick an answerable source for room-area questions without pretending that a
+ * site title means the PDF is unreadable.  A schedule with room/finish areas
+ * is strongest evidence; otherwise use a named architectural floor plan. */
+const chooseRoomAreaSheet = (sheets: Sheet[]): Sheet | undefined => {
+  const scored = sheets.map((sheet) => {
+    const text = sheetText(sheet);
+    let score = 0;
+    if (sheet.discipline === 'architecture') score += 20;
+    if (sheet.kind === 'schedule') score += 20;
+    if (/room(?:\s|_|-)?schedule|finish(?:es)?(?:\s|_|-)?schedule|room data|area schedule/.test(text)) score += 55;
+    if (sheet.kind === 'plan') score += 20;
+    if (/floor plan|first floor|second floor|ground floor|\blevel\b/.test(text)) score += 25;
+    if (sheet.level) score += 10;
+    if (isSiteOrLocalDetail(sheet)) score -= 80;
+    return { sheet, score };
+  });
+  const best = scored.sort((a, b) => b.score - a.score)[0];
+  return best && best.score > 0 ? best.sheet : undefined;
+};
+
 interface ChatSession { id: string; title: string; timestamp: string; messages: ChatMessage[] }
 interface Project { id: string; title: string; subtitle?: string; model: string | null; plan: string | null; demo_data?: boolean }
 
@@ -287,11 +324,32 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
       });
     });
     try {
-      // ours: if the project has several sheets, let the sheet set pick the one that answers this question
+      // A first question can arrive before the asynchronous sheet menu has
+      // finished loading.  Resolve the sheet set here as well, so the choice
+      // of source never depends on a race in the UI.
       let usePath = askPath;
       let usePage = sheetPage;
       let source: ChatMessage['source'];
-      if (sheetCount > 3) {  // a real sheet set; small projects keep the sheet the user opened
+      let availableSheets = sheetGroups.flatMap((group) => group.sheets);
+      if (!availableSheets.length && project.id.startsWith('set-')) {
+        const d = await fetch(`/api/sheetset?project=${encodeURIComponent(project.id)}`).then((r) => r.json()).catch(() => null);
+        const groups: SheetGroup[] = Array.isArray(d?.groups) ? d.groups : [];
+        if (groups.length) {
+          availableSheets = groups.flatMap((group) => group.sheets);
+          setSheetGroups(groups);
+        }
+      }
+      if (isRoomAreaQuestion(promptText) && availableSheets.length) {
+        const top = chooseRoomAreaSheet(availableSheets);
+        if (top) {
+          usePath = top.path; usePage = top.page;
+          source = {
+            label: [top.title, sheetName(top)].filter(Boolean).join(' — '), path: top.path, page: top.page,
+            why: ['room-area question: preferred a room/finish schedule or full floor plan', ...(top.why || [])],
+          };
+          if (usePath !== askPath || usePage !== sheetPage) { setAskPath(usePath); setSheetPage(usePage); }
+        }
+      } else if (availableSheets.length > 3) {  // a real sheet set; small projects keep the sheet the user opened
         const r = await fetch(`/api/sheetset/pick?project=${encodeURIComponent(project.id)}&q=${encodeURIComponent(promptText)}&current=${encodeURIComponent(askPath)}`)
           .then((x) => x.json()).catch(() => null);
         const top: Sheet | undefined = r?.picks?.[0];
