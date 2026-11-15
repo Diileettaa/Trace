@@ -10,8 +10,9 @@ function Root() {
   const [hash, setHash] = useState(window.location.hash)
   useEffect(() => { const h = () => setHash(window.location.hash); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])
   const legacy = new URLSearchParams(window.location.search).get('legacy') === '1'
-  if (hash === '#projects' || legacy) return <App />
-  return <Site onOpenProjects={() => { window.location.hash = '#projects' }} />
+  // the Projects page is hidden for the demo (unfinished; only reachable with ?legacy=1)
+  if (legacy && hash !== '#off') return <App />
+  return <Site />
 }
 
 createRoot(document.getElementById('root')!).render(
