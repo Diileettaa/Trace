@@ -425,7 +425,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
           <section className="pt-8 pb-12 sm:pt-10 sm:pb-14">
             <div className="max-w-[1200px] mx-auto px-6">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-mono font-semibold tracking-wider uppercase text-[#9A7218]">
                     Trace. · A Product by Stoa
                   </p>
@@ -436,7 +436,7 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
                 <button
                   type="button"
                   onClick={() => navigateToPage('workspace')}
-                  className="px-4 py-2.5 rounded-lg bg-[#202427] text-[#F7F6F2] text-xs sm:text-sm font-semibold hover:bg-[#202427]/90 transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
+                  className="px-4 py-2.5 rounded-lg bg-[#202427] text-[#F7F6F2] text-xs sm:text-sm font-semibold hover:bg-[#202427]/90 transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto shrink-0 cursor-pointer"
                 >
                   <span>Open Demo Version</span>
                   <ArrowRight className="w-4 h-4 text-[#E9B949]" />
