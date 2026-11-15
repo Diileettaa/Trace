@@ -301,12 +301,12 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
           if (usePath !== askPath || usePage !== sheetPage) { setAskPath(usePath); setSheetPage(usePage); }
         }
       }
-      const ask = await api.ask(usePage > 1 && /\.pdf$/i.test(usePath) ? `${usePath}#p${usePage}` : usePath, promptText);
-      const ev0: any = ask?.evidence?.[0] || {};
+      const ask = await api.ask(usePath, promptText, undefined, usePage);
+      const ev0: any = Array.isArray(ask?.evidence) ? ask.evidence[0] || {} : ask || {};
       const engine: ChatMessage['engine'] = ev0.method ? { confidence: ev0.confidence, reason: ev0.confidence_reason,
         warnings: (ev0.warnings || []).filter((w: string) => !/free-form question/.test(String(w))).map(String),
-        zoom: ev0.evidence_images?.zoom, alternatives: Array.isArray(ev0.alternatives) ? ev0.alternatives : [] } : undefined;
-      const items: any[] = ask?.evidence?.[0]?.items || [];
+        zoom: ask?.evidenceZoom || ev0.evidence_images?.zoom, alternatives: Array.isArray(ev0.alternatives) ? ev0.alternatives : [] } : undefined;
+      const items: any[] = Array.isArray(ask?.evidence) ? ask.evidence[0]?.items || [] : ask?.evidenceLocations || ask?.items || [];
       const ids = items.map((it: any) => String(it.id)).filter(Boolean);
       const [plan, verify] = await Promise.all([
         api.planRooms(usePath).catch(() => null),

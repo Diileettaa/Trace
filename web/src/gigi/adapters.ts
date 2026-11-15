@@ -83,12 +83,20 @@ const stripMd = (s: string) => (s || '').replace(/\*\*/g, '').replace(/\s+\n/g, 
 
 function boxFrom(src: any, imgW: number, imgH: number): Box | null {
   if (!src) return null;
+  if (Array.isArray(src.png_bbox) && src.png_bbox.length === 4) {
+    const [x0, y0, x1, y1] = src.png_bbox;
+    return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+  }
   if (Array.isArray(src.bbox) && src.bbox.length === 4) {
     const [x0, y0, x1, y1] = src.bbox;
     return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
   }
   if (Array.isArray(src.box_norm1000) && imgW && imgH) {
     const [x0, y0, x1, y1] = src.box_norm1000;
+    return { x: (x0 * imgW) / 1000, y: (y0 * imgH) / 1000, w: ((x1 - x0) * imgW) / 1000, h: ((y1 - y0) * imgH) / 1000 };
+  }
+  if (Array.isArray(src.bbox_norm1000) && imgW && imgH) {
+    const [x0, y0, x1, y1] = src.bbox_norm1000;
     return { x: (x0 * imgW) / 1000, y: (y0 * imgH) / 1000, w: ((x1 - x0) * imgW) / 1000, h: ((y1 - y0) * imgH) / 1000 };
   }
   return null;
@@ -123,7 +131,19 @@ export function toScenario(
   verify?: Record<string, VerifyEntry> | null,
   imageSize?: [number, number] | null,
 ): { scenario: QueryScenario; fixtures: Record<string, FixtureVerification> } {
-  const ev = (ask?.evidence || [])[0] || {};
+  // `agent.docs_api` returns a flat, evidence-first answer. Keep the legacy
+  // nested response working while the proxy is being moved to the new API.
+  const flatEngineAnswer = !Array.isArray(ask?.evidence) && (ask?.answer_id || Object.hasOwn(ask || {}, 'value'));
+  const ev = Array.isArray(ask?.evidence) ? ask.evidence[0] || {} : {
+    value: ask?.value,
+    unit: ask?.unit,
+    items: ask?.evidenceLocations || ask?.items || [],
+    sources: ask?.sources || (ask?.file ? [{ file: ask.file, page: ask.page }] : []),
+    method: ask?.method,
+    confidence: ask?.confidence,
+    confidence_reason: ask?.confidence_reason,
+    warnings: ask?.warnings || [],
+  };
   const items: any[] = ev.items || [];
   const sources: any[] = ev.sources || [];
   const [imgW, imgH] = imageSize || plan?.image_size || [0, 0];
@@ -218,7 +238,7 @@ export function toScenario(
       roomPolygon: room?.polygon_px || null,
       roomDimsM: (dims as any) || null,
       targetIds: Object.keys(fixtures),
-      aiSummary: stripMd(ask?.answer_text || ''),
+      aiSummary: stripMd(ask?.answer_text || (value == null ? (ev.warnings?.[0] || 'No reliable answer on this drawing.') : `${bigMetric}${method ? ` · ${method}` : ''}`)),
       followUpQuestions: (ask?.follow_ups || []).map((q: string, i: number) => ({ id: `fu-${i}`, question: q })),
       how: {
         source: ev.source || summary.source || '',
@@ -233,7 +253,7 @@ export function toScenario(
       },
       answerId: ask?.answer_id,
       alternatives: ask?.alternatives || [],
-      uncertain: /uncertain/.test(method),
+      uncertain: /uncertain/.test(method) || (flatEngineAnswer && ask?.confidence !== 'high'),
       path,
     },
     fixtures,
@@ -270,10 +290,17 @@ export function withElementInfo(f: FixtureVerification, info: any): FixtureVerif
 
 // ---- thin API helpers (all relative to /api) ----
 const j = async (r: Response) => { if (!r.ok) throw new Error(`${r.status} ${await r.text()}`); return r.json(); };
+const engineUrl = (path: string) => path.startsWith('/api/') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`;
 export const api = {
-  ask: (path: string, question: string, role?: string) =>
-    fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ path, question, role }) }).then(j),
+  ask: async (path: string, question: string, role?: string, page?: number) => {
+    const answer = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path, question, role, ...(page && page > 1 ? { page } : {}) }) }).then(j);
+    // Evidence locations use norm1000 / PNG frames, unlike the raw PDF-point
+    // boxes on `/ask`; use them for accurate clickable drawing highlights.
+    if (!answer?.evidence_url) return answer;
+    const evidence = await fetch(engineUrl(answer.evidence_url)).then(j).catch(() => null);
+    return { ...answer, evidenceLocations: evidence?.locations || [], evidenceZoom: evidence?.images?.zoom || `${engineUrl(answer.evidence_url)}&view=zoom` };
+  },
   planRooms: (path: string): Promise<PlanRooms> => fetch(`/api/plan/rooms?path=${encodeURIComponent(path)}&page=1`).then(j),
   verifyStatus: (path: string, ids: string[]) =>
     fetch(`/api/verify/status?path=${encodeURIComponent(path)}&ids=${ids.map(encodeURIComponent).join(',')}`).then(j)
