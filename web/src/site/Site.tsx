@@ -18,7 +18,6 @@ import { SupportPage } from './components/SupportPage';
 import RealWorkspace from '../gigi/RealWorkspace';
 import '../gigi/gigi.css';
 import { UserCasesPage } from './components/UserCasesPage';
-import { WorkspaceLoopDemo } from './components/WorkspaceLoopDemo';
 import { type BillingCycle, PRODUCT_META, PRODUCT_PLANS, type ProductPlan } from './data/traceData';
 
 type PageMode =
@@ -454,26 +453,47 @@ export default function App({ onOpenProjects }: { onOpenProjects?: () => void })
             </div>
           </section>
 
-          {/* Compact Workspace Trailer + Explorer Cards to Dedicated Runner Pages */}
+          {/* Tutorial video + Explorer Cards to Dedicated Runner Pages */}
           <section className="py-12 border-t border-[#A9AFB0]/35">
             <div className="max-w-[1200px] mx-auto px-6 space-y-10">
-              {/* Concise Trailer Intro + Animated Workspace Loop */}
+              {/* Product tutorial replaces the former illustrative workspace animation. */}
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
                   <div>
                     <p className="text-xs font-mono font-semibold uppercase tracking-wider text-[#9A7218]">
-                      Workspace Trailer · illustrative animation
+                      Trace tutorial
                     </p>
                     <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#202427] mt-1">
-                      See Trace. cut through 1:50 plan chaos in 15 seconds.
+                      See how Trace turns a construction drawing into answers, evidence and a 2.5D view.
                     </h2>
                   </div>
                   <p className="text-sm text-[#202427]/70 max-w-md">
-                    Ask existing projects your own questions in the interactive Demo Version—or explore each section below.
+                    Follow the walkthrough, then try the same workflow in the interactive Demo Version.
                   </p>
                 </div>
-
-                <WorkspaceLoopDemo onOpenDemo={() => navigateToPage('workspace')} />
+                <div className="rounded-2xl border border-[#A9AFB0]/60 bg-[#202427] shadow-sm overflow-hidden">
+                  <video
+                    className="block w-full max-h-[680px] bg-[#202427]"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    aria-label="Trace product tutorial"
+                  >
+                    <source src="/trace-tutorial.mp4" type="video/mp4" />
+                    Your browser does not support the tutorial video. Please open the Demo Version instead.
+                  </video>
+                  <div className="px-4 sm:px-5 py-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-xs text-[#F7F6F2]/75">Trace product tutorial</span>
+                    <button
+                      type="button"
+                      onClick={() => navigateToPage('workspace')}
+                      className="px-3.5 py-1.5 rounded-lg bg-[#E9B949] text-[#202427] text-xs font-semibold hover:bg-[#E9B949]/90 transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                    >
+                      <span>Open Demo Version</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* 4 Concise Runner Portals (Directing Visitors to Dedicated Pages) */}
