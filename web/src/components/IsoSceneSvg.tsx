@@ -71,7 +71,7 @@ const footprint = (object: GeometryObject) => {
   const depth = object.footprint?.depthM ?? .55
   const [cx, , cz] = object.position
   return [[-width / 2, -depth / 2], [width / 2, -depth / 2], [width / 2, depth / 2], [-width / 2, depth / 2]]
-    .map(([x, z]) => { const [rx, rz] = rotated(x, z, object.rotationDeg); return [cx + rx, cz + rz] as PlanPoint })
+    .map(([x, z]) => { const [rx, rz] = rotated(x, z, object.model?.rotationDeg ?? object.rotationDeg); return [cx + rx, cz + rz] as PlanPoint })
 }
 
 /**
@@ -83,7 +83,7 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
   const svgRef = useRef<SVGSVGElement | null>(null)
   const initialViewBox = useRef(`0 0 ${WIDTH} ${HEIGHT}`)
   const [resetToken, setResetToken] = useState(0)
-  const [selected, setSelected] = useState<{ title: string; source?: GeometrySource } | null>(null)
+  const [selected, setSelected] = useState<{ title: string; note?: string; source?: GeometrySource } | null>(null)
   const measured = metric(scene)
 
   const drawing = useMemo(() => {
@@ -95,7 +95,7 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const rooms = scene.rooms.filter(roomAllowed)
     const walls = scene.walls.filter(wall => architectureVisible && inStorey(wall, storeyId) && (!focusBounds || overlaps(polygonBounds(wall.points, wall.baseYM), focusBounds, 1.0)))
     const openings = scene.openings.filter(opening => architectureVisible && (!focusBounds || contains([opening.position[0], opening.position[2]], focusBounds, 1.0)))
-    const objects = scene.objects.filter(object => inStorey(object, storeyId) && layerVisible(layerFor(object.category), visibleLayers) && (!focus || object.roomId === focus.id || contains([object.position[0], object.position[2]], focusBounds!, .25)))
+    const objects = scene.objects.filter(object => inStorey(object, storeyId) && layerVisible(layerFor(object.category), visibleLayers) && (!focus || object.roomId === focus.id || (!object.roomId && contains([object.position[0], object.position[2]], focusBounds!, .25))))
     const systems = scene.systems.filter(system => inStorey(system, storeyId) && layerVisible(layerFor(system.kind), visibleLayers) && (!focusBounds || system.points.some(([x, , z]) => contains([x, z], focusBounds, .5))))
     const storeyOrder = scene.storeys.filter(storey => includedStoreys.size === 0 || includedStoreys.has(storey.id)).sort((a, b) => a.elevationM - b.elevationM)
     const extraLift = new Map(storeyOrder.map((storey, index) => [storey.id, storeyOrder.length > 1 && !focus ? index : 0]))
@@ -121,8 +121,11 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const allBounds = emptyBounds()
     const addPlan = (points: PlanPoint[], y: number) => points.forEach(([x, z]) => addPoint(allBounds, [x, y, z]))
     drawing.rooms.forEach(room => addPlan(room.polygon, (room.floorYM ?? 0) + drawing.lift(room.storeyId)))
-    drawing.walls.forEach(wall => { addPlan(wall.points, wall.baseYM + drawing.lift(wall.storeyId)); addPlan(wall.points, wall.baseYM + drawing.wallHeight() + drawing.lift(wall.storeyId)) })
-    drawing.openings.forEach(opening => addPoint(allBounds, [opening.position[0], opening.position[1] + opening.heightM + drawing.lift(), opening.position[2]]))
+    drawing.walls.forEach(wall => {
+      const segments = wall.pieces ?? [{ from: wall.points[0], to: wall.points[wall.points.length - 1], y0M: 0, y1M: drawing.wallHeight() }]
+      segments.forEach(piece => { addPlan([piece.from, piece.to], wall.baseYM + piece.y0M + drawing.lift(wall.storeyId)); addPlan([piece.from, piece.to], wall.baseYM + piece.y1M + drawing.lift(wall.storeyId)) })
+    })
+    drawing.openings.forEach(opening => addPoint(allBounds, [opening.position[0], opening.position[1] + (opening.sillYM ?? 0) + opening.heightM + drawing.lift(), opening.position[2]]))
     drawing.objects.forEach(object => { const y = object.position[1] + drawing.lift(object.storeyId); addPlan(footprint(object), y); addPlan(footprint(object), y + (object.heightM ?? .7)) })
     drawing.systems.forEach(system => system.points.forEach(([x, y, z]) => addPoint(allBounds, [x, y + drawing.lift(system.storeyId), z])))
     if (!validBounds(allBounds)) { addPoint(allBounds, [-2, 0, -2]); addPoint(allBounds, [2, 3, 2]) }
@@ -165,7 +168,7 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     const screen = (point: Point3) => {
       const [x, y] = projected(point); return [WIDTH / 2 + x * scale, HEIGHT / 2 + y * scale] as const
     }
-    const addPath = (points: Point3[], appearance: { fill: string; opacity?: number; stroke?: string; strokeOpacity?: number; width?: number; dash?: number[] }, data?: { title: string; source?: GeometrySource; click?: () => void }) => {
+    const addPath = (points: Point3[], appearance: { fill: string; opacity?: number; stroke?: string; strokeOpacity?: number; width?: number; dash?: number[] }, data?: { title: string; note?: string; source?: GeometrySource; click?: () => void }) => {
       if (points.length < 2) return
       const path = new IsometricPath({ autoclose: appearance.fill !== 'none', fillColor: appearance.fill, fillOpacity: appearance.opacity ?? 1, strokeColor: appearance.stroke ?? '#F7F6F2', strokeOpacity: appearance.strokeOpacity ?? .6, strokeWidth: appearance.width ?? 1 })
       const first = world(points[0]); path.moveTo(first.right, first.left, first.top)
@@ -180,7 +183,7 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
         const normalStroke = node.getAttribute('stroke') || '#F7F6F2'
         node.addEventListener('pointerenter', () => { node.setAttribute('stroke', '#E9B949'); node.setAttribute('stroke-width', '2.2') })
         node.addEventListener('pointerleave', () => { node.setAttribute('stroke', normalStroke); node.setAttribute('stroke-width', String(appearance.width ?? 1)) })
-        node.addEventListener('click', event => { event.stopPropagation(); setSelected({ title: data.title, source: data.source }); data.click?.() })
+        node.addEventListener('click', event => { event.stopPropagation(); setSelected({ title: data.title, note: data.note, source: data.source }); data.click?.() })
       }
       return node
     }
@@ -194,6 +197,16 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
       const label = element('text', { x: x + 16, y: y - 13, fill: color, 'font-family': 'IBM Plex Mono, monospace', 'font-size': 10, 'font-weight': 600 }); label.textContent = shortName(text); group.append(label)
       svg.append(group)
     }
+    const addSlab = (from: PlanPoint, to: PlanPoint, thickness: number, bottom: number, top: number, color: string, detail: { title: string; note?: string; source?: GeometrySource; click?: () => void }, opacity = .7) => {
+      const [ax, az] = from; const [bx, bz] = to; const length = Math.hypot(bx - ax, bz - az)
+      if (!length || top <= bottom) return
+      const nx = -(bz - az) / length * thickness / 2; const nz = (bx - ax) / length * thickness / 2
+      const a: Point3 = [ax + nx, bottom, az + nz], b: Point3 = [bx + nx, bottom, bz + nz], c: Point3 = [bx - nx, bottom, bz - nz], d: Point3 = [ax - nx, bottom, az - nz]
+      const au: Point3 = [a[0], top, a[2]], bu: Point3 = [b[0], top, b[2]], cu: Point3 = [c[0], top, c[2]], du: Point3 = [d[0], top, d[2]]
+      addPath([a, b, bu, au], { fill: color, opacity, stroke: '#202427', strokeOpacity: .88 }, detail)
+      addPath([b, c, cu, bu], { fill: color, opacity: Math.max(.35, opacity - .12), stroke: '#202427', strokeOpacity: .82 }, detail)
+      addPath([au, bu, cu, du], { fill: color, opacity: Math.min(.9, opacity + .1), stroke: '#202427', strokeOpacity: .88 }, detail)
+    }
     const fixtureIcon = (object: GeometryObject, lift: number) => {
       const category = object.category.toLowerCase(); const [x, y, z] = object.position; const baseY = y + lift + .025
       const footprintPoints = footprint(object).map(([px, pz]) => [px, baseY, pz] as Point3)
@@ -202,7 +215,33 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
       const select = () => onSelectObject?.(object.id)
       const room = object.roomId ? scene.rooms.find((candidate) => candidate.id === object.roomId) : drawing.focus
       const description = [objectKind(category), room ? roomCaption(room) : null].filter(Boolean).join(' · ')
-      const metadata = { title: description || object.name || object.category || object.id, source: object.source, click: select }
+      const modelNote = object.model?.note || (object.footprintAssumed ? 'Typical shape and size, not measured.' : undefined)
+      const metadata = { title: description || object.name || object.category || object.id, note: modelNote, source: object.source, click: select }
+      if (object.model?.primitives.length) {
+        const materialColor: Record<string, string> = { ceramic: '#F8FAFC', plastic: '#F1EFE9', metal: '#C9CCCD', wood: '#E6D7B8', glass: '#7FA7C9', water: '#BFD6E4' }
+        const rotation = object.model.rotationDeg ?? object.rotationDeg ?? 0
+        const local = (px: number, pz: number) => { const [rx, rz] = rotated(px, pz, rotation); return [x + rx, z + rz] as PlanPoint }
+        object.model.primitives.forEach(primitive => {
+          const color = materialColor[primitive.material ?? ''] ?? '#F8FAFC'
+          const opacity = primitive.material === 'glass' ? .5 : .94
+          const [px, py, pz] = primitive.at
+          if (primitive.shape === 'box' && primitive.size) {
+            const [width, height, depth] = primitive.size
+            const corners = [[px - width / 2, pz - depth / 2], [px + width / 2, pz - depth / 2], [px + width / 2, pz + depth / 2], [px - width / 2, pz + depth / 2]].map(([lx, lz]) => local(lx, lz))
+            const bottom = baseY + py; const top = bottom + height
+            addPath(corners.map(([cx, cz]) => [cx, top, cz] as Point3), { fill: color, opacity, stroke: outline, strokeOpacity: .82 }, metadata)
+            addPath([[corners[1][0], bottom, corners[1][1]], [corners[2][0], bottom, corners[2][1]], [corners[2][0], top, corners[2][1]], [corners[1][0], top, corners[1][1]]], { fill: color, opacity: Math.max(.35, opacity - .18), stroke: outline, strokeOpacity: .72 }, metadata)
+          } else if (primitive.shape === 'cylinder' && primitive.radius !== undefined && primitive.height !== undefined) {
+            const scaleZ = primitive.scaleZ ?? 1; const ring = Array.from({ length: 12 }, (_, index) => {
+              const radians = index / 12 * Math.PI * 2
+              return local(px + Math.cos(radians) * primitive.radius!, pz + Math.sin(radians) * primitive.radius! * scaleZ)
+            })
+            addPath(ring.map(([cx, cz]) => [cx, baseY + py + primitive.height!, cz] as Point3), { fill: color, opacity, stroke: outline, strokeOpacity: .82 }, metadata)
+          }
+        })
+        if (drawing.focus) addChip(description || object.name || object.id, [x, baseY + .1, z], object.confidence !== undefined && object.confidence < .7 ? '#F87171' : '#E9B949')
+        return
+      }
       if (/toilet|\bwc\b/.test(category)) {
         const w = object.footprint?.widthM ?? .46; const d = object.footprint?.depthM ?? .68
         addPath(footprintPoints, { fill: '#CBD5E1', opacity: .94, stroke: outline, strokeOpacity: .95 }, metadata)
@@ -245,27 +284,23 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
 
     // Far walls first means their faces naturally stay behind fixtures.
     drawing.walls.slice().sort((a, b) => midpoint(a.points)[0] + midpoint(a.points)[1] - midpoint(b.points)[0] - midpoint(b.points)[1]).forEach(wall => {
-      const y = wall.baseYM + drawing.lift(wall.storeyId); const top = y + drawing.wallHeight()
-      for (let index = 1; index < wall.points.length; index++) {
-        const [ax, az] = wall.points[index - 1]; const [bx, bz] = wall.points[index]; const length = Math.hypot(bx - ax, bz - az)
-        if (!length) continue
-        const nx = -(bz - az) / length * wall.thicknessM / 2; const nz = (bx - ax) / length * wall.thicknessM / 2
-        const a: Point3 = [ax + nx, y, az + nz], b: Point3 = [bx + nx, y, bz + nz], c: Point3 = [bx - nx, y, bz - nz], d: Point3 = [ax - nx, y, az - nz]
-        const au: Point3 = [a[0], top, a[2]], bu: Point3 = [b[0], top, b[2]], cu: Point3 = [c[0], top, c[2]], du: Point3 = [d[0], top, d[2]]
-        const detail = { title: wall.id || 'Wall', source: wall.source }
-        addPath([a, b, bu, au], { fill: '#D9D4C7', opacity: .58, stroke: '#202427', strokeOpacity: .88 }, detail)
-        addPath([b, c, cu, bu], { fill: '#A9AFB0', opacity: .55, stroke: '#202427', strokeOpacity: .82 }, detail)
-        addPath([au, bu, cu, du], { fill: '#E8E2D4', opacity: .72, stroke: '#202427', strokeOpacity: .88 }, detail)
-      }
+      const y = wall.baseYM + drawing.lift(wall.storeyId)
+      const pieces = wall.pieces ?? wall.points.slice(1).map((to, index) => ({ from: wall.points[index], to, y0M: 0, y1M: drawing.wallHeight() }))
+      pieces.forEach(piece => {
+        // A room view is a cutaway: keep the lower wall and leave the space open above it.
+        const top = y + (drawing.focus ? Math.min(piece.y1M, 1.2) : piece.y1M)
+        addSlab(piece.from, piece.to, wall.thicknessM, y + piece.y0M, top, wall.assumed ? '#A9AFB0' : '#D9D4C7', { title: wall.assumed ? `${wall.id} · inferred wall` : wall.id || 'Wall', source: wall.source }, wall.assumed ? .62 : .7)
+      })
     })
 
     drawing.openings.forEach(opening => {
-      const [x, rawY, z] = opening.position; const y = rawY + drawing.lift(); const height = opening.heightM; const radians = opening.rotationDeg * Math.PI / 180
+      const [x, rawY, z] = opening.position; const y = rawY + (opening.sillYM ?? 0) + drawing.lift(); const height = opening.heightM; const radians = opening.rotationDeg * Math.PI / 180
       const dx = Math.cos(radians) * opening.widthM / 2; const dz = Math.sin(radians) * opening.widthM / 2
       const points: Point3[] = [[x - dx, y, z - dz], [x + dx, y, z + dz], [x + dx, y + height, z + dz], [x - dx, y + height, z - dz]]
-      const color = opening.kind === 'window' ? '#3B4A5A' : '#2B3A4D'
-      addPath(points, { fill: color, opacity: opening.kind === 'window' ? .88 : .96, stroke: '#A9AFB0', strokeOpacity: .95 }, { title: opening.kind === 'window' ? 'Window' : 'Door', source: opening.source })
+      const color = opening.kind === 'window' ? '#7FA7C9' : '#2B3A4D'
+      if (opening.kind === 'window' || !opening.leaf) addPath(points, { fill: color, opacity: opening.kind === 'window' ? .5 : .96, stroke: '#A9AFB0', strokeOpacity: .95 }, { title: opening.kind === 'window' ? 'Window' : 'Door', source: opening.source })
       if (opening.kind === 'window') addPath([[x, y, z], [x, y + height, z]], { fill: 'none', stroke: '#A9AFB0', strokeOpacity: .9, width: 1.4 })
+      else if (opening.leaf) addSlab(opening.leaf.hinge, opening.leaf.tip, opening.leaf.thicknessM ?? .04, rawY + drawing.lift(), rawY + drawing.lift() + (drawing.focus ? Math.min(opening.leaf.heightM, 1.2) : opening.leaf.heightM), '#E9B949', { title: `Door leaf${opening.leaf.from ? ` · ${opening.leaf.from}` : ''}`, source: opening.source }, .82)
       else { const [knobX, knobY] = screen([x + dx * .55, y + height * .45, z + dz * .55]); svg.append(element('circle', { cx: knobX, cy: knobY, r: 3, fill: '#E9B949' })) }
     })
 
@@ -316,6 +351,6 @@ export default function IsoSceneSvg({ scene, onSelectObject, onSelectRoom, onSel
     <div ref={host} className="iso-scene-host" style={{ height: '100%', width: '100%' }} />
     {drawing.focus && <button type="button" onClick={onBackToFloor} style={{ position: 'absolute', left: 12, top: 10, zIndex: 2, border: '1px solid rgba(233,185,73,.55)', borderRadius: 999, background: 'rgba(32,36,39,.92)', color: '#E9B949', padding: '5px 10px', fontSize: 11, fontWeight: 700 }}>← Floor</button>}
     <div style={{ position: 'absolute', right: 12, bottom: 10, zIndex: 2, border: '1px solid rgba(233,185,73,.45)', borderRadius: 999, background: 'rgba(32,36,39,.92)', overflow: 'hidden' }}><button type="button" onClick={() => setResetToken(token => token + 1)} style={{ color: '#F7F6F2', padding: '6px 12px', fontSize: 11 }}>Reset</button></div>
-    {selected && <aside style={{ position: 'absolute', right: 12, top: 10, zIndex: 2, maxWidth: 220, border: '1px solid rgba(169,175,176,.45)', borderRadius: 7, background: 'rgba(32,36,39,.94)', color: '#F7F6F2', padding: '8px 10px', display: 'grid', gap: 6, fontSize: 11 }}><strong>{selected.title}</strong>{selected.source && <button type="button" onClick={() => onSelectSource?.(selected.source!)} style={{ color: '#E9B949', textAlign: 'left' }}>Open source evidence</button>}</aside>}
+    {selected && <aside style={{ position: 'absolute', right: 12, top: 10, zIndex: 2, maxWidth: 220, border: '1px solid rgba(169,175,176,.45)', borderRadius: 7, background: 'rgba(32,36,39,.94)', color: '#F7F6F2', padding: '8px 10px', display: 'grid', gap: 6, fontSize: 11 }}><strong>{selected.title}</strong>{selected.note && <span style={{ color: '#A9AFB0', lineHeight: 1.4 }}>{selected.note}</span>}{selected.source && <button type="button" onClick={() => onSelectSource?.(selected.source!)} style={{ color: '#E9B949', textAlign: 'left' }}>Open source evidence</button>}</aside>}
   </div>
 }

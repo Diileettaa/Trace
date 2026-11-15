@@ -89,6 +89,8 @@ export const Real3D: React.FC<Props> = ({
   const requestedRoomId = focusRoomId || fixture?.spaceId || pickedRoom?.id || null;
   const resolvedFocusRoomId = geometryScene ? resolveSceneRoom(geometryScene, requestedRoomId) : null;
   const roomFocusMissing = mode === 'room' && !!requestedRoomId && !resolvedFocusRoomId;
+  const geometryIncomplete = geometryScene?.realism?.roomEdgeCoverageAfter !== undefined
+    && geometryScene.realism.roomEdgeCoverageAfter < .95;
 
   return (
     <div className="bg-[#202427] text-[#F7F6F2] flex flex-col">
@@ -116,6 +118,7 @@ export const Real3D: React.FC<Props> = ({
         <span className="text-[11px] font-mono text-[#A9AFB0]">
           {geometryScene ? (isMeasuredGeometryScene(geometryScene) ? (roomFocusMissing ? 'Room geometry is unavailable for this plan label' : mode === 'room' ? 'Measured 2.5D room · selected room' : 'Measured 2.5D geometry · click a room to inspect') : '2.5D generated from the drawing · not to scale') : '2.5D geometry from the selected source'}
         </span>
+        {geometryIncomplete && <span className="text-[11px] font-mono text-amber-300">Geometry incomplete</span>}
       </div>
 
       <div className="p-4 blueprint-grid-dark flex flex-col">

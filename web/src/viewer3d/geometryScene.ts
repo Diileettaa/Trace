@@ -52,7 +52,24 @@ export interface GeometryWall extends GeometryEvidence {
   thicknessM: number
   baseYM: number
   heightM: number
+  /** Separate wall slabs around hosted doors and windows, supplied by the engine. */
+  pieces?: GeometryWallPiece[]
   source?: GeometrySource
+}
+
+export interface GeometryWallPiece {
+  from: PlanPoint
+  to: PlanPoint
+  y0M: number
+  y1M: number
+}
+
+export interface GeometryDoorLeaf {
+  hinge: PlanPoint
+  tip: PlanPoint
+  thicknessM?: number
+  heightM: number
+  from?: string
 }
 
 export interface GeometryOpening extends GeometryEvidence {
@@ -63,7 +80,25 @@ export interface GeometryOpening extends GeometryEvidence {
   rotationDeg: number
   widthM: number
   heightM: number
+  sillYM?: number
+  leaf?: GeometryDoorLeaf
   source?: GeometrySource
+}
+
+export interface GeometryPrimitive {
+  shape: 'box' | 'cylinder'
+  material?: string
+  size?: WorldPoint
+  radius?: number
+  height?: number
+  scaleZ?: number
+  at: WorldPoint
+}
+
+export interface GeometryObjectModel {
+  primitives: GeometryPrimitive[]
+  rotationDeg?: number
+  note?: string
 }
 
 export interface GeometryObject extends GeometryEvidence {
@@ -76,6 +111,9 @@ export interface GeometryObject extends GeometryEvidence {
   rotationDeg?: number
   footprint?: { widthM: number; depthM: number }
   heightM?: number
+  model?: GeometryObjectModel
+  orientationFrom?: string
+  footprintAssumed?: boolean
   source?: GeometrySource
 }
 
@@ -100,6 +138,7 @@ export interface GeometryScene {
   unit: 'm' | 'px' | 'pt' | 'norm1000'
   /** Direction of up on the source plan, [X,Z]; never guessed by the renderer. */
   planUpVector?: PlanPoint
+  realism?: { roomEdgeCoverageAfter?: number }
   warnings: string[]
   storeys: GeometryStorey[]
   rooms: GeometryRoom[]
@@ -189,6 +228,33 @@ const evidence = (item: JsonRecord): GeometryEvidence => ({
 })
 const records = (value: unknown) => Array.isArray(value) ? value.map(record).filter((item): item is JsonRecord => item !== null) : []
 const defined = <T,>(value: T | null): value is T => value !== null
+const wallPieces = (value: unknown): GeometryWallPiece[] | undefined => {
+  const pieces = records(value).map((piece): GeometryWallPiece | null => {
+    const from = planarPoint(piece.from); const to = planarPoint(piece.to)
+    const y0M = number(piece.y0) ?? number(piece.y0_m) ?? 0
+    const y1M = number(piece.y1) ?? number(piece.y1_m)
+    return from && to && y1M !== undefined && y1M > y0M ? { from, to, y0M, y1M } : null
+  }).filter(defined)
+  return pieces.length ? pieces : undefined
+}
+const doorLeaf = (value: unknown): GeometryDoorLeaf | undefined => {
+  const raw = record(value); const hinge = planarPoint(raw?.hinge); const tip = planarPoint(raw?.tip); const heightM = number(raw?.height_m) ?? number(raw?.heightM)
+  return hinge && tip && heightM !== undefined ? { hinge, tip, thicknessM: number(raw?.thickness_m) ?? number(raw?.thicknessM), heightM, from: text(raw?.from) } : undefined
+}
+const objectModel = (value: unknown): GeometryObjectModel | undefined => {
+  const raw = record(value)
+  if (!raw) return undefined
+  const primitives = records(raw.primitives).map((primitive): GeometryPrimitive | null => {
+    const shape = text(primitive.shape); const at = worldPoint(primitive.at)
+    if (!at || (shape !== 'box' && shape !== 'cylinder')) return null
+    const size = worldPoint(primitive.size)
+    if (shape === 'box' && !size) return null
+    const radius = number(primitive.radius); const height = number(primitive.height)
+    if (shape === 'cylinder' && (radius === undefined || height === undefined)) return null
+    return { shape, at, size: size ?? undefined, radius, height, scaleZ: number(primitive.scale_z) ?? number(primitive.scaleZ), material: text(primitive.material) }
+  }).filter(defined)
+  return primitives.length ? { primitives, rotationDeg: number(raw.rotation_deg) ?? number(raw.rotationDeg), note: text(raw.note) } : undefined
+}
 // A plan normally contains reliable horizontal geometry but no elevation.
 // These are visual-only defaults, explicitly marked `assumed` below; they are
 // never used as a reported measurement.
@@ -238,7 +304,7 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const baseYM = rawBaseY ?? 0
     const heightM = rawHeight ?? (illustrative ? ILLUSTRATIVE_WALL_HEIGHT : DEFAULT_WALL_HEIGHT_M)
     const defaulted = rawBaseY === undefined || rawHeight === undefined
-    return id && points.length >= 2 && thicknessM !== undefined ? { id, storeyId: text(item.storey_id) ?? text(item.storeyId), points, thicknessM, baseYM, heightM, source: source(item.source), ...evidence(item), assumed: assumed(item.assumed) ?? (defaulted || undefined) } as GeometryWall : null
+    return id && points.length >= 2 && thicknessM !== undefined ? { id, storeyId: text(item.storey_id) ?? text(item.storeyId), points, thicknessM, baseYM, heightM, pieces: wallPieces(item.pieces), source: source(item.source), ...evidence(item), assumed: assumed(item.assumed) ?? (defaulted || undefined) } as GeometryWall : null
   }).filter(defined)
   const openings: GeometryOpening[] = records(raw.openings).map((item): GeometryOpening | null => {
     const id = text(item.id); const kind = text(item.kind); const position = worldPoint(item.position); const rawRotation = number(item.rotation_deg) ?? number(item.rotationDeg); const rawWidth = number(item.width_m) ?? number(item.widthM); const rawHeight = number(item.height_m) ?? number(item.heightM)
@@ -246,11 +312,11 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     const widthM = rawWidth ?? (illustrative ? ILLUSTRATIVE_OPENING_SIZE : undefined)
     const heightM = rawHeight ?? (illustrative ? ILLUSTRATIVE_OPENING_SIZE : kind === 'door' ? DEFAULT_DOOR_HEIGHT_M : DEFAULT_WINDOW_HEIGHT_M)
     const defaulted = rawRotation === undefined || rawWidth === undefined || rawHeight === undefined
-    return id && (kind === 'door' || kind === 'window') && position && widthM !== undefined ? { id, kind, wallId: text(item.wall_id) ?? text(item.wallId), position, rotationDeg, widthM, heightM, source: source(item.source), ...evidence(item), assumed: assumed(item.assumed) ?? (defaulted || undefined) } as GeometryOpening : null
+    return id && (kind === 'door' || kind === 'window') && position && widthM !== undefined ? { id, kind, wallId: text(item.wall_id) ?? text(item.wallId), position, rotationDeg, widthM, heightM, sillYM: number(item.sill_y_m) ?? number(item.sillYM), leaf: doorLeaf(item.leaf), source: source(item.source), ...evidence(item), assumed: assumed(item.assumed) ?? (defaulted || undefined) } as GeometryOpening : null
   }).filter(defined)
   const objects: GeometryObject[] = records(raw.objects).map((item): GeometryObject | null => {
     const id = text(item.id); const category = text(item.category); const position = worldPoint(item.position); const footprintRaw = record(item.footprint); const footprintWidth = number(footprintRaw?.width_m) ?? number(footprintRaw?.widthM); const footprintDepth = number(footprintRaw?.depth_m) ?? number(footprintRaw?.depthM)
-    return id && category && position ? { id, category, name: text(item.name), storeyId: text(item.storey_id) ?? text(item.storeyId), roomId: text(item.room_id) ?? text(item.roomId), position, rotationDeg: number(item.rotation_deg) ?? number(item.rotationDeg), footprint: footprintWidth !== undefined && footprintDepth !== undefined ? { widthM: footprintWidth, depthM: footprintDepth } : undefined, heightM: number(item.height_m) ?? number(item.heightM), source: source(item.source), ...evidence(item) } as GeometryObject : null
+    return id && category && position ? { id, category, name: text(item.name), storeyId: text(item.storey_id) ?? text(item.storeyId), roomId: text(item.room_id) ?? text(item.roomId), position, rotationDeg: number(item.rotation_deg) ?? number(item.rotationDeg), footprint: footprintWidth !== undefined && footprintDepth !== undefined ? { widthM: footprintWidth, depthM: footprintDepth } : undefined, heightM: number(item.height_m) ?? number(item.heightM), model: objectModel(item.model), orientationFrom: text(item.orientation_from) ?? text(item.orientationFrom), footprintAssumed: item.footprint_assumed === true || item.footprintAssumed === true, source: source(item.source), ...evidence(item) } as GeometryObject : null
   }).filter(defined)
   const systems: GeometrySystem[] = records(raw.systems).map((item): GeometrySystem | null => {
     const id = text(item.id); const kind = text(item.kind); const points = Array.isArray(item.points) ? item.points.map(worldPoint).filter((point): point is WorldPoint => point !== null) : []
@@ -258,7 +324,9 @@ export function normalizeGeometryScene(value: unknown): GeometryScene | null {
     return id && kind && points.length >= 2 ? { id, kind, storeyId: text(item.storey_id) ?? text(item.storeyId), points, diameterM, fromId: text(item.from_id) ?? text(item.fromId), toId: text(item.to_id) ?? text(item.toId), source: source(item.source), ...evidence(item) } : null
   }).filter(defined)
   const planUpVector = planarPoint(raw.plan_up_vector ?? raw.planUpVector) ?? undefined
-  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem, unit: unit as GeometryScene['unit'], planUpVector, warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
+  const realismRaw = record(raw.realism); const roomEdgeCoverage = record(realismRaw?.room_edge_coverage ?? realismRaw?.roomEdgeCoverage)
+  const roomEdgeCoverageAfter = number(roomEdgeCoverage?.after)
+  return { projectId, sourceKind: sourceKind as SceneSourceKind, quality: quality as SceneQuality, coordinateSystem, unit: unit as GeometryScene['unit'], planUpVector, realism: roomEdgeCoverageAfter === undefined ? undefined : { roomEdgeCoverageAfter }, warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((warning): warning is string => typeof warning === 'string') : [], storeys, rooms, walls, openings, objects, systems }
 }
 
 export function isGeometryScene(value: unknown): value is GeometryScene {

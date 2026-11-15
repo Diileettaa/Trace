@@ -934,6 +934,11 @@ async def geometry_scene(request: Request):
             sw = None
             print("swiss scene failed:", e)
         if sw is not None:
+            # Keep Swiss on the same buildable 2.5D contract as vector and scan
+            # scenes. The realizer preserves its drawn geometry and marks only
+            # the walls it must infer as assumed.
+            from engine import scene_realize
+            scene_realize.realize(sw)
             return Response(content=json.dumps(sw, ensure_ascii=False), media_type="application/json")
     query = await run_in_threadpool(_scene_query, request.url.query)
     hit = _SCENE_CACHE.get(query)
