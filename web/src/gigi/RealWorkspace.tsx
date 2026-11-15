@@ -87,6 +87,17 @@ const DEFAULT_PROJECTS: Project[] = [
 
 const FALLBACK_PROMPTS = ['How many doors are on this floor?', 'How many toilets are on this floor?', 'What is the total area of all rooms?'];
 
+/** Same concise category summary as the original evidence tree, but sourced
+ * from the complete geometry scene rather than only the most recent answer. */
+const objectSummary = (categories: string[]) => {
+  const counts = categories.reduce<Record<string, number>>((all, category) => {
+    const label = category.replace(/[_-]+/g, ' ');
+    all[label] = (all[label] || 0) + 1;
+    return all;
+  }, {});
+  return Object.entries(counts).map(([label, count]) => `${count} ${label}${count === 1 ? '' : 's'}`).join(' · ');
+};
+
 const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const load = <T,>(key: string, fallback: T): T => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) as T : fallback; } catch { return fallback; } };
 const save = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ } };
@@ -644,12 +655,13 @@ export const RealWorkspace: React.FC<{ onHome?: () => void }> = ({ onHome }) => 
                     const roomObjects = geometryScene.objects.filter((item) => item.roomId === room.id);
                     const roomOpen = !!treeOpen[`room:${room.id}`];
                     const title = [room.number, room.name].filter(Boolean).join(' · ') || room.id;
+                    const summary = objectSummary(roomObjects.map((item) => item.category));
                     return <div key={room.id}>
                       <button type="button" onClick={() => { setTreeOpen((current) => ({ ...current, [`room:${room.id}`]: !roomOpen })); setTreeRoomId(room.id); if (room.storeyId) setStoreyId(room.storeyId); setViewMode('3d-room'); }}
                         className={`w-full pl-5 pr-1.5 py-1 flex items-center gap-1 text-left text-[10px] hover:bg-[#202427]/5 cursor-pointer ${treeRoomId === room.id ? 'bg-[#E9B949]/25 text-[#202427] font-semibold' : 'text-[#202427]/80'}`}>
                         <ChevronRight className={`w-2.5 h-2.5 shrink-0 transition-transform ${roomOpen ? 'rotate-90' : ''}`} />
                         <span className="truncate">{title}</span>
-                        <span className="ml-auto text-[#202427]/50">{roomObjects.length ? `${roomObjects.length} items` : ''}</span>
+                        <span className="ml-auto text-[#202427]/50 truncate max-w-[92px]" title={summary}>{summary}</span>
                       </button>
                       {roomOpen && <div className="pl-8 pr-1.5 pb-1 space-y-0.5">
                         {roomObjects.length === 0 ? <p className="text-[10px] text-[#202427]/50">No recognised elements.</p> : roomObjects.map((item) => (
