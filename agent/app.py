@@ -924,6 +924,17 @@ async def geometry_scene(request: Request):
 
     from . import docs_api
 
+    rel = request.query_params.get("path", "")
+    if "swiss_dwellings" in rel:
+        from . import scene_swiss
+
+        try:
+            sw = await run_in_threadpool(scene_swiss.scene_for, rel, drawings.resolve(rel))
+        except Exception as e:  # fall back to the PDF reading below
+            sw = None
+            print("swiss scene failed:", e)
+        if sw is not None:
+            return Response(content=json.dumps(sw, ensure_ascii=False), media_type="application/json")
     query = await run_in_threadpool(_scene_query, request.url.query)
     hit = _SCENE_CACHE.get(query)
     if hit:
