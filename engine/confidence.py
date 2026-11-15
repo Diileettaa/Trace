@@ -29,6 +29,8 @@ def rate(r):
         order = ["none", "low", "medium", "high"]
         lv = min(levels, key=order.index) if levels else "low"
         return lv, f"lowest confidence of the {len(levels)} sheet answer(s) combined"
+    if m.endswith(":site_plan"):
+        return "low", "asked on a site plan: rooms, doors and fixtures are drawn on the floor plans, not here"
     if ":uncertain" in m or "uncertain" in m:
         return "low", "the engine's two independent counts disagree; alternatives are offered for review"
     if m.startswith("cubicasa:"):

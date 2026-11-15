@@ -239,7 +239,7 @@ def load(pdf_path, page=0):
     side = f"{pdf_path}.p{page + 1}.facts.json"
     if os.path.exists(side): return json.load(open(side))
     st = os.stat(pdf_path)
-    key = hashlib.md5(f"{os.path.abspath(pdf_path)}|{st.st_size}|{st.st_mtime}|{page}|v12".encode()).hexdigest()
+    key = hashlib.md5(f"{os.path.abspath(pdf_path)}|{st.st_size}|{st.st_mtime}|{page}|v13".encode()).hexdigest()
     cp = os.path.join(CACHE, key + ".json")
     if os.path.exists(cp): return json.load(open(cp))
     import pdfplumber
@@ -259,7 +259,10 @@ def load(pdf_path, page=0):
                                "vertical": w["vertical"]})
         leaves, sets = door_leaves(pg, mpp)
         marks = filled_marks(pg); wins = windows(pg, mpp)
+        img_area = sum(max(0, (min(i["x1"], pg.width) - max(i["x0"], 0))) * max(0, (min(i["bottom"], pg.height) - max(i["top"], 0)))
+                       for i in pg.images)
         facts = {"file": os.path.basename(pdf_path), "page": page, "size": [pg.width, pg.height],
+                 "raster_frac": round(min(1.0, img_area / (pg.width * pg.height)), 3),
                  "scale": {"text": scale_text, "m_per_pt": mpp},
                  "lines": [{"id": f"t{i}", **L} for i, L in enumerate(lines)],
                  "labels": [{"t": B["t"], "box": B["box"]} for B in blocks],
@@ -422,13 +425,19 @@ def answer(pdf_path, question, call_model, page=None, vision=None):
         try: page = find_page(pdf_path, question)
         except ImportError: page = 0
     f = load(pdf_path, page)
-    if len(f["lines"]) < 8 and vision is not None:           # a scan saved as PDF: no text layer to work with
+    scanned = len(f["lines"]) < 8 or (f.get("raster_frac", 0) > 0.3 and not f.get("door_leaves") and not f.get("windows"))
+    if scanned and vision is not None:           # a scan saved as PDF, or a plan pasted in as images: read it as an image
         from . import scanqa, docqa
         img = (open(f"{pdf_path}.p{page + 1}.jpg", "rb").read() if os.path.exists(f"{pdf_path}.p{page + 1}.jpg")
                else docqa.render_page(pdf_path, page, max_side=7000))
         if img is not None:
             out = scanqa.answer(img, question, vision); out["method"] = "sheet:scanned+" + out["method"]
             out["sources"] = [{"file": pdf_path, "page": page + 1}]; return out
+    title = " ".join(L["t"] for L in sorted(f["lines"], key=lambda L: -(L["box"][3] - L["box"][1]))[:6]).lower()
+    site = "site plan" in title and re.search(r"\bfloor\b|\brooms?\b|\bdoors?\b|\btoilets?\b|\bwc\b|\bwindows?\b", question, re.I)
+    if site:
+        _site_warn = ("this sheet is a SITE PLAN (title block): it shows the building outline, not its rooms, doors or fixtures; "
+                      "ask the floor-plan sheet (or the door schedule) of this project instead")
     prompt = PROMPT.replace("{q}", question).replace("{facts}", summary(f))
     img = None
     if vision is not None:                    # the model also sees the drawing, so it can tell which dimension is where
@@ -444,6 +453,7 @@ def answer(pdf_path, question, call_model, page=None, vision=None):
         img = _render(pdf_path, page)
         if img is not None:
             out = scanqa.answer(img, question, vision); out["method"] = "sheet:vision+" + out["method"]
+            if site: out["method"] += ":site_plan"; out["warnings"] = [_site_warn] + list(out.get("warnings") or [])
             out["sources"] = [{"file": pdf_path, "page": page + 1}]; return out
     v, unit, items, warn = compute(f, r)
     method = f"sheet:{r.get('op')}"
@@ -471,6 +481,7 @@ def answer(pdf_path, question, call_model, page=None, vision=None):
             warn = warn + [f"{len(runs)} readings gave {len(votes)} different results: please choose (alternatives)"]
         f["_alternatives"] = f.get("_alternatives", []) + [{"label": "other reading: " + str(rr.get("reason") or rr.get("expr"))[:100], "value": key(val), "expr": rr.get("expr")}
                                                          for val, rr in runs if key(val) != key(v)]
+    if site: method += ":site_plan"; warn = [_site_warn] + warn
     return {"value": v, "unit": unit, "items": items, "alternatives": f.pop("_alternatives", []), "sources": [{"file": pdf_path, "page": page + 1}],
             "method": method, "warnings": warn,
             "evidence": {"rule": r.get("reason"), "cite": r.get("cite"), "model_answer": r.get("answer"),
