@@ -4,6 +4,10 @@ Ask a construction drawing a question. Get the number, the numbered boxes it cam
 
 Team **Montree** · Junction 2026 · Stoa challenge "Make Blueprints Talk"
 
+**Live demo: https://trace-1078169683443.europe-north1.run.app** (redeployed after the event, Nov 2026; the first
+request after an idle period takes ~30 s while the server starts). The original event URL no longer works because the
+event cloud account was deleted. Final event version: tag [`junction2026-final`](../../tree/junction2026-final).
+
 ## What it does
 
 - **Ask** – free-form questions about a floor plan (PDF, PNG, DXF) or BIM model (IFC), in any language.

@@ -1,0 +1,53 @@
+# Build and deploy Trace from GitHub with no local machine involved.
+# Code comes from this repo; the dataset (not in git, see docs/deploy.md) comes from a private Cloud Storage bucket.
+# Used by the Cloud Build trigger on pushes to main. Manual run from Cloud Shell:
+#   gcloud builds submit --config cloudbuild.yaml --region europe-north1
+substitutions:
+  _REGION: europe-north1
+  _SERVICE: trace
+  _DATA_BUCKET: junction26-trace-diletta-data
+  _IMAGE: europe-north1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/trace
+
+steps:
+  # 1. Dataset from the private bucket into ./data (the Dockerfile copies data/ into the image)
+  - id: fetch-data
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        mkdir -p data
+        gcloud storage rsync -r gs://${_DATA_BUCKET}/data ./data
+        echo "dataset files: $(find data -type f | wc -l)"
+
+  # 2. Same Dockerfile as the manual deploy
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}:${BUILD_ID}", "-t", "${_IMAGE}:latest", "."]
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "--all-tags", "${_IMAGE}"]
+
+  # 3. Deploy. Settings not given here (env vars such as the Gemini key, SEED_DEMO) are kept from the current service.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}:${BUILD_ID}
+      - --region=${_REGION}
+      - --memory=4Gi
+      - --cpu=2
+      - --min-instances=0
+      - --max-instances=1
+      - --timeout=300
+      - --allow-unauthenticated
+      - --quiet
+
+timeout: 3600s
+options:
+  logging: CLOUD_LOGGING_ONLY
